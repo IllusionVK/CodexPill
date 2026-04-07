@@ -1,0 +1,46 @@
+# Bootstrap
+
+## Product Pitch
+
+CodexPill is a macOS menubar app that snapshots Codex accounts, swaps the active Codex auth state, restarts Codex, and reads the current Codex account plan and 5h/weekly rate-limit windows from the local Codex app-server.
+
+## Selected Shape
+
+- Native macOS SwiftUI menubar app
+- Tuist-managed app target
+- Prototype-first bootstrap
+
+## Demo Flows
+
+1. Save the currently logged-in Codex account as a named snapshot and fetch its current email, plan, and rate-limit windows from Codex.
+2. Switch the active Codex account by replacing `~/.codex/auth.json` with a saved snapshot and relaunching Codex.
+3. View the current 5h and weekly Codex rate-limit windows in the menubar popup and refresh them from Codex.
+
+## Non-Goals
+
+- No ChatGPT browser-account switching.
+- No scraping-heavy telemetry pipeline in the first prototype.
+- No multi-window preferences UI unless the menubar surface becomes too constrained.
+
+## Current Run Command
+
+```bash
+./run-menubar.sh
+```
+
+## Current Stop Command
+
+```bash
+./stop-menubar.sh
+```
+
+## Constraints And Assumptions
+
+- Codex is installed as `com.openai.codex`.
+- The primary auth file is `~/.codex/auth.json`.
+- Rate-limit reads come from the local `codex app-server` interface.
+- Tuist must be installed locally before build validation can succeed.
+
+## Next Recommended Step
+
+Improve account matching so refreshed Codex metadata is associated by stable account identity rather than whichever snapshot is currently active.

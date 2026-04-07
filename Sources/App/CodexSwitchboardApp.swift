@@ -1,0 +1,12 @@
+import SwiftUI
+
+@main
+struct CodexSwitchboardApp: App {
+    @NSApplicationDelegateAdaptor(CodexPillAppDelegate.self) private var appDelegate
+
+    var body: some Scene {
+        Settings {
+            SettingsView(settings: .shared)
+        }
+    }
+}
