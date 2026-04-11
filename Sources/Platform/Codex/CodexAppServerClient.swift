@@ -79,9 +79,7 @@ final class CodexAppServerClient {
             errorPipe.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
                 guard !data.isEmpty else { return }
-                let stderr = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !stderr.isEmpty else { return }
-                finish(.failure(CodexAppServerError.server(stderr)))
+                state.appendErrorOutput(data)
             }
 
             process.executableURL = executableURL
@@ -91,7 +89,11 @@ final class CodexAppServerClient {
             process.standardError = errorPipe
             process.terminationHandler = { process in
                 guard process.terminationStatus != 0 else { return }
-                finish(.failure(CodexAppServerError.terminated(Int(process.terminationStatus))))
+                finish(.failure(appServerFailure(
+                    stderr: state.capturedStderr(),
+                    terminationStatus: Int(process.terminationStatus),
+                    timedOut: false
+                )))
             }
 
             do {
@@ -106,7 +108,11 @@ final class CodexAppServerClient {
 
                 Task {
                     try? await Task.sleep(for: .seconds(4))
-                    finish(.failure(CodexAppServerError.timeout))
+                    finish(.failure(appServerFailure(
+                        stderr: state.capturedStderr(),
+                        terminationStatus: nil,
+                        timedOut: true
+                    )))
                 }
             } catch {
                 finish(.failure(error))
@@ -118,6 +124,7 @@ final class CodexAppServerClient {
 private final class AppServerSessionState: @unchecked Sendable {
     private let lock = NSLock()
     private var buffer = Data()
+    private var errorBuffer = Data()
     private var accountResponse: AppServerAccountResponse?
     private var rateLimitResponse: AppServerRateLimitsResponse?
     private var finished = false
@@ -139,6 +146,20 @@ private final class AppServerSessionState: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         rateLimitResponse = response
+    }
+
+    func appendErrorOutput(_ data: Data) {
+        lock.lock()
+        defer { lock.unlock() }
+        errorBuffer.append(data)
+    }
+
+    func capturedStderr() -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        let stderr = String(decoding: errorBuffer, as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return stderr.isEmpty ? nil : stderr
     }
 
     func snapshot() -> (account: AppServerAccountResponse, rateLimits: AppServerRateLimitsResponse)? {
@@ -235,7 +256,27 @@ private struct RateLimitWindow: Decodable {
     }
 }
 
-private enum CodexAppServerError: LocalizedError {
+func appServerFailure(
+    stderr: String?,
+    terminationStatus: Int?,
+    timedOut: Bool
+) -> CodexAppServerError {
+    if let stderr, !stderr.isEmpty {
+        return .server(stderr)
+    }
+
+    if let terminationStatus {
+        return .terminated(terminationStatus)
+    }
+
+    if timedOut {
+        return .timeout
+    }
+
+    return .timeout
+}
+
+enum CodexAppServerError: LocalizedError, Equatable {
     case server(String)
     case terminated(Int)
     case timeout
