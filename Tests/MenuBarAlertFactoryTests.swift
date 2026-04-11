@@ -1,0 +1,49 @@
+import AppKit
+import Foundation
+import Testing
+
+@testable import CodexPill
+
+struct MenuBarAlertFactoryTests {
+    private let factory = MenuBarAlertFactory()
+
+    @Test
+    func saveCurrentAccountUsesEmailPlaceholderWhenAvailable() {
+        let request = factory.makeSaveCurrentAccountRequest(activeAccountEmail: "person@example.com")
+
+        #expect(request.placeholder == "person@example.com")
+        #expect(request.confirmTitle == "Save")
+    }
+
+    @Test
+    func saveCurrentAccountFallsBackToDefaultPlaceholder() {
+        let request = factory.makeSaveCurrentAccountRequest(activeAccountEmail: nil)
+
+        #expect(request.placeholder == "Personal 1")
+    }
+
+    @Test
+    func switchAccountWarningMentionsRunningCliSessions() {
+        let request = factory.makeSwitchAccountRequest(accountName: "Work", runningCLISessions: 2)
+
+        #expect(request.informativeText.contains("switch the local Codex account to Work"))
+        #expect(request.informativeText.contains("2 running Codex CLI sessions were detected"))
+    }
+
+    @Test
+    func signInAnotherWarningOmitsCliNoticeWhenNoSessionsRunning() {
+        let request = factory.makeSignInAnotherRequest(runningCLISessions: 0)
+
+        #expect(request.informativeText.contains("sign Codex out, restart the app"))
+        #expect(!request.informativeText.contains("running Codex CLI session"))
+    }
+
+    @Test
+    func errorRequestUsesWarningStyle() {
+        let request = factory.makeErrorRequest(message: "Boom")
+
+        #expect(request.messageText == "CodexPill Error")
+        #expect(request.informativeText == "Boom")
+        #expect(request.style == .warning)
+    }
+}

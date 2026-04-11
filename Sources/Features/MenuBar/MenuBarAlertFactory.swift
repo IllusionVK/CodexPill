@@ -1,0 +1,85 @@
+import AppKit
+
+struct MenuBarAlertFactory {
+    func makeSaveCurrentAccountRequest(activeAccountEmail: String?) -> MenuBarTextInputAlertRequest {
+        MenuBarTextInputAlertRequest(
+            messageText: "Save current account",
+            informativeText: "Choose a label for this saved account. Use distinct names if multiple accounts share the same email.",
+            fieldTitle: "Account Name",
+            placeholder: activeAccountEmail ?? "Personal 1",
+            confirmTitle: "Save",
+            cancelTitle: "Cancel"
+        )
+    }
+
+    func makeSignInAnotherRequest(runningCLISessions: Int) -> MenuBarTextInputAlertRequest {
+        MenuBarTextInputAlertRequest(
+            messageText: "Sign in another account?",
+            informativeText: signInAnotherInformativeText(runningCLISessions: runningCLISessions),
+            fieldTitle: "Saved Account Name",
+            placeholder: "Business 2",
+            confirmTitle: "Continue",
+            cancelTitle: "Cancel"
+        )
+    }
+
+    func makeSwitchAccountRequest(accountName: String, runningCLISessions: Int) -> MenuBarConfirmationAlertRequest {
+        MenuBarConfirmationAlertRequest(
+            messageText: "Switch account?",
+            informativeText: switchInformativeText(for: accountName, runningCLISessions: runningCLISessions),
+            confirmTitle: "Switch",
+            cancelTitle: "Cancel"
+        )
+    }
+
+    func makeAboutRequest() -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
+            messageText: "About CodexPill",
+            informativeText: """
+            CodexPill
+            Version 0.1
+
+            A macOS menubar utility to switch Codex accounts and monitor active account limits.
+
+            Developed by Raphael Grau.
+            """,
+            style: .informational,
+            buttonTitle: "OK"
+        )
+    }
+
+    func makeErrorRequest(message: String) -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
+            messageText: "CodexPill Error",
+            informativeText: message,
+            style: .warning,
+            buttonTitle: "OK"
+        )
+    }
+
+    private func switchInformativeText(for accountName: String, runningCLISessions: Int) -> String {
+        var lines = [
+            "This will switch the local Codex account to \(accountName) and restart Codex."
+        ]
+
+        if runningCLISessions > 0 {
+            let sessionText = runningCLISessions == 1 ? "1 running Codex CLI session was" : "\(runningCLISessions) running Codex CLI sessions were"
+            lines.append("\(sessionText) detected. Existing CLI sessions may continue using the previous account until they are restarted.")
+        }
+
+        return lines.joined(separator: " ")
+    }
+
+    private func signInAnotherInformativeText(runningCLISessions: Int) -> String {
+        var lines = [
+            "This will sign Codex out, restart the app, and let you log into another account. Save the current account first if you want to keep it."
+        ]
+
+        if runningCLISessions > 0 {
+            let sessionText = runningCLISessions == 1 ? "1 running Codex CLI session was" : "\(runningCLISessions) running Codex CLI sessions were"
+            lines.append("\(sessionText) detected. Existing CLI sessions may continue using the previous account until they are restarted.")
+        }
+
+        return lines.joined(separator: " ")
+    }
+}
