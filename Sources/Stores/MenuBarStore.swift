@@ -16,6 +16,7 @@ final class MenuBarStore {
     private let appController: CodexAppController
     private let appServerClient: CodexAppServerClient
     private let accountMatcher = CodexAccountMatcher()
+    private let switchAccountWorkflow: SwitchAccountWorkflow
 
     private(set) var accounts: [CodexAccount] = []
     private(set) var activeAccountID: UUID?
@@ -34,6 +35,11 @@ final class MenuBarStore {
         self.authService = authService
         self.appController = appController
         self.appServerClient = appServerClient
+        self.switchAccountWorkflow = SwitchAccountWorkflow(
+            authService: authService,
+            repository: repository,
+            appController: appController
+        )
     }
 
     func load() {
@@ -121,10 +127,10 @@ final class MenuBarStore {
 
     func switchToAccount(_ account: CodexAccount) async {
         await perform("Switching to \(account.name)...") {
-            try authService.activate(account)
-            try repository.saveAccounts(accounts)
-            refreshActiveAccount()
-            try await appController.relaunchCodex()
+            activeAccountID = try await switchAccountWorkflow.run(
+                account: account,
+                accounts: accounts
+            )
         }
     }
 
