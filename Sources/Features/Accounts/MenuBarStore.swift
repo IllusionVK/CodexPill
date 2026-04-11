@@ -11,10 +11,9 @@ extension Notification.Name {
 @MainActor
 @Observable
 final class MenuBarStore {
-    private let repository: AccountRepository
-    private let authService: CodexAuthSnapshotService
-    private let appServerClient: CodexAppServerClient
     private let activeAccountResolver: ActiveAccountResolver
+    private let loadAccountsUseCase: LoadAccountsUseCase
+    private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
     private let switchAccountWorkflow: SwitchAccountWorkflow
     private let saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow
     private let signInAnotherWorkflow: SignInAnotherWorkflow
@@ -32,10 +31,17 @@ final class MenuBarStore {
         appController: CodexAppController,
         appServerClient: CodexAppServerClient
     ) {
-        self.repository = repository
-        self.authService = authService
-        self.appServerClient = appServerClient
         self.activeAccountResolver = ActiveAccountResolver(authService: authService)
+        self.loadAccountsUseCase = LoadAccountsUseCase(
+            repository: repository,
+            authService: authService,
+            activeAccountResolver: self.activeAccountResolver
+        )
+        self.refreshActiveAccountUseCase = RefreshActiveAccountUseCase(
+            appServerClient: appServerClient,
+            activeAccountResolver: self.activeAccountResolver,
+            repository: repository
+        )
         self.switchAccountWorkflow = SwitchAccountWorkflow(
             authService: authService,
             repository: repository,
@@ -57,14 +63,9 @@ final class MenuBarStore {
 
     func load() {
         do {
-            try repository.bootstrapStorage()
-            let loadedAccounts = try repository.loadAccounts()
-            let reconciledAccounts = authService.reconcileStoredAccountIdentities(loadedAccounts)
-            accounts = reconciledAccounts
-            if reconciledAccounts != loadedAccounts {
-                try repository.saveAccounts(reconciledAccounts)
-            }
-            refreshActiveAccount()
+            let result = try loadAccountsUseCase.run()
+            accounts = result.accounts
+            activeAccountID = result.activeAccountID
             statusMessage = "Loaded \(accounts.count) account(s)"
             menuBarStoreLogger.log("Loaded \(self.accounts.count, privacy: .public) saved account(s)")
         } catch {
@@ -123,27 +124,9 @@ final class MenuBarStore {
 
     func refreshAccountData(for account: CodexAccount) async {
         await perform("Refreshing account data for \(account.name)...") {
-            let remote = try await appServerClient.readCurrentAccountStatus()
-            let matchOutcome = activeAccountResolver.resolve(
-                accounts: accounts,
-                liveRemoteIdentity: remote.remoteIdentity
-            )
-
-            guard let matchedAccountID = matchOutcome.matchedAccountID else {
-                throw MenuBarStoreError.refreshTargetResolutionFailed(matchOutcome)
-            }
-
-            guard let matchedAccount = accounts.first(where: { $0.id == matchedAccountID }) else {
-                throw MenuBarStoreError.refreshTargetMissing
-            }
-
-            mutateAccount(matchedAccount) { stored in
-                stored.applyRemoteMetadata(
-                    email: remote.email,
-                    planType: remote.planType,
-                    rateLimits: remote.rateLimits
-                )
-            }
+            let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
+            accounts = result.accounts
+            activeAccountID = result.refreshedAccountID
         }
     }
 
@@ -203,14 +186,6 @@ final class MenuBarStore {
         return message
     }
 
-    private func mutateAccount(_ account: CodexAccount, mutation: (inout CodexAccount) -> Void) {
-        guard let index = accounts.firstIndex(where: { $0.id == account.id }) else { return }
-        mutation(&accounts[index])
-        accounts[index].updatedAt = .now
-        try? repository.saveAccounts(accounts)
-        stateDidChange()
-    }
-
     private func stateDidChange() {
         NotificationCenter.default.post(name: .codexSwitchboardStoreDidChange, object: self)
     }
@@ -240,20 +215,6 @@ final class MenuBarStore {
         }
 
         return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-    }
-
-    private func resolvedAccountName(_ customName: String?, fallbackEmail: String?) -> String {
-        let trimmedCustomName = customName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !trimmedCustomName.isEmpty {
-            return trimmedCustomName
-        }
-
-        let trimmedEmail = fallbackEmail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !trimmedEmail.isEmpty {
-            return trimmedEmail
-        }
-
-        return "Codex Account"
     }
 
     private func availabilitySortKey(for account: CodexAccount) -> AvailabilitySortKey {
@@ -293,26 +254,6 @@ final class MenuBarStore {
             weeklyUsedPercent: weeklyUsedPercent,
             sessionUsedPercent: sessionUsedPercent
         )
-    }
-}
-
-private enum MenuBarStoreError: LocalizedError {
-    case refreshTargetResolutionFailed(CodexAccountMatchOutcome)
-    case refreshTargetMissing
-
-    var errorDescription: String? {
-        switch self {
-        case .refreshTargetResolutionFailed(.ambiguousSnapshotFingerprint):
-            "Could not refresh the active account because more than one saved account matches the current auth snapshot."
-        case .refreshTargetResolutionFailed(.ambiguousRemoteIdentity):
-            "Could not refresh the active account because more than one saved account matches the current Codex account identity."
-        case .refreshTargetResolutionFailed(.noMatch):
-            "Could not refresh the active account because the current Codex account does not match any saved account."
-        case .refreshTargetResolutionFailed(.exactSnapshot), .refreshTargetResolutionFailed(.uniqueRemoteIdentity):
-            "Could not refresh the active account."
-        case .refreshTargetMissing:
-            "Could not refresh the active account because the matched saved account is missing."
-        }
     }
 }
 
