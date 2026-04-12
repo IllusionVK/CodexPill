@@ -6,9 +6,25 @@ struct ActiveObservedAccount: Equatable {
     let contextBadges: [String]
 }
 
+func menuPlanDisplayName(_ planType: String?) -> String {
+    switch planType?.lowercased() {
+    case "plus":
+        return "Plus"
+    case "pro":
+        return "Pro"
+    case "team":
+        return "Team"
+    case .some(let value) where !value.isEmpty:
+        return value.capitalized
+    default:
+        return "Unknown"
+    }
+}
+
 struct MenuBarMenuState {
     let activeAccounts: [ActiveObservedAccount]
     let inactiveAccounts: [CodexAccount]
+    let savedHosts: [RemoteHostConfig]
     let hostContexts: [ObservedExecutionContext]
     let hasLocalActiveSavedAccount: Bool
     let visibleInactiveAccountCount: Int
@@ -42,6 +58,10 @@ struct MenuBarMenuState {
 
     var canAddRemoteHosts: Bool {
         !isBusy
+    }
+
+    var canRemoveRemoteHosts: Bool {
+        !isBusy && !savedHosts.isEmpty
     }
 
     var allSavedAccounts: [CodexAccount] {
@@ -96,8 +116,8 @@ struct MenuBarMenuBuilder {
         }
 
         menu.addItem(.separator())
-        menu.addItem(hostsMenuItem(state: state, target: target))
         menu.addItem(accountsMenuItem(state: state, target: target))
+        menu.addItem(hostsMenuItem(state: state, target: target))
         menu.addItem(refreshIntervalMenuItem(state: state, target: target))
         menu.addItem(statusBarStyleMenuItem(state: state, target: target))
         menu.addItem(actionItem(title: "About", systemImage: "info.circle", action: #selector(MenuBarCoordinator.showAbout), state: state, target: target))
@@ -273,9 +293,32 @@ struct MenuBarMenuBuilder {
 
         let submenu = NSMenu(title: "Hosts")
         let addHost = NSMenuItem(title: "Add Host…", action: #selector(MenuBarCoordinator.addRemoteHost), keyEquivalent: "")
+        addHost.image = NSImage(systemSymbolName: "plus.circle", accessibilityDescription: "Add Host")
         addHost.target = target
         addHost.isEnabled = state.canAddRemoteHosts
         submenu.addItem(addHost)
+
+        let removeHost = NSMenuItem(title: "Remove Host", action: nil, keyEquivalent: "")
+        removeHost.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Remove Host")
+        removeHost.isEnabled = state.canRemoveRemoteHosts
+
+        let removeSubmenu = NSMenu(title: "Remove Host")
+        for host in state.savedHosts {
+            let option = NSMenuItem(title: host.name, action: #selector(MenuBarCoordinator.removeRemoteHost(_:)), keyEquivalent: "")
+            option.target = target
+            option.representedObject = host.id.uuidString
+            option.isEnabled = state.canRemoveRemoteHosts
+            removeSubmenu.addItem(option)
+        }
+
+        if removeSubmenu.items.isEmpty {
+            let empty = NSMenuItem(title: "No saved hosts", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            removeSubmenu.addItem(empty)
+        }
+
+        removeHost.submenu = removeSubmenu
+        submenu.addItem(removeHost)
 
         if !state.hostContexts.isEmpty {
             submenu.addItem(.separator())
@@ -372,15 +415,9 @@ private struct ActiveAccountMenuContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
-                Text(account.name)
-                    .font(.system(size: 15, weight: .semibold))
-                Spacer()
-                Text(account.planType?.capitalized ?? "Unknown")
-                    .foregroundStyle(.secondary)
-            }
-
-            if !contextBadges.isEmpty {
                 HStack(spacing: 6) {
+                    Text(account.name)
+                        .font(.system(size: 15, weight: .semibold))
                     ForEach(contextBadges, id: \.self) { badge in
                         Text(badge)
                             .font(.caption2.weight(.semibold))
@@ -388,30 +425,40 @@ private struct ActiveAccountMenuContent: View {
                             .padding(.vertical, 3)
                             .background(Capsule().fill(Color.secondary.opacity(0.14)))
                     }
-                    Spacer(minLength: 0)
+                }
+                Spacer()
+                HStack(spacing: 6) {
+                    Text(menuPlanDisplayName(account.planType))
+                        .foregroundStyle(.secondary)
                 }
             }
 
-            if let email = account.email {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Updated \(RelativeDateTimeFormatter().localizedString(for: account.lastRemoteRefreshAt, relativeTo: .now))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(email)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.top, -2)
+            HStack(alignment: .firstTextBaseline) {
+                Text("Updated \(RelativeDateTimeFormatter().localizedString(for: account.lastRemoteRefreshAt, relativeTo: .now))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(accountMetadataLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.trailing)
             }
+            .padding(.top, -2)
 
             ActiveLimitRow(title: "Session", window: account.rateLimits?.primary)
             ActiveLimitRow(title: "Weekly", window: account.rateLimits?.secondary)
         }
         .padding(.horizontal, 14)
         .padding(.top, 4)
-        .padding(.bottom, 4)
+        .padding(.bottom, 10)
         .frame(width: 340, alignment: .leading)
+    }
+
+    private var accountMetadataLine: String {
+        guard let email = account.email, !email.isEmpty else {
+            return "No email"
+        }
+        return email
     }
 }
 
@@ -507,10 +554,10 @@ private func resetStatusText(for window: CodexRateLimitWindow) -> String? {
 
     let now = Date()
     if resetsAt <= now {
-        return "resets now"
+        return "Resets now"
     }
 
     let formatter = RelativeDateTimeFormatter()
     formatter.unitsStyle = .abbreviated
-    return "resets \(formatter.localizedString(for: resetsAt, relativeTo: now))"
+    return "Resets \(formatter.localizedString(for: resetsAt, relativeTo: now))"
 }

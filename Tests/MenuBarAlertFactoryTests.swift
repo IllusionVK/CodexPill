@@ -57,13 +57,26 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
-    func addHostRequestUsesSshAliasPrompt() {
+    func addHostRequestUsesDisplayNameAndTargetPrompt() {
         let request = factory.makeAddHostRequest()
 
         #expect(request.messageText == "Add remote host")
-        #expect(request.fieldTitle == "SSH Alias")
-        #expect(request.placeholder == "debian-vm")
+        #expect(request.nameFieldTitle == "Display Name")
+        #expect(request.targetFieldTitle == "SSH Target")
+        #expect(request.namePlaceholder == "Host Name")
+        #expect(request.targetPlaceholder == "hostname or user@ip")
+        #expect(request.informativeText == "Use an SSH alias or target. CodexPill tests read-only access.")
+        #expect(request.testTitle == "Test")
         #expect(request.confirmTitle == "Add")
+    }
+
+    @Test
+    func removeHostWarningMentionsSavedHostConsequence() {
+        let request = factory.makeRemoveHostRequest(hostName: "debian-vm")
+
+        #expect(request.messageText == "Remove host?")
+        #expect(request.informativeText.contains("saved host debian-vm"))
+        #expect(request.confirmTitle == "Remove")
     }
 
     @Test

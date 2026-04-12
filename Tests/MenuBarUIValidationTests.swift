@@ -8,6 +8,34 @@ import Testing
 @MainActor
 struct MenuBarUIValidationTests {
     @Test
+    func activeAccountSummaryUsesEmailPlanMetadataAndHostBadges() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let snapshot = MenuBarValidationSupport.makeSnapshot(
+            state: makeHostedValidationState(for: "hosted-menu-default", now: now),
+            now: now
+        )
+
+        let summary = try! #require(snapshot.sections.first?.items.first)
+        #expect(summary.contains("Primary • Pro [local, debian-vm]"))
+        #expect(summary.contains("primary@example.com"))
+        #expect(!summary.contains("primary@example.com (Pro)"))
+    }
+
+    @Test
+    func localBadgeIsHiddenWhenNoRemoteHostsAreSaved() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let snapshot = MenuBarValidationSupport.makeSnapshot(
+            state: makeHostedValidationState(for: "hosted-menu-busy", now: now),
+            now: now
+        )
+
+        let summary = try! #require(snapshot.sections.first?.items.first)
+        #expect(!summary.contains("[local]"))
+        #expect(summary.contains("Primary • Pro"))
+        #expect(summary.contains("primary@example.com"))
+    }
+
+    @Test
     func hostedMenuScenarioProducesArtifacts() throws {
         let request = try loadValidationRequest() ?? ValidationRequest(
             artifactDirectory: "",
@@ -83,40 +111,40 @@ struct MenuBarUIValidationTests {
                 "Active Accounts",
                 "Other Saved Accounts",
                 "More Accounts",
-                "Hosts",
                 "Accounts",
+                "Hosts",
                 "Preferences"
             ])
             #expect(snapshot.statusMessage == nil)
             #expect(snapshot.sections[1].items.count == 2)
             #expect(snapshot.sections[2].items.count == 1)
-            #expect(snapshot.sections[3].items.contains("Add Host…"))
+            #expect(snapshot.sections[4].items.contains("Add Host…"))
 
         case "hosted-menu-busy":
             #expect(snapshot.sections.map(\.title) == [
                 "Active Accounts",
-                "Hosts",
                 "Accounts",
+                "Hosts",
                 "Preferences"
             ])
             #expect(snapshot.statusMessage == "Refreshing account data...")
-            #expect(snapshot.sections[2].items.contains("Save Current Account (disabled)"))
-            #expect(snapshot.sections[2].items.contains("Sign In Another Account… (disabled)"))
-            #expect(snapshot.sections[2].items.contains("Rename Account"))
-            #expect(snapshot.sections[2].items.contains("Remove Account"))
+            #expect(snapshot.sections[1].items.contains("Save Current Account (disabled)"))
+            #expect(snapshot.sections[1].items.contains("Sign In Another Account… (disabled)"))
+            #expect(snapshot.sections[1].items.contains("Rename Account"))
+            #expect(snapshot.sections[1].items.contains("Remove Account"))
 
         case "hosted-menu-empty":
             #expect(snapshot.sections.map(\.title) == [
                 "Active Accounts",
-                "Hosts",
                 "Accounts",
+                "Hosts",
                 "Preferences"
             ])
             #expect(snapshot.sections[0].items == ["No active observed accounts"])
-            #expect(snapshot.sections[1].items == ["Add Host…"])
-            #expect(snapshot.sections[2].items.contains("Save Current Account"))
-            #expect(snapshot.sections[2].items.contains("Rename Account"))
-            #expect(snapshot.sections[2].items.contains("Remove Account"))
+            #expect(snapshot.sections[1].items.contains("Save Current Account"))
+            #expect(snapshot.sections[1].items.contains("Rename Account"))
+            #expect(snapshot.sections[1].items.contains("Remove Account"))
+            #expect(snapshot.sections[2].items == ["Add Host…"])
             #expect(snapshot.statusMessage == nil)
 
         default:
@@ -192,6 +220,9 @@ struct MenuBarUIValidationTests {
                     ActiveObservedAccount(account: active, contextBadges: ["local", "debian-vm"])
                 ],
                 inactiveAccounts: others,
+                savedHosts: [
+                    RemoteHostConfig(id: UUID(), name: "debian-vm", sshAlias: "debian-vm")
+                ],
                 hostContexts: [
                     ObservedExecutionContext(
                         id: "host-1",
@@ -224,9 +255,10 @@ struct MenuBarUIValidationTests {
 
             return MenuBarMenuState(
                 activeAccounts: [
-                    ActiveObservedAccount(account: active, contextBadges: ["local"])
+                    ActiveObservedAccount(account: active, contextBadges: [])
                 ],
                 inactiveAccounts: [],
+                savedHosts: [],
                 hostContexts: [],
                 hasLocalActiveSavedAccount: true,
                 visibleInactiveAccountCount: 2,
@@ -243,6 +275,7 @@ struct MenuBarUIValidationTests {
             return MenuBarMenuState(
                 activeAccounts: [],
                 inactiveAccounts: [],
+                savedHosts: [],
                 hostContexts: [],
                 hasLocalActiveSavedAccount: false,
                 visibleInactiveAccountCount: 2,

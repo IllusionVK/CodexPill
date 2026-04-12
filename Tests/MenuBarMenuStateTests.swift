@@ -5,6 +5,12 @@ import Testing
 
 struct MenuBarMenuStateTests {
     @Test
+    func menuBadgeDisplayNamesHideLocalWhenNoRemoteHostsExist() {
+        #expect(menuBadgeDisplayNames(from: ["local"], hasRemoteHosts: false).isEmpty)
+        #expect(menuBadgeDisplayNames(from: ["debian-vm", "local"], hasRemoteHosts: true) == ["debian-vm", "local"])
+    }
+
+    @Test
     func visibleAndOverflowAccountsRespectConfiguredLimit() {
         let accounts = [
             makeAccount(name: "A"),
@@ -95,6 +101,7 @@ struct MenuBarMenuStateTests {
         MenuBarMenuState(
             activeAccounts: activeAccounts,
             inactiveAccounts: inactiveAccounts,
+            savedHosts: [],
             hostContexts: hostContexts,
             hasLocalActiveSavedAccount: hasLocalActiveSavedAccount,
             visibleInactiveAccountCount: visibleInactiveAccountCount,

@@ -40,11 +40,6 @@ enum MenuBarValidationSupport {
         }
 
         sections.append(.init(
-            title: "Hosts",
-            items: ["Add Host…"] + state.hostContexts.map { hostSummary(for: $0, state: state) }
-        ))
-
-        sections.append(.init(
             title: "Accounts",
             items: [
                 state.canSaveCurrentAccount ? "Save Current Account" : "Save Current Account (disabled)",
@@ -53,6 +48,11 @@ enum MenuBarValidationSupport {
                 "Remove Account",
                 "Visible Other Accounts: \(state.visibleInactiveAccountCount == 0 ? "All" : "\(state.visibleInactiveAccountCount)")"
             ]
+        ))
+
+        sections.append(.init(
+            title: "Hosts",
+            items: ["Add Host…"] + state.hostContexts.map { hostSummary(for: $0, state: state) }
         ))
 
         sections.append(.init(
@@ -105,12 +105,12 @@ enum MenuBarValidationSupport {
     }
 
     private static func accountSummary(for account: CodexAccount, badges: [String] = [], now: Date) -> String {
-        let plan = account.planType?.capitalized ?? "Unknown"
+        let plan = menuPlanDisplayName(account.planType)
         let email = account.email ?? "No email"
         let session = usageLine(title: "Session", window: account.rateLimits?.primary, now: now)
         let weekly = usageLine(title: "Weekly", window: account.rateLimits?.secondary, now: now)
         let badgeText = badges.isEmpty ? "" : " [\(badges.joined(separator: ", "))]"
-        return "\(account.name)\(badgeText) • \(plan) • \(email) • \(session) • \(weekly)"
+        return "\(account.name) • \(plan)\(badgeText) • \(email) • \(session) • \(weekly)"
     }
 
     private static func hostSummary(for context: ObservedExecutionContext, state: MenuBarMenuState) -> String {
@@ -138,6 +138,6 @@ enum MenuBarValidationSupport {
 
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
-        return "\(title): \(percentText), resets \(formatter.localizedString(for: resetsAt, relativeTo: now))"
+        return "\(title): \(percentText), Resets \(formatter.localizedString(for: resetsAt, relativeTo: now))"
     }
 }

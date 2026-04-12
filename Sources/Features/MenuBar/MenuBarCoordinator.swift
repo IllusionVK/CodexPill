@@ -3,6 +3,12 @@ import OSLog
 
 private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.codex-switchboard", category: "MenuBarCoordinator")
 
+func menuBadgeDisplayNames(from contexts: [String], hasRemoteHosts: Bool) -> [String] {
+    contexts
+        .filter { hasRemoteHosts || $0 != "local" }
+        .sorted()
+}
+
 @MainActor
 final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
@@ -150,8 +156,39 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     @objc
     func addRemoteHost() {
         let request = alertFactory.makeAddHostRequest()
-        guard let alias = alertPresenter.presentTextInput(request) else { return }
-        Task { await store.addRemoteHost(alias: alias) }
+        guard let input = alertPresenter.presentValidatedHostInput(
+            request,
+            validator: { [weak self] input in
+                guard let self else { return "Host validation is unavailable right now." }
+                return await self.store.validateRemoteHost(
+                    name: input.name,
+                    sshTarget: input.sshTarget
+                )
+            }
+        ) else {
+            return
+        }
+
+        Task {
+            if let failure = await store.addRemoteHost(name: input.name, sshTarget: input.sshTarget) {
+                alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: failure))
+            }
+        }
+    }
+
+    @objc
+    func removeRemoteHost(_ sender: NSMenuItem) {
+        guard
+            let idString = sender.representedObject as? String,
+            let id = UUID(uuidString: idString),
+            let host = store.remoteHosts.first(where: { $0.id == id })
+        else {
+            return
+        }
+
+        let request = alertFactory.makeRemoveHostRequest(hostName: host.name)
+        guard alertPresenter.presentConfirmation(request) else { return }
+        Task { await store.removeRemoteHost(host) }
     }
 
     @objc
@@ -225,7 +262,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
             guard let contexts = groupedContexts[account.id] else { return nil }
             return ActiveObservedAccount(
                 account: account,
-                contextBadges: contexts.map(\.1).sorted()
+                contextBadges: menuBadgeDisplayNames(
+                    from: contexts.map(\.1),
+                    hasRemoteHosts: !store.remoteHosts.isEmpty
+                )
             )
         }
         let activeAccountIDs = Set(activeAccounts.map { $0.account.id })
@@ -237,6 +277,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
             inactiveAccounts: store.accounts
                 .filter { !activeAccountIDs.contains($0.id) }
                 .sorted(by: store.compareForMenu),
+            savedHosts: store.remoteHosts.sorted {
+                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            },
             hostContexts: store.observedContexts.filter {
                 if case .sshHost = $0.kind { return true }
                 return false
@@ -341,4 +384,5 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
             self.addCurrentAccount()
         }
     }
+
 }

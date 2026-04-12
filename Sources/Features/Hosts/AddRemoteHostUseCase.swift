@@ -12,21 +12,28 @@ struct AddRemoteHostUseCase {
         self.repository = repository
     }
 
-    func run(alias: String, hosts: [RemoteHostConfig]) throws -> AddRemoteHostResult {
-        let resolvedAlias = alias.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !resolvedAlias.isEmpty else {
-            throw AddRemoteHostUseCaseError.emptyHostAlias
+    func makeHost(name: String, sshTarget: String, hosts: [RemoteHostConfig]) throws -> RemoteHostConfig {
+        let resolvedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedTarget = sshTarget.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !resolvedTarget.isEmpty else {
+            throw AddRemoteHostUseCaseError.emptyHostTarget
         }
 
-        guard !hosts.contains(where: { $0.sshAlias.caseInsensitiveCompare(resolvedAlias) == .orderedSame }) else {
-            throw AddRemoteHostUseCaseError.duplicateHostAlias
+        guard !hosts.contains(where: { $0.sshTarget.caseInsensitiveCompare(resolvedTarget) == .orderedSame }) else {
+            throw AddRemoteHostUseCaseError.duplicateHostTarget
         }
 
-        let host = RemoteHostConfig(
+        let displayName = resolvedName.isEmpty ? resolvedTarget : resolvedName
+        return RemoteHostConfig(
             id: UUID(),
-            name: resolvedAlias,
-            sshAlias: resolvedAlias
+            name: displayName,
+            sshTarget: resolvedTarget
         )
+    }
+
+    func run(name: String, sshTarget: String, hosts: [RemoteHostConfig]) throws -> AddRemoteHostResult {
+        let host = try makeHost(name: name, sshTarget: sshTarget, hosts: hosts)
         let updatedHosts = (hosts + [host]).sorted {
             $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
         }
@@ -37,15 +44,15 @@ struct AddRemoteHostUseCase {
 }
 
 enum AddRemoteHostUseCaseError: LocalizedError {
-    case emptyHostAlias
-    case duplicateHostAlias
+    case emptyHostTarget
+    case duplicateHostTarget
 
     var errorDescription: String? {
         switch self {
-        case .emptyHostAlias:
-            "Host alias cannot be empty."
-        case .duplicateHostAlias:
-            "A host with that alias already exists."
+        case .emptyHostTarget:
+            "SSH target cannot be empty."
+        case .duplicateHostTarget:
+            "A host with that SSH target already exists."
         }
     }
 }

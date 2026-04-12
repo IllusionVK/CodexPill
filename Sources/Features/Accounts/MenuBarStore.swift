@@ -16,6 +16,7 @@ final class MenuBarStore {
     private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
     private let hostRepository: RemoteHostCatalog
     private let addRemoteHostUseCase: AddRemoteHostUseCase
+    private let deleteRemoteHostUseCase: DeleteRemoteHostUseCase
     private let observeExecutionContextsUseCase: ObserveExecutionContextsUseCase
     private let deleteSavedAccountUseCase: DeleteSavedAccountUseCase
     private let renameSavedAccountUseCase: RenameSavedAccountUseCase
@@ -51,6 +52,7 @@ final class MenuBarStore {
             identityResolver: self.identityResolver
         )
         self.addRemoteHostUseCase = AddRemoteHostUseCase(repository: hostRepository)
+        self.deleteRemoteHostUseCase = DeleteRemoteHostUseCase(repository: hostRepository)
         self.observeExecutionContextsUseCase = ObserveExecutionContextsUseCase(
             remoteObserver: remoteHostObserver,
             identityResolver: self.identityResolver
@@ -228,10 +230,20 @@ final class MenuBarStore {
         stateDidChange()
     }
 
-    func addRemoteHost(alias: String) async {
-        await perform("Adding host...") {
+    func addRemoteHost(name: String, sshTarget: String) async -> String? {
+        menuBarStoreLogger.log("Beginning add-host operation")
+        isBusy = true
+        statusMessage = "Adding host..."
+        stateDidChange()
+
+        defer {
+            isBusy = false
+            stateDidChange()
+        }
+
+        do {
             let previousHosts = remoteHosts
-            let result = try addRemoteHostUseCase.run(alias: alias, hosts: remoteHosts)
+            let result = try addRemoteHostUseCase.run(name: name, sshTarget: sshTarget, hosts: remoteHosts)
             let candidateHosts = result.hosts
             let candidateContexts = await observeExecutionContextsUseCase.run(
                 hosts: candidateHosts,
@@ -245,11 +257,56 @@ final class MenuBarStore {
                 return false
             }), case .unavailable(let message) = hostContext.status {
                 try hostRepository.saveHosts(previousHosts)
-                throw MenuBarStoreError.remoteHostUnavailable(alias: result.addedHost.sshAlias, reason: message)
+                throw MenuBarStoreError.remoteHostUnavailable(target: result.addedHost.sshTarget, reason: message)
             }
 
             remoteHosts = candidateHosts
             observedContexts = candidateContexts
+            statusMessage = "Done"
+            menuBarStoreLogger.log("Add-host operation completed successfully")
+            return nil
+        } catch {
+            statusMessage = "Ready"
+            menuBarStoreLogger.error("Add-host operation failed: \(error.localizedDescription, privacy: .public)")
+            return error.localizedDescription
+        }
+    }
+
+    func validateRemoteHost(name: String, sshTarget: String) async -> String? {
+        do {
+            let host = try addRemoteHostUseCase.makeHost(
+                name: name,
+                sshTarget: sshTarget,
+                hosts: remoteHosts
+            )
+            let contexts = await observeExecutionContextsUseCase.run(
+                hosts: [host],
+                accounts: accounts
+            )
+
+            if let context = contexts.first(where: {
+                if case .sshHost(let hostID) = $0.kind {
+                    return hostID == host.id
+                }
+                return false
+            }), case .unavailable(let message) = context.status {
+                throw MenuBarStoreError.remoteHostUnavailable(target: host.sshTarget, reason: message)
+            }
+
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func removeRemoteHost(_ host: RemoteHostConfig) async {
+        await perform("Removing host...") {
+            let result = try deleteRemoteHostUseCase.run(host: host, hosts: remoteHosts)
+            remoteHosts = result.hosts
+            observedContexts = await observeExecutionContextsUseCase.run(
+                hosts: remoteHosts,
+                accounts: accounts
+            )
         }
     }
 
@@ -407,12 +464,12 @@ final class MenuBarStore {
 }
 
 enum MenuBarStoreError: LocalizedError {
-    case remoteHostUnavailable(alias: String, reason: String)
+    case remoteHostUnavailable(target: String, reason: String)
 
     var errorDescription: String? {
         switch self {
-        case let .remoteHostUnavailable(alias, reason):
-            "Could not connect to host '\(alias)'. \(reason)"
+        case let .remoteHostUnavailable(target, reason):
+            "Could not connect to SSH target '\(target)'. \(reason)"
         }
     }
 }

@@ -3,7 +3,44 @@ import Foundation
 struct RemoteHostConfig: Identifiable, Codable, Equatable {
     let id: UUID
     var name: String
-    var sshAlias: String
+    var sshTarget: String
+
+    init(id: UUID, name: String, sshTarget: String) {
+        self.id = id
+        self.name = name
+        self.sshTarget = sshTarget
+    }
+
+    init(id: UUID, name: String, sshAlias: String) {
+        self.init(id: id, name: name, sshTarget: sshAlias)
+    }
+
+    var sshAlias: String {
+        sshTarget
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case sshTarget
+        case sshAlias
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        sshTarget =
+            try container.decodeIfPresent(String.self, forKey: .sshTarget)
+            ?? container.decode(String.self, forKey: .sshAlias)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(sshTarget, forKey: .sshTarget)
+    }
 }
 
 struct ObservedExecutionContext: Identifiable, Equatable {
