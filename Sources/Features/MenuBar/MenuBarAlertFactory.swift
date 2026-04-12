@@ -53,6 +53,17 @@ struct MenuBarAlertFactory {
         )
     }
 
+    func makeAddHostRequest() -> MenuBarTextInputAlertRequest {
+        MenuBarTextInputAlertRequest(
+            messageText: "Add remote host",
+            informativeText: "Enter the SSH alias for a host where Codex CLI is configured. CodexPill will probe it read-only.",
+            fieldTitle: "SSH Alias",
+            placeholder: "debian-vm",
+            confirmTitle: "Add",
+            cancelTitle: "Cancel"
+        )
+    }
+
     func makeAboutRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "About CodexPill",

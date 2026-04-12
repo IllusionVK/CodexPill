@@ -80,38 +80,43 @@ struct MenuBarUIValidationTests {
         switch scenario {
         case "hosted-menu-default":
             #expect(snapshot.sections.map(\.title) == [
-                "Current Account",
-                "Other Accounts",
+                "Active Accounts",
+                "Other Saved Accounts",
                 "More Accounts",
+                "Hosts",
                 "Accounts",
                 "Preferences"
             ])
             #expect(snapshot.statusMessage == nil)
             #expect(snapshot.sections[1].items.count == 2)
             #expect(snapshot.sections[2].items.count == 1)
+            #expect(snapshot.sections[3].items.contains("Add Host…"))
 
         case "hosted-menu-busy":
             #expect(snapshot.sections.map(\.title) == [
-                "Current Account",
+                "Active Accounts",
+                "Hosts",
                 "Accounts",
                 "Preferences"
             ])
             #expect(snapshot.statusMessage == "Refreshing account data...")
-            #expect(snapshot.sections[1].items.contains("Save Current Account (disabled)"))
-            #expect(snapshot.sections[1].items.contains("Sign In Another Account… (disabled)"))
-            #expect(snapshot.sections[1].items.contains("Rename Account"))
-            #expect(snapshot.sections[1].items.contains("Remove Account"))
+            #expect(snapshot.sections[2].items.contains("Save Current Account (disabled)"))
+            #expect(snapshot.sections[2].items.contains("Sign In Another Account… (disabled)"))
+            #expect(snapshot.sections[2].items.contains("Rename Account"))
+            #expect(snapshot.sections[2].items.contains("Remove Account"))
 
         case "hosted-menu-empty":
             #expect(snapshot.sections.map(\.title) == [
-                "Current Account",
+                "Active Accounts",
+                "Hosts",
                 "Accounts",
                 "Preferences"
             ])
-            #expect(snapshot.sections[0].items == ["No active saved account"])
-            #expect(snapshot.sections[1].items.contains("Save Current Account"))
-            #expect(snapshot.sections[1].items.contains("Rename Account"))
-            #expect(snapshot.sections[1].items.contains("Remove Account"))
+            #expect(snapshot.sections[0].items == ["No active observed accounts"])
+            #expect(snapshot.sections[1].items == ["Add Host…"])
+            #expect(snapshot.sections[2].items.contains("Save Current Account"))
+            #expect(snapshot.sections[2].items.contains("Rename Account"))
+            #expect(snapshot.sections[2].items.contains("Remove Account"))
             #expect(snapshot.statusMessage == nil)
 
         default:
@@ -123,19 +128,21 @@ struct MenuBarUIValidationTests {
         switch scenario {
         case "hosted-menu-default":
             return [
-                "Current Account section includes the active account summary",
+                "Active Accounts section includes the active observed account summary",
                 "Two inactive accounts are visible and one account overflows into More Accounts",
+                "Hosts section includes the add-host entry",
                 "Status message is omitted when the menu is not busy"
             ]
         case "hosted-menu-busy":
             return [
-                "Busy state exposes only the current account plus shared account and preference controls",
+                "Busy state exposes active accounts plus shared host, account, and preference controls",
                 "Busy status message is rendered into the artifact snapshot",
                 "Save and sign-in actions are marked disabled in the snapshot"
             ]
         case "hosted-menu-empty":
             return [
-                "Empty state shows no active saved account",
+                "Empty state shows no active observed accounts",
+                "Hosts section still offers Add Host",
                 "Save Current Account remains available when the menu is idle and empty",
                 "Remove Account still renders as a stable control even when no saved accounts exist"
             ]
@@ -181,8 +188,20 @@ struct MenuBarUIValidationTests {
             ]
 
             return MenuBarMenuState(
-                activeAccount: active,
+                activeAccounts: [
+                    ActiveObservedAccount(account: active, contextBadges: ["local", "debian-vm"])
+                ],
                 inactiveAccounts: others,
+                hostContexts: [
+                    ObservedExecutionContext(
+                        id: "host-1",
+                        kind: .sshHost(hostID: UUID()),
+                        displayName: "debian-vm",
+                        status: .matched(accountID: active.id),
+                        lastObservedAt: now
+                    )
+                ],
+                hasLocalActiveSavedAccount: true,
                 visibleInactiveAccountCount: 2,
                 visibleInactiveAccountCountOptions: [2, 3, 5, 0],
                 refreshIntervalMinutes: 5,
@@ -204,8 +223,12 @@ struct MenuBarUIValidationTests {
             )
 
             return MenuBarMenuState(
-                activeAccount: active,
+                activeAccounts: [
+                    ActiveObservedAccount(account: active, contextBadges: ["local"])
+                ],
                 inactiveAccounts: [],
+                hostContexts: [],
+                hasLocalActiveSavedAccount: true,
                 visibleInactiveAccountCount: 2,
                 visibleInactiveAccountCountOptions: [2, 3, 5, 0],
                 refreshIntervalMinutes: 5,
@@ -218,8 +241,10 @@ struct MenuBarUIValidationTests {
 
         case "hosted-menu-empty":
             return MenuBarMenuState(
-                activeAccount: nil,
+                activeAccounts: [],
                 inactiveAccounts: [],
+                hostContexts: [],
+                hasLocalActiveSavedAccount: false,
                 visibleInactiveAccountCount: 2,
                 visibleInactiveAccountCountOptions: [2, 3, 5, 0],
                 refreshIntervalMinutes: 10,

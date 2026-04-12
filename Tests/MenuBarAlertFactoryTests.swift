@@ -57,6 +57,16 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
+    func addHostRequestUsesSshAliasPrompt() {
+        let request = factory.makeAddHostRequest()
+
+        #expect(request.messageText == "Add remote host")
+        #expect(request.fieldTitle == "SSH Alias")
+        #expect(request.placeholder == "debian-vm")
+        #expect(request.confirmTitle == "Add")
+    }
+
+    @Test
     func errorRequestUsesWarningStyle() {
         let request = factory.makeErrorRequest(message: "Boom")
 

@@ -1,9 +1,16 @@
 import AppKit
 import SwiftUI
 
+struct ActiveObservedAccount: Equatable {
+    let account: CodexAccount
+    let contextBadges: [String]
+}
+
 struct MenuBarMenuState {
-    let activeAccount: CodexAccount?
+    let activeAccounts: [ActiveObservedAccount]
     let inactiveAccounts: [CodexAccount]
+    let hostContexts: [ObservedExecutionContext]
+    let hasLocalActiveSavedAccount: Bool
     let visibleInactiveAccountCount: Int
     let visibleInactiveAccountCountOptions: [Int]
     let refreshIntervalMinutes: Int
@@ -14,7 +21,7 @@ struct MenuBarMenuState {
     let statusMessage: String
 
     var canSaveCurrentAccount: Bool {
-        !isBusy && activeAccount == nil
+        !isBusy && !hasLocalActiveSavedAccount
     }
 
     var canSignInAnotherAccount: Bool {
@@ -33,8 +40,12 @@ struct MenuBarMenuState {
         !isBusy && allSavedAccounts.count > 0
     }
 
+    var canAddRemoteHosts: Bool {
+        !isBusy
+    }
+
     var allSavedAccounts: [CodexAccount] {
-        [activeAccount].compactMap { $0 } + inactiveAccounts
+        activeAccounts.map(\.account) + inactiveAccounts
     }
 
     var visibleInactiveAccounts: [CodexAccount] {
@@ -59,17 +70,19 @@ struct MenuBarMenuBuilder {
         let menu = NSMenu()
         menu.delegate = target
 
-        if let activeAccount = state.activeAccount {
-            menu.addItem(sectionHeaderItem("Current Account", bottomPadding: 4))
-            menu.addItem(activeAccountItem(for: activeAccount))
+        if !state.activeAccounts.isEmpty {
+            menu.addItem(sectionHeaderItem("Active Accounts", bottomPadding: 4))
+            for activeAccount in state.activeAccounts {
+                menu.addItem(activeAccountItem(for: activeAccount))
+            }
         } else {
-            menu.addItem(sectionHeaderItem("Current Account", bottomPadding: 4))
-            menu.addItem(disabledInfoItem("No active saved account"))
+            menu.addItem(sectionHeaderItem("Active Accounts", bottomPadding: 4))
+            menu.addItem(disabledInfoItem("No active observed accounts"))
         }
 
         if !state.visibleInactiveAccounts.isEmpty {
             menu.addItem(.separator())
-            menu.addItem(sectionHeaderItem("Other Accounts", bottomPadding: 4))
+            menu.addItem(sectionHeaderItem("Other Saved Accounts", bottomPadding: 4))
             for account in state.visibleInactiveAccounts {
                 menu.addItem(inactiveAccountItem(for: account, target: target))
             }
@@ -83,6 +96,7 @@ struct MenuBarMenuBuilder {
         }
 
         menu.addItem(.separator())
+        menu.addItem(hostsMenuItem(state: state, target: target))
         menu.addItem(accountsMenuItem(state: state, target: target))
         menu.addItem(refreshIntervalMenuItem(state: state, target: target))
         menu.addItem(statusBarStyleMenuItem(state: state, target: target))
@@ -102,9 +116,12 @@ struct MenuBarMenuBuilder {
         return menu
     }
 
-    private func activeAccountItem(for account: CodexAccount) -> NSMenuItem {
+    private func activeAccountItem(for activeAccount: ActiveObservedAccount) -> NSMenuItem {
         let item = NSMenuItem()
-        let view = NSHostingView(rootView: ActiveAccountMenuContent(account: account))
+        let view = NSHostingView(rootView: ActiveAccountMenuContent(
+            account: activeAccount.account,
+            contextBadges: activeAccount.contextBadges
+        ))
         view.frame = NSRect(x: 0, y: 0, width: 340, height: 1)
         view.layoutSubtreeIfNeeded()
         let fittingHeight = max(1, view.fittingSize.height)
@@ -184,7 +201,7 @@ struct MenuBarMenuBuilder {
         let submenu = NSMenu(title: "Remove Account")
         for account in state.allSavedAccounts {
             let option = NSMenuItem(
-                title: account.id == state.activeAccount?.id ? "\(account.name) (Current)" : account.name,
+                title: isLocallyActive(account: account, state: state) ? "\(account.name) (Current)" : account.name,
                 action: #selector(MenuBarCoordinator.removeAccount(_:)),
                 keyEquivalent: ""
             )
@@ -212,7 +229,7 @@ struct MenuBarMenuBuilder {
         let submenu = NSMenu(title: "Rename Account")
         for account in state.allSavedAccounts {
             let option = NSMenuItem(
-                title: account.id == state.activeAccount?.id ? "\(account.name) (Current)" : account.name,
+                title: isLocallyActive(account: account, state: state) ? "\(account.name) (Current)" : account.name,
                 action: #selector(MenuBarCoordinator.renameAccount(_:)),
                 keyEquivalent: ""
             )
@@ -244,6 +261,29 @@ struct MenuBarMenuBuilder {
             option.representedObject = count
             option.state = state.visibleInactiveAccountCount == count ? .on : .off
             submenu.addItem(option)
+        }
+
+        item.submenu = submenu
+        return item
+    }
+
+    private func hostsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Hosts", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "network", accessibilityDescription: "Hosts")
+
+        let submenu = NSMenu(title: "Hosts")
+        let addHost = NSMenuItem(title: "Add Host…", action: #selector(MenuBarCoordinator.addRemoteHost), keyEquivalent: "")
+        addHost.target = target
+        addHost.isEnabled = state.canAddRemoteHosts
+        submenu.addItem(addHost)
+
+        if !state.hostContexts.isEmpty {
+            submenu.addItem(.separator())
+            for context in state.hostContexts {
+                let row = NSMenuItem(title: hostTitle(for: context, state: state), action: nil, keyEquivalent: "")
+                row.isEnabled = false
+                submenu.addItem(row)
+            }
         }
 
         item.submenu = submenu
@@ -302,10 +342,32 @@ struct MenuBarMenuBuilder {
         item.submenu = submenu
         return item
     }
+
+    private func hostTitle(for context: ObservedExecutionContext, state: MenuBarMenuState) -> String {
+        switch context.status {
+        case .matched(let accountID):
+            let accountName = state.allSavedAccounts.first(where: { $0.id == accountID })?.name ?? "Unknown"
+            return "\(context.displayName) -> \(accountName)"
+        case .unmatched(let summary):
+            if let email = summary.email {
+                return "\(context.displayName) -> Unmatched (\(email))"
+            }
+            return "\(context.displayName) -> Unmatched"
+        case .unavailable:
+            return "\(context.displayName) -> Unavailable"
+        case .loading:
+            return "\(context.displayName) -> Loading"
+        }
+    }
+
+    private func isLocallyActive(account: CodexAccount, state: MenuBarMenuState) -> Bool {
+        state.activeAccounts.contains { $0.account.id == account.id && $0.contextBadges.contains("local") }
+    }
 }
 
 private struct ActiveAccountMenuContent: View {
     let account: CodexAccount
+    let contextBadges: [String]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -315,6 +377,19 @@ private struct ActiveAccountMenuContent: View {
                 Spacer()
                 Text(account.planType?.capitalized ?? "Unknown")
                     .foregroundStyle(.secondary)
+            }
+
+            if !contextBadges.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(contextBadges, id: \.self) { badge in
+                        Text(badge)
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(Color.secondary.opacity(0.14)))
+                    }
+                    Spacer(minLength: 0)
+                }
             }
 
             if let email = account.email {
@@ -420,26 +495,22 @@ private func inactiveAccountTitle(for account: CodexAccount) -> NSAttributedStri
 }
 
 private func inactiveAccountLine(title: String, window: CodexRateLimitWindow?) -> String {
-    let percentText = window.map { "\($0.displayedUsedPercent())% used" } ?? "--"
-    guard let window, window.displayedUsedPercent() > 0 else {
-        return "\(title): \(percentText)"
+    let usedText = window.map { "\($0.displayedUsedPercent())% used" } ?? "--"
+    guard let window, let resetStatus = resetStatusText(for: window) else {
+        return "\(title): \(usedText)"
     }
-    guard let resetStatus = resetStatusText(for: window) else {
-        return "\(title): \(percentText)"
-    }
-    return "\(title): \(percentText) • \(resetStatus)"
+    return "\(title): \(usedText), \(resetStatus)"
 }
 
-private func resetStatusText(for window: CodexRateLimitWindow, now: Date = .now) -> String? {
-    guard let resetsAt = window.resetsAt, resetsAt > now else {
-        return nil
+private func resetStatusText(for window: CodexRateLimitWindow) -> String? {
+    guard let resetsAt = window.resetsAt else { return nil }
+
+    let now = Date()
+    if resetsAt <= now {
+        return "resets now"
     }
 
-    return "Resets \(shortResetText(for: resetsAt, relativeTo: now))"
-}
-
-private func shortResetText(for date: Date, relativeTo now: Date) -> String {
     let formatter = RelativeDateTimeFormatter()
     formatter.unitsStyle = .abbreviated
-    return formatter.localizedString(for: date, relativeTo: now)
+    return "resets \(formatter.localizedString(for: resetsAt, relativeTo: now))"
 }

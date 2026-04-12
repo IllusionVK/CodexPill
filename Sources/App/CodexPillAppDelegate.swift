@@ -11,11 +11,13 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let repository = try! AccountRepository()
+        let hostRepository = try! RemoteHostRepository()
         let authService = CodexAuthSnapshotService(repository: repository)
         let controller = CodexAppController()
         let appServerClient = CodexAppServerClient()
         let store = MenuBarStore(
             repository: repository,
+            hostRepository: hostRepository,
             authService: authService,
             appController: controller,
             appServerClient: appServerClient
