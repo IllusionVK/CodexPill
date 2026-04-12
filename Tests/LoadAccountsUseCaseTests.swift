@@ -101,6 +101,113 @@ struct LoadAccountsUseCaseTests {
         #expect(result.activeAccountID == id)
     }
 
+    @Test
+    func runResolvesActiveAccountUsingBackfilledScopedPrincipalIdentity() throws {
+        let businessOneID = UUID()
+        let businessTwoID = UUID()
+
+        let savedBusinessOne = CodexAccount(
+            id: businessOneID,
+            name: "Business 1",
+            snapshotFileName: "\(businessOneID.uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "admin@raphh.me",
+            planType: "team",
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: nil,
+                snapshotFingerprint: "business-one-fingerprint",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "admin@raphh.me")
+            )
+        )
+        let savedBusinessTwo = CodexAccount(
+            id: businessTwoID,
+            name: "Business 2",
+            snapshotFileName: "\(businessTwoID.uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "raphaelgrau@gmail.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: nil,
+                snapshotFingerprint: "business-two-fingerprint",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+            )
+        )
+
+        let reconciledBusinessOne = CodexAccount(
+            id: businessOneID,
+            name: "Business 1",
+            snapshotFileName: "\(businessOneID.uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "admin@raphh.me",
+            planType: "team",
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: "acct-team",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                    subject: "auth0|business-1",
+                    chatGPTUserID: "user-business-1"
+                ),
+                workspaceIdentity: CodexWorkspaceIdentity(
+                    workspaceAccountID: "org-business-1",
+                    workspaceLabel: "Personal"
+                ),
+                snapshotFingerprint: "business-one-fingerprint",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "admin@raphh.me")
+            )
+        )
+        let reconciledBusinessTwo = CodexAccount(
+            id: businessTwoID,
+            name: "Business 2",
+            snapshotFileName: "\(businessTwoID.uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "raphaelgrau@gmail.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: "acct-team",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                    subject: "auth0|business-2",
+                    chatGPTUserID: "user-business-2"
+                ),
+                workspaceIdentity: CodexWorkspaceIdentity(
+                    workspaceAccountID: "org-business-2",
+                    workspaceLabel: "Personal"
+                ),
+                snapshotFingerprint: "business-two-fingerprint",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+            )
+        )
+
+        let repository = LoadingRepositorySpy(accountsToLoad: [savedBusinessOne, savedBusinessTwo])
+        let auth = ReconcileSpy(reconciledAccounts: [reconciledBusinessOne, reconciledBusinessTwo])
+        let resolver = ActiveAccountResolver(
+            authService: CurrentFingerprintStub(
+                fingerprint: nil,
+                stableAccountID: "acct-team",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                    subject: "auth0|business-2",
+                    chatGPTUserID: "user-business-2"
+                )
+            )
+        )
+        let useCase = LoadAccountsUseCase(
+            repository: repository,
+            authService: auth,
+            activeAccountResolver: resolver
+        )
+
+        let result = try useCase.run()
+
+        #expect(repository.savedAccounts == [reconciledBusinessOne, reconciledBusinessTwo])
+        #expect(result.activeAccountID == businessTwoID)
+    }
+
     private func makeAccount(
         id: UUID = UUID(),
         name: String,
@@ -166,6 +273,20 @@ private final class ReconcileSpy: StoredAccountReconciling {
 private struct CurrentFingerprintStub: CodexAuthFingerprintReading {
     let fingerprint: String?
     let stableAccountID: String?
+    let authPrincipalIdentity: CodexAuthPrincipalIdentity?
+    let workspaceIdentity: CodexWorkspaceIdentity?
+
+    init(
+        fingerprint: String?,
+        stableAccountID: String?,
+        authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
+        workspaceIdentity: CodexWorkspaceIdentity? = nil
+    ) {
+        self.fingerprint = fingerprint
+        self.stableAccountID = stableAccountID
+        self.authPrincipalIdentity = authPrincipalIdentity
+        self.workspaceIdentity = workspaceIdentity
+    }
 
     func currentAuthFingerprint() -> String? {
         fingerprint
@@ -173,5 +294,13 @@ private struct CurrentFingerprintStub: CodexAuthFingerprintReading {
 
     func currentStableAccountID() -> String? {
         stableAccountID
+    }
+
+    func currentAuthPrincipalIdentity() -> CodexAuthPrincipalIdentity? {
+        authPrincipalIdentity
+    }
+
+    func currentWorkspaceIdentity() -> CodexWorkspaceIdentity? {
+        workspaceIdentity
     }
 }

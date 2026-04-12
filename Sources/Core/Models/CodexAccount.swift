@@ -2,10 +2,66 @@ import Foundation
 
 struct CodexAccountIdentity: Codable, Hashable {
     var stableAccountID: String?
+    var authPrincipalIdentity: CodexAuthPrincipalIdentity?
+    var workspaceIdentity: CodexWorkspaceIdentity?
     var snapshotFingerprint: String?
     var remoteIdentity: CodexRemoteAccountIdentity?
 
-    static let empty = Self(stableAccountID: nil, snapshotFingerprint: nil, remoteIdentity: nil)
+    init(
+        stableAccountID: String? = nil,
+        authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
+        workspaceIdentity: CodexWorkspaceIdentity? = nil,
+        snapshotFingerprint: String? = nil,
+        remoteIdentity: CodexRemoteAccountIdentity? = nil
+    ) {
+        self.stableAccountID = stableAccountID
+        self.authPrincipalIdentity = authPrincipalIdentity
+        self.workspaceIdentity = workspaceIdentity
+        self.snapshotFingerprint = snapshotFingerprint
+        self.remoteIdentity = remoteIdentity
+    }
+
+    static let empty = Self(
+        stableAccountID: nil,
+        authPrincipalIdentity: nil,
+        workspaceIdentity: nil,
+        snapshotFingerprint: nil,
+        remoteIdentity: nil
+    )
+}
+
+struct CodexAuthPrincipalIdentity: Codable, Hashable {
+    let subject: String?
+    let chatGPTUserID: String?
+
+    init(subject: String?, chatGPTUserID: String?) {
+        let trimmedSubject = subject?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedChatGPTUserID = chatGPTUserID?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        self.subject = trimmedSubject?.isEmpty == false ? trimmedSubject : nil
+        self.chatGPTUserID = trimmedChatGPTUserID?.isEmpty == false ? trimmedChatGPTUserID : nil
+    }
+
+    var isMeaningful: Bool {
+        subject != nil || chatGPTUserID != nil
+    }
+}
+
+struct CodexWorkspaceIdentity: Codable, Hashable {
+    let workspaceAccountID: String?
+    let workspaceLabel: String?
+
+    init(workspaceAccountID: String?, workspaceLabel: String?) {
+        let trimmedAccountID = workspaceAccountID?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedLabel = workspaceLabel?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        self.workspaceAccountID = trimmedAccountID?.isEmpty == false ? trimmedAccountID : nil
+        self.workspaceLabel = trimmedLabel?.isEmpty == false ? trimmedLabel : nil
+    }
+
+    var isMeaningful: Bool {
+        workspaceAccountID != nil || workspaceLabel != nil
+    }
 }
 
 struct CodexRemoteAccountIdentity: Codable, Hashable {
@@ -78,6 +134,8 @@ struct CodexAccount: Identifiable, Codable, Hashable {
         identity = try container.decodeIfPresent(CodexAccountIdentity.self, forKey: .identity)
             ?? CodexAccountIdentity(
                 stableAccountID: nil,
+                authPrincipalIdentity: nil,
+                workspaceIdentity: nil,
                 snapshotFingerprint: nil,
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
             )

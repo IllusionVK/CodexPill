@@ -45,6 +45,8 @@ struct SwitchAccountWorkflow {
 
         let activeAccountID = accountMatcher.match(
             liveStableAccountID: authService.currentStableAccountID(),
+            liveAuthPrincipalIdentity: authService.currentAuthPrincipalIdentity(),
+            liveWorkspaceIdentity: authService.currentWorkspaceIdentity(),
             liveAuthFingerprint: authService.currentAuthFingerprint(),
             liveRemoteIdentity: nil,
             accounts: accounts

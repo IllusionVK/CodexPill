@@ -68,10 +68,19 @@ private final class AuthSpy: CodexAuthActivating {
     var activatedAccountID: UUID?
     private let fingerprint: String?
     private let stableAccountID: String?
+    private let authPrincipalIdentity: CodexAuthPrincipalIdentity?
+    private let workspaceIdentity: CodexWorkspaceIdentity?
 
-    init(currentFingerprint: String?, currentStableAccountID: String?) {
+    init(
+        currentFingerprint: String?,
+        currentStableAccountID: String?,
+        currentAuthPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
+        currentWorkspaceIdentity: CodexWorkspaceIdentity? = nil
+    ) {
         self.fingerprint = currentFingerprint
         self.stableAccountID = currentStableAccountID
+        self.authPrincipalIdentity = currentAuthPrincipalIdentity
+        self.workspaceIdentity = currentWorkspaceIdentity
     }
 
     func activate(_ account: CodexAccount) throws {
@@ -84,6 +93,14 @@ private final class AuthSpy: CodexAuthActivating {
 
     func currentStableAccountID() -> String? {
         stableAccountID
+    }
+
+    func currentAuthPrincipalIdentity() -> CodexAuthPrincipalIdentity? {
+        authPrincipalIdentity
+    }
+
+    func currentWorkspaceIdentity() -> CodexWorkspaceIdentity? {
+        workspaceIdentity
     }
 }
 

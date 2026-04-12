@@ -212,6 +212,14 @@ private final class SignInAnotherAuthSpy: CodexSignInAnotherAuthHandling {
         stableAccountIDValue
     }
 
+    func currentAuthPrincipalIdentity() -> CodexAuthPrincipalIdentity? {
+        savedAccount.identity.authPrincipalIdentity
+    }
+
+    func currentWorkspaceIdentity() -> CodexWorkspaceIdentity? {
+        savedAccount.identity.workspaceIdentity
+    }
+
     func saveCurrentAuthSnapshot(named name: String, existing: CodexAccount?) throws -> CodexAccount {
         savedNames.append(name)
         return savedAccount

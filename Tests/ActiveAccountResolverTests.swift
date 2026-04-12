@@ -53,6 +53,8 @@ struct ActiveAccountResolverTests {
 private struct AuthFingerprintSpy: CodexAuthFingerprintReading {
     let currentFingerprint: String?
     let stableAccountID: String?
+    let authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil
+    let workspaceIdentity: CodexWorkspaceIdentity? = nil
 
     func currentAuthFingerprint() -> String? {
         currentFingerprint
@@ -60,5 +62,13 @@ private struct AuthFingerprintSpy: CodexAuthFingerprintReading {
 
     func currentStableAccountID() -> String? {
         stableAccountID
+    }
+
+    func currentAuthPrincipalIdentity() -> CodexAuthPrincipalIdentity? {
+        authPrincipalIdentity
+    }
+
+    func currentWorkspaceIdentity() -> CodexWorkspaceIdentity? {
+        workspaceIdentity
     }
 }

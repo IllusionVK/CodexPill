@@ -71,6 +71,8 @@ struct SaveCurrentAccountWorkflow {
 
         let activeAccountID = accountMatcher.match(
             liveStableAccountID: saved.identity.stableAccountID,
+            liveAuthPrincipalIdentity: saved.identity.authPrincipalIdentity,
+            liveWorkspaceIdentity: saved.identity.workspaceIdentity,
             liveAuthFingerprint: saved.identity.snapshotFingerprint,
             liveRemoteIdentity: remote.remoteIdentity,
             accounts: updatedAccounts

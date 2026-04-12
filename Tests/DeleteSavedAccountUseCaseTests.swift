@@ -56,6 +56,8 @@ private final class SnapshotDeletingRepositorySpy: AccountSnapshotDeleting {
 private struct CurrentFingerprintStub: CodexAuthFingerprintReading {
     let fingerprint: String?
     let stableAccountID: String?
+    let authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil
+    let workspaceIdentity: CodexWorkspaceIdentity? = nil
 
     func currentAuthFingerprint() -> String? {
         fingerprint
@@ -63,5 +65,13 @@ private struct CurrentFingerprintStub: CodexAuthFingerprintReading {
 
     func currentStableAccountID() -> String? {
         stableAccountID
+    }
+
+    func currentAuthPrincipalIdentity() -> CodexAuthPrincipalIdentity? {
+        authPrincipalIdentity
+    }
+
+    func currentWorkspaceIdentity() -> CodexWorkspaceIdentity? {
+        workspaceIdentity
     }
 }

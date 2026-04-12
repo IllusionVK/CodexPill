@@ -3,6 +3,8 @@ import Foundation
 protocol CodexAuthFingerprintReading {
     func currentAuthFingerprint() -> String?
     func currentStableAccountID() -> String?
+    func currentAuthPrincipalIdentity() -> CodexAuthPrincipalIdentity?
+    func currentWorkspaceIdentity() -> CodexWorkspaceIdentity?
 }
 
 extension CodexAuthSnapshotService: CodexAuthFingerprintReading {}
@@ -25,6 +27,8 @@ struct ActiveAccountResolver {
     ) -> CodexAccountMatchOutcome {
         accountMatcher.match(
             liveStableAccountID: authService.currentStableAccountID(),
+            liveAuthPrincipalIdentity: authService.currentAuthPrincipalIdentity(),
+            liveWorkspaceIdentity: authService.currentWorkspaceIdentity(),
             liveAuthFingerprint: authService.currentAuthFingerprint(),
             liveRemoteIdentity: liveRemoteIdentity,
             accounts: accounts

@@ -1,9 +1,11 @@
 import Foundation
 
 enum CodexAccountMatchOutcome: Equatable {
+    case exactScopedStableAccountID(UUID)
     case exactStableAccountID(UUID)
     case exactSnapshot(UUID)
     case uniqueRemoteIdentity(UUID)
+    case ambiguousScopedStableAccountID([UUID])
     case ambiguousStableAccountID([UUID])
     case ambiguousSnapshotFingerprint([UUID])
     case ambiguousRemoteIdentity([UUID])
@@ -11,9 +13,9 @@ enum CodexAccountMatchOutcome: Equatable {
 
     var matchedAccountID: UUID? {
         switch self {
-        case .exactStableAccountID(let id), .exactSnapshot(let id), .uniqueRemoteIdentity(let id):
+        case .exactScopedStableAccountID(let id), .exactStableAccountID(let id), .exactSnapshot(let id), .uniqueRemoteIdentity(let id):
             return id
-        case .ambiguousStableAccountID, .ambiguousSnapshotFingerprint, .ambiguousRemoteIdentity, .noMatch:
+        case .ambiguousScopedStableAccountID, .ambiguousStableAccountID, .ambiguousSnapshotFingerprint, .ambiguousRemoteIdentity, .noMatch:
             return nil
         }
     }
@@ -22,10 +24,21 @@ enum CodexAccountMatchOutcome: Equatable {
 struct CodexAccountMatcher {
     func match(
         liveStableAccountID: String?,
+        liveAuthPrincipalIdentity: CodexAuthPrincipalIdentity?,
+        liveWorkspaceIdentity: CodexWorkspaceIdentity?,
         liveAuthFingerprint: String?,
         liveRemoteIdentity: CodexRemoteAccountIdentity?,
         accounts: [CodexAccount]
     ) -> CodexAccountMatchOutcome {
+        if let stableScopedMatch = matchScopedStableAccountID(
+            liveStableAccountID: liveStableAccountID,
+            liveAuthPrincipalIdentity: liveAuthPrincipalIdentity,
+            liveWorkspaceIdentity: liveWorkspaceIdentity,
+            accounts: accounts
+        ) {
+            return stableScopedMatch
+        }
+
         if let liveStableAccountID {
             let stableMatches = accounts
                 .filter { $0.identity.stableAccountID == liveStableAccountID }
@@ -76,5 +89,60 @@ struct CodexAccountMatcher {
 
     private func uuidSort(_ lhs: UUID, _ rhs: UUID) -> Bool {
         lhs.uuidString < rhs.uuidString
+    }
+
+    private func matchScopedStableAccountID(
+        liveStableAccountID: String?,
+        liveAuthPrincipalIdentity: CodexAuthPrincipalIdentity?,
+        liveWorkspaceIdentity: CodexWorkspaceIdentity?,
+        accounts: [CodexAccount]
+    ) -> CodexAccountMatchOutcome? {
+        guard let liveStableAccountID else { return nil }
+
+        let stableAccounts = accounts.filter { $0.identity.stableAccountID == liveStableAccountID }
+        guard !stableAccounts.isEmpty else { return nil }
+
+        let hasScopedStableCandidates = stableAccounts.contains {
+            ($0.identity.authPrincipalIdentity?.isMeaningful ?? false) ||
+                ($0.identity.workspaceIdentity?.isMeaningful ?? false)
+        }
+
+        if let liveAuthPrincipalIdentity,
+           liveAuthPrincipalIdentity.isMeaningful {
+            let principalMatches = stableAccounts
+                .filter { $0.identity.authPrincipalIdentity == liveAuthPrincipalIdentity }
+                .map(\.id)
+
+            switch principalMatches.count {
+            case 1:
+                return .exactScopedStableAccountID(principalMatches[0])
+            case let count where count > 1:
+                return .ambiguousScopedStableAccountID(principalMatches.sorted(by: uuidSort))
+            default:
+                if hasScopedStableCandidates {
+                    return .noMatch
+                }
+            }
+        }
+
+        if let liveWorkspaceIdentity,
+           liveWorkspaceIdentity.isMeaningful {
+            let workspaceMatches = stableAccounts
+                .filter { $0.identity.workspaceIdentity == liveWorkspaceIdentity }
+                .map(\.id)
+
+            switch workspaceMatches.count {
+            case 1:
+                return .exactScopedStableAccountID(workspaceMatches[0])
+            case let count where count > 1:
+                return .ambiguousScopedStableAccountID(workspaceMatches.sorted(by: uuidSort))
+            default:
+                if hasScopedStableCandidates {
+                    return .noMatch
+                }
+            }
+        }
+
+        return nil
     }
 }

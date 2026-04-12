@@ -113,4 +113,12 @@ private struct CurrentFingerprintStub: CodexAuthFingerprintReading {
     func currentStableAccountID() -> String? {
         nil
     }
+
+    func currentAuthPrincipalIdentity() -> CodexAuthPrincipalIdentity? {
+        nil
+    }
+
+    func currentWorkspaceIdentity() -> CodexWorkspaceIdentity? {
+        nil
+    }
 }

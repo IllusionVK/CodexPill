@@ -21,6 +21,8 @@ struct CodexAccountMatcherTests {
 
         let outcome = matcher.match(
             liveStableAccountID: nil,
+            liveAuthPrincipalIdentity: nil,
+            liveWorkspaceIdentity: nil,
             liveAuthFingerprint: "live-fingerprint",
             liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "current@example.com"),
             accounts: [exact, fallback]
@@ -39,6 +41,8 @@ struct CodexAccountMatcherTests {
 
         let outcome = matcher.match(
             liveStableAccountID: nil,
+            liveAuthPrincipalIdentity: nil,
+            liveWorkspaceIdentity: nil,
             liveAuthFingerprint: "different-fingerprint",
             liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "PERSON@example.com"),
             accounts: [account]
@@ -54,6 +58,8 @@ struct CodexAccountMatcherTests {
 
         let outcome = matcher.match(
             liveStableAccountID: nil,
+            liveAuthPrincipalIdentity: nil,
+            liveWorkspaceIdentity: nil,
             liveAuthFingerprint: nil,
             liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "shared@example.com"),
             accounts: [first, second]
@@ -68,6 +74,8 @@ struct CodexAccountMatcherTests {
 
         let outcome = matcher.match(
             liveStableAccountID: nil,
+            liveAuthPrincipalIdentity: nil,
+            liveWorkspaceIdentity: nil,
             liveAuthFingerprint: "other-fingerprint",
             liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "other@example.com"),
             accounts: [account]
@@ -86,6 +94,8 @@ struct CodexAccountMatcherTests {
 
         let outcome = matcher.match(
             liveStableAccountID: "acct-123",
+            liveAuthPrincipalIdentity: nil,
+            liveWorkspaceIdentity: nil,
             liveAuthFingerprint: "different-fingerprint",
             liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "other@example.com"),
             accounts: [account]
@@ -94,10 +104,111 @@ struct CodexAccountMatcherTests {
         #expect(outcome == .exactStableAccountID(account.id))
     }
 
+    @Test
+    func scopedStableAccountIDMatchWinsWhenWorkspaceIdentityDiffers() {
+        let personal = makeAccount(
+            email: "shared@example.com",
+            snapshotFingerprint: "personal-fingerprint",
+            stableAccountID: "acct-123",
+            workspaceIdentity: CodexWorkspaceIdentity(
+                workspaceAccountID: "org-personal",
+                workspaceLabel: "Personal"
+            )
+        )
+        let team = makeAccount(
+            email: "shared@example.com",
+            snapshotFingerprint: "team-fingerprint",
+            stableAccountID: "acct-123",
+            workspaceIdentity: CodexWorkspaceIdentity(
+                workspaceAccountID: "org-team",
+                workspaceLabel: "Team"
+            )
+        )
+
+        let outcome = matcher.match(
+            liveStableAccountID: "acct-123",
+            liveAuthPrincipalIdentity: nil,
+            liveWorkspaceIdentity: CodexWorkspaceIdentity(
+                workspaceAccountID: "org-team",
+                workspaceLabel: "Team"
+            ),
+            liveAuthFingerprint: "different-fingerprint",
+            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "shared@example.com"),
+            accounts: [personal, team]
+        )
+
+        #expect(outcome == .exactScopedStableAccountID(team.id))
+    }
+
+    @Test
+    func scopedStableAccountIDMatchWinsWhenAuthPrincipalDiffers() {
+        let businessOne = makeAccount(
+            email: "admin@raphh.me",
+            snapshotFingerprint: "business-one",
+            stableAccountID: "acct-team",
+            authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                subject: "auth0|business-1",
+                chatGPTUserID: "user-business-1"
+            )
+        )
+        let businessTwo = makeAccount(
+            email: "raphaelgrau@gmail.com",
+            snapshotFingerprint: "business-two",
+            stableAccountID: "acct-team",
+            authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                subject: "auth0|business-2",
+                chatGPTUserID: "user-business-2"
+            )
+        )
+
+        let outcome = matcher.match(
+            liveStableAccountID: "acct-team",
+            liveAuthPrincipalIdentity: CodexAuthPrincipalIdentity(
+                subject: "auth0|business-2",
+                chatGPTUserID: "user-business-2"
+            ),
+            liveWorkspaceIdentity: nil,
+            liveAuthFingerprint: "different-fingerprint",
+            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com"),
+            accounts: [businessOne, businessTwo]
+        )
+
+        #expect(outcome == .exactScopedStableAccountID(businessTwo.id))
+    }
+
+    @Test
+    func stableAccountIDDoesNotFallbackWhenScopedPrincipalDoesNotMatch() {
+        let businessOne = makeAccount(
+            email: "admin@raphh.me",
+            snapshotFingerprint: "business-one",
+            stableAccountID: "acct-team",
+            authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                subject: "auth0|business-1",
+                chatGPTUserID: "user-business-1"
+            )
+        )
+
+        let outcome = matcher.match(
+            liveStableAccountID: "acct-team",
+            liveAuthPrincipalIdentity: CodexAuthPrincipalIdentity(
+                subject: "auth0|business-2",
+                chatGPTUserID: "user-business-2"
+            ),
+            liveWorkspaceIdentity: nil,
+            liveAuthFingerprint: "different-fingerprint",
+            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com"),
+            accounts: [businessOne]
+        )
+
+        #expect(outcome == .noMatch)
+    }
+
     private func makeAccount(
         email: String,
         snapshotFingerprint: String,
-        stableAccountID: String?
+        stableAccountID: String?,
+        authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
+        workspaceIdentity: CodexWorkspaceIdentity? = nil
     ) -> CodexAccount {
         CodexAccount(
             id: UUID(),
@@ -110,6 +221,8 @@ struct CodexAccountMatcherTests {
             rateLimits: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: stableAccountID,
+                authPrincipalIdentity: authPrincipalIdentity,
+                workspaceIdentity: workspaceIdentity,
                 snapshotFingerprint: snapshotFingerprint,
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
             )
