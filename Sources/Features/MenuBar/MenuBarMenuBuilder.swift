@@ -287,11 +287,9 @@ private struct ActiveAccountMenuContent: View {
 
             if let email = account.email {
                 HStack(alignment: .firstTextBaseline) {
-                    if let fetchedAt = account.rateLimits?.fetchedAt {
-                        Text("Updated \(RelativeDateTimeFormatter().localizedString(for: fetchedAt, relativeTo: .now))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    Text("Updated \(RelativeDateTimeFormatter().localizedString(for: account.lastRemoteRefreshAt, relativeTo: .now))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     Spacer()
                     Text(email)
                         .font(.caption)

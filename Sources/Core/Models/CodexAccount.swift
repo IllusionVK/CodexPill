@@ -85,6 +85,13 @@ struct CodexAccount: Identifiable, Codable, Hashable {
         identity.remoteIdentity ?? CodexRemoteAccountIdentity(emailAddress: email)
     }
 
+    var lastRemoteRefreshAt: Date {
+        if let fetchedAt = rateLimits?.fetchedAt {
+            return max(updatedAt, fetchedAt)
+        }
+        return updatedAt
+    }
+
     mutating func applyRemoteMetadata(
         email: String?,
         planType: String?,
