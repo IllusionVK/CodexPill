@@ -13,14 +13,14 @@ struct DeleteSavedAccountResult {
 
 struct DeleteSavedAccountUseCase {
     private let repository: AccountSnapshotDeleting
-    private let activeAccountResolver: ActiveAccountResolver
+    private let identityResolver: SavedAccountIdentityResolver
 
     init(
         repository: AccountSnapshotDeleting,
-        activeAccountResolver: ActiveAccountResolver
+        identityResolver: SavedAccountIdentityResolver
     ) {
         self.repository = repository
-        self.activeAccountResolver = activeAccountResolver
+        self.identityResolver = identityResolver
     }
 
     func run(account: CodexAccount, accounts: [CodexAccount]) throws -> DeleteSavedAccountResult {
@@ -30,7 +30,7 @@ struct DeleteSavedAccountUseCase {
 
         return DeleteSavedAccountResult(
             accounts: updatedAccounts,
-            activeAccountID: activeAccountResolver.resolveActiveAccountID(accounts: updatedAccounts)
+            activeAccountID: identityResolver.resolveCurrentAccountID(accounts: updatedAccounts)
         )
     }
 }

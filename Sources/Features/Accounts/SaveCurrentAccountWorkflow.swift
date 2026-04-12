@@ -24,18 +24,18 @@ struct SaveCurrentAccountWorkflow {
     private let appServerClient: CodexAccountStatusReading
     private let authService: CodexAuthSnapshotSaving
     private let repository: AccountCatalogPersisting
-    private let accountMatcher: CodexAccountMatcher
+    private let identityResolver: SavedAccountIdentityResolver
 
     init(
         appServerClient: CodexAccountStatusReading,
         authService: CodexAuthSnapshotSaving,
         repository: AccountCatalogPersisting,
-        accountMatcher: CodexAccountMatcher = CodexAccountMatcher()
+        identityResolver: SavedAccountIdentityResolver
     ) {
         self.appServerClient = appServerClient
         self.authService = authService
         self.repository = repository
-        self.accountMatcher = accountMatcher
+        self.identityResolver = identityResolver
     }
 
     func run(
@@ -69,14 +69,11 @@ struct SaveCurrentAccountWorkflow {
         updatedAccounts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         try repository.saveAccounts(updatedAccounts)
 
-        let activeAccountID = accountMatcher.match(
-            liveStableAccountID: saved.identity.stableAccountID,
-            liveAuthPrincipalIdentity: saved.identity.authPrincipalIdentity,
-            liveWorkspaceIdentity: saved.identity.workspaceIdentity,
-            liveAuthFingerprint: saved.identity.snapshotFingerprint,
-            liveRemoteIdentity: remote.remoteIdentity,
-            accounts: updatedAccounts
-        ).matchedAccountID
+        let activeAccountID = identityResolver.resolveSavedAccountID(
+            for: saved,
+            among: updatedAccounts,
+            liveRemoteIdentity: remote.remoteIdentity
+        )
 
         return SaveCurrentAccountWorkflowResult(
             savedAccount: saved,

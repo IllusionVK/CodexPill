@@ -19,7 +19,11 @@ struct SaveCurrentAccountWorkflowTests {
         let workflow = SaveCurrentAccountWorkflow(
             appServerClient: appServer,
             authService: auth,
-            repository: repository
+            repository: repository,
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentityReader: FixedIdentityReader(identity: LiveCodexAccountIdentity(account: saved)),
+                storedAccountReconciler: ReconcilePassthrough()
+            )
         )
 
         let result = try await workflow.run(
@@ -41,7 +45,11 @@ struct SaveCurrentAccountWorkflowTests {
         let workflow = SaveCurrentAccountWorkflow(
             appServerClient: AppServerSpy(status: CodexAccountStatus(email: "new@example.com", planType: nil, rateLimits: nil)),
             authService: SnapshotSaveSpy(savedAccount: makeAccount(name: "work", fingerprint: "new")),
-            repository: RepositorySpy()
+            repository: RepositorySpy(),
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentityReader: FixedIdentityReader(identity: .empty),
+                storedAccountReconciler: ReconcilePassthrough()
+            )
         )
 
         await #expect(throws: SaveCurrentAccountWorkflowError.duplicateAccountName) {
@@ -63,7 +71,11 @@ struct SaveCurrentAccountWorkflowTests {
         let workflow = SaveCurrentAccountWorkflow(
             appServerClient: AppServerSpy(status: remote),
             authService: auth,
-            repository: RepositorySpy()
+            repository: RepositorySpy(),
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentityReader: FixedIdentityReader(identity: LiveCodexAccountIdentity(account: auth.savedAccount)),
+                storedAccountReconciler: ReconcilePassthrough()
+            )
         )
 
         _ = try await workflow.run(
@@ -125,5 +137,19 @@ private final class RepositorySpy: AccountCatalogPersisting {
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {
         savedAccounts = accounts
+    }
+}
+
+private struct FixedIdentityReader: LiveCodexAccountIdentityReading {
+    let identity: LiveCodexAccountIdentity
+
+    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
+        identity
+    }
+}
+
+private struct ReconcilePassthrough: StoredAccountIdentityReconciling {
+    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
+        accounts
     }
 }

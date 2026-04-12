@@ -9,8 +9,11 @@ struct DeleteSavedAccountUseCaseTests {
         let current = makeAccount(name: "Current", fingerprint: "live")
         let other = makeAccount(name: "Other", fingerprint: "other")
         let repository = SnapshotDeletingRepositorySpy()
-        let resolver = ActiveAccountResolver(authService: CurrentFingerprintStub(fingerprint: "other", stableAccountID: nil))
-        let useCase = DeleteSavedAccountUseCase(repository: repository, activeAccountResolver: resolver)
+        let resolver = SavedAccountIdentityResolver(
+            liveIdentityReader: CurrentFingerprintStub(fingerprint: "other", stableAccountID: nil),
+            storedAccountReconciler: ReconcilePassthrough()
+        )
+        let useCase = DeleteSavedAccountUseCase(repository: repository, identityResolver: resolver)
 
         let result = try useCase.run(account: current, accounts: [current, other])
 
@@ -53,25 +56,24 @@ private final class SnapshotDeletingRepositorySpy: AccountSnapshotDeleting {
     }
 }
 
-private struct CurrentFingerprintStub: CodexAuthFingerprintReading {
+private struct CurrentFingerprintStub: LiveCodexAccountIdentityReading {
     let fingerprint: String?
     let stableAccountID: String?
     let authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil
     let workspaceIdentity: CodexWorkspaceIdentity? = nil
 
-    func currentAuthFingerprint() -> String? {
-        fingerprint
+    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
+        LiveCodexAccountIdentity(
+            stableAccountID: stableAccountID,
+            authPrincipalIdentity: authPrincipalIdentity,
+            workspaceIdentity: workspaceIdentity,
+            snapshotFingerprint: fingerprint
+        )
     }
+}
 
-    func currentStableAccountID() -> String? {
-        stableAccountID
-    }
-
-    func currentAuthPrincipalIdentity() -> CodexAuthPrincipalIdentity? {
-        authPrincipalIdentity
-    }
-
-    func currentWorkspaceIdentity() -> CodexWorkspaceIdentity? {
-        workspaceIdentity
+private struct ReconcilePassthrough: StoredAccountIdentityReconciling {
+    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
+        accounts
     }
 }

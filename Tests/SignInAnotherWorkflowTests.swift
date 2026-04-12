@@ -13,7 +13,7 @@ struct SignInAnotherWorkflowTests {
             appController: appController,
             appServerClient: AppServerSpy(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
             repository: RepositorySpy(),
-            activeAccountResolver: ActiveAccountResolver(authService: auth)
+            identityResolver: makeResolver(auth: auth)
         )
 
         let result = try workflow.prepare(named: "  Secondary  ")
@@ -32,7 +32,7 @@ struct SignInAnotherWorkflowTests {
             appController: appController,
             appServerClient: AppServerSpy(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
             repository: RepositorySpy(),
-            activeAccountResolver: ActiveAccountResolver(authService: auth)
+            identityResolver: makeResolver(auth: auth)
         )
 
         try await workflow.relaunchCodex()
@@ -53,7 +53,7 @@ struct SignInAnotherWorkflowTests {
             appController: AppControllerSpy(),
             appServerClient: AppServerSpy(status: CodexAccountStatus(email: "person@example.com", planType: "pro", rateLimits: nil)),
             repository: repository,
-            activeAccountResolver: ActiveAccountResolver(authService: auth)
+            identityResolver: makeResolver(auth: auth)
         )
 
         let result = try await workflow.completePendingSignIn(
@@ -81,7 +81,7 @@ struct SignInAnotherWorkflowTests {
             appController: AppControllerSpy(),
             appServerClient: AppServerSpy(status: CodexAccountStatus(email: "admin@raphh.me", planType: "team", rateLimits: nil)),
             repository: repository,
-            activeAccountResolver: ActiveAccountResolver(authService: auth)
+            identityResolver: makeResolver(auth: auth)
         )
 
         let result = try await workflow.completePendingSignIn(
@@ -140,7 +140,7 @@ struct SignInAnotherWorkflowTests {
             appController: AppControllerSpy(),
             appServerClient: AppServerSpy(status: CodexAccountStatus(email: "raphaelgrau@gmail.com", planType: "team", rateLimits: nil)),
             repository: repository,
-            activeAccountResolver: ActiveAccountResolver(authService: auth)
+            identityResolver: makeResolver(auth: auth)
         )
 
         let result = try await workflow.completePendingSignIn(
@@ -173,7 +173,7 @@ struct SignInAnotherWorkflowTests {
     }
 }
 
-private final class SignInAnotherAuthSpy: CodexSignInAnotherAuthHandling {
+private final class SignInAnotherAuthSpy: CodexSignInAnotherAuthHandling, LiveCodexAccountIdentityReading {
     let savedAccount: CodexAccount
     let currentAuthData: Data?
     let currentFingerprint: String?
@@ -204,20 +204,13 @@ private final class SignInAnotherAuthSpy: CodexSignInAnotherAuthHandling {
         return currentAuthData
     }
 
-    func currentAuthFingerprint() -> String? {
-        currentFingerprint
-    }
-
-    func currentStableAccountID() -> String? {
-        stableAccountIDValue
-    }
-
-    func currentAuthPrincipalIdentity() -> CodexAuthPrincipalIdentity? {
-        savedAccount.identity.authPrincipalIdentity
-    }
-
-    func currentWorkspaceIdentity() -> CodexWorkspaceIdentity? {
-        savedAccount.identity.workspaceIdentity
+    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
+        LiveCodexAccountIdentity(
+            stableAccountID: stableAccountIDValue,
+            authPrincipalIdentity: savedAccount.identity.authPrincipalIdentity,
+            workspaceIdentity: savedAccount.identity.workspaceIdentity,
+            snapshotFingerprint: currentFingerprint
+        )
     }
 
     func saveCurrentAuthSnapshot(named name: String, existing: CodexAccount?) throws -> CodexAccount {
@@ -251,5 +244,18 @@ private final class RepositorySpy: AccountCatalogPersisting {
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {
         savedAccounts = accounts
+    }
+}
+
+private func makeResolver(auth: SignInAnotherAuthSpy) -> SavedAccountIdentityResolver {
+    SavedAccountIdentityResolver(
+        liveIdentityReader: auth,
+        storedAccountReconciler: ReconcilePassthrough()
+    )
+}
+
+private struct ReconcilePassthrough: StoredAccountIdentityReconciling {
+    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
+        accounts
     }
 }

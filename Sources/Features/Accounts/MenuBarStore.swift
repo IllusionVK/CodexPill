@@ -11,7 +11,7 @@ extension Notification.Name {
 @MainActor
 @Observable
 final class MenuBarStore {
-    private let activeAccountResolver: ActiveAccountResolver
+    private let identityResolver: SavedAccountIdentityResolver
     private let loadAccountsUseCase: LoadAccountsUseCase
     private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
     private let deleteSavedAccountUseCase: DeleteSavedAccountUseCase
@@ -33,37 +33,41 @@ final class MenuBarStore {
         appController: CodexAppController,
         appServerClient: CodexAppServerClient
     ) {
-        self.activeAccountResolver = ActiveAccountResolver(authService: authService)
+        self.identityResolver = SavedAccountIdentityResolver(
+            liveIdentityReader: authService,
+            storedAccountReconciler: authService
+        )
         self.loadAccountsUseCase = LoadAccountsUseCase(
             repository: repository,
-            authService: authService,
-            activeAccountResolver: self.activeAccountResolver
+            identityResolver: self.identityResolver
         )
         self.refreshActiveAccountUseCase = RefreshActiveAccountUseCase(
             appServerClient: appServerClient,
-            activeAccountResolver: self.activeAccountResolver,
+            identityResolver: self.identityResolver,
             repository: repository
         )
         self.deleteSavedAccountUseCase = DeleteSavedAccountUseCase(
             repository: repository,
-            activeAccountResolver: self.activeAccountResolver
+            identityResolver: self.identityResolver
         )
         self.switchAccountWorkflow = SwitchAccountWorkflow(
             authService: authService,
             repository: repository,
-            appController: appController
+            appController: appController,
+            identityResolver: self.identityResolver
         )
         self.saveCurrentAccountWorkflow = SaveCurrentAccountWorkflow(
             appServerClient: appServerClient,
             authService: authService,
-            repository: repository
+            repository: repository,
+            identityResolver: self.identityResolver
         )
         self.signInAnotherWorkflow = SignInAnotherWorkflow(
             authService: authService,
             appController: appController,
             appServerClient: appServerClient,
             repository: repository,
-            activeAccountResolver: self.activeAccountResolver
+            identityResolver: self.identityResolver
         )
     }
 
@@ -168,7 +172,7 @@ final class MenuBarStore {
     }
 
     func refreshActiveAccount() {
-        activeAccountID = activeAccountResolver.resolveActiveAccountID(accounts: accounts)
+        activeAccountID = identityResolver.resolveCurrentAccountID(accounts: accounts)
     }
 
     func isActive(_ account: CodexAccount) -> Bool {

@@ -1,6 +1,6 @@
 import Foundation
 
-protocol CodexSignInAnotherAuthHandling: CodexAuthSnapshotSaving, CodexAuthFingerprintReading {
+protocol CodexSignInAnotherAuthHandling: CodexAuthSnapshotSaving {
     func prepareForNewSignIn() throws
     func readCurrentAuthData() throws -> Data
 }
@@ -21,20 +21,20 @@ struct SignInAnotherWorkflow {
     private let appController: CodexAppRelaunching
     private let appServerClient: CodexAccountStatusReading
     private let repository: AccountCatalogPersisting
-    private let activeAccountResolver: ActiveAccountResolver
+    private let identityResolver: SavedAccountIdentityResolver
 
     init(
         authService: CodexSignInAnotherAuthHandling,
         appController: CodexAppRelaunching,
         appServerClient: CodexAccountStatusReading,
         repository: AccountCatalogPersisting,
-        activeAccountResolver: ActiveAccountResolver
+        identityResolver: SavedAccountIdentityResolver
     ) {
         self.authService = authService
         self.appController = appController
         self.appServerClient = appServerClient
         self.repository = repository
-        self.activeAccountResolver = activeAccountResolver
+        self.identityResolver = identityResolver
     }
 
     func prepare(named pendingAccountName: String?) throws -> SignInAnotherPreparationResult {
@@ -56,7 +56,7 @@ struct SignInAnotherWorkflow {
         }
 
         let remote = try? await appServerClient.readCurrentAccountStatus()
-        let matchedAccountID = activeAccountResolver.resolveActiveAccountID(accounts: existingAccounts)
+        let matchedAccountID = identityResolver.resolveCurrentAccountID(accounts: existingAccounts)
         let existing = matchedAccountID.flatMap { id in
             existingAccounts.first(where: { $0.id == id })
         }

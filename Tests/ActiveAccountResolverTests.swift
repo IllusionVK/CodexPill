@@ -3,12 +3,13 @@ import Testing
 
 @testable import CodexPill
 
-struct ActiveAccountResolverTests {
+struct SavedAccountIdentityResolverTests {
     @Test
     func resolveUsesCurrentAuthFingerprintByDefault() {
         let account = makeAccount(name: "Work", fingerprint: "live-fingerprint", email: "work@example.com")
-        let resolver = ActiveAccountResolver(
-            authService: AuthFingerprintSpy(currentFingerprint: "live-fingerprint", stableAccountID: nil)
+        let resolver = SavedAccountIdentityResolver(
+            liveIdentityReader: LiveIdentitySpy(currentFingerprint: "live-fingerprint", stableAccountID: nil),
+            storedAccountReconciler: ReconcilePassthrough()
         )
 
         let result = resolver.resolve(accounts: [account])
@@ -19,8 +20,9 @@ struct ActiveAccountResolverTests {
     @Test
     func resolveFallsBackToRemoteIdentityWhenFingerprintDoesNotMatch() {
         let account = makeAccount(name: "Work", fingerprint: "stale-fingerprint", email: "work@example.com")
-        let resolver = ActiveAccountResolver(
-            authService: AuthFingerprintSpy(currentFingerprint: "live-fingerprint", stableAccountID: nil)
+        let resolver = SavedAccountIdentityResolver(
+            liveIdentityReader: LiveIdentitySpy(currentFingerprint: "live-fingerprint", stableAccountID: nil),
+            storedAccountReconciler: ReconcilePassthrough()
         )
 
         let result = resolver.resolve(
@@ -50,25 +52,24 @@ struct ActiveAccountResolverTests {
     }
 }
 
-private struct AuthFingerprintSpy: CodexAuthFingerprintReading {
+private struct LiveIdentitySpy: LiveCodexAccountIdentityReading {
     let currentFingerprint: String?
     let stableAccountID: String?
     let authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil
     let workspaceIdentity: CodexWorkspaceIdentity? = nil
 
-    func currentAuthFingerprint() -> String? {
-        currentFingerprint
+    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
+        LiveCodexAccountIdentity(
+            stableAccountID: stableAccountID,
+            authPrincipalIdentity: authPrincipalIdentity,
+            workspaceIdentity: workspaceIdentity,
+            snapshotFingerprint: currentFingerprint
+        )
     }
+}
 
-    func currentStableAccountID() -> String? {
-        stableAccountID
-    }
-
-    func currentAuthPrincipalIdentity() -> CodexAuthPrincipalIdentity? {
-        authPrincipalIdentity
-    }
-
-    func currentWorkspaceIdentity() -> CodexWorkspaceIdentity? {
-        workspaceIdentity
+private struct ReconcilePassthrough: StoredAccountIdentityReconciling {
+    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
+        accounts
     }
 }

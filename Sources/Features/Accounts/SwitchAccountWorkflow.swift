@@ -1,6 +1,6 @@
 import Foundation
 
-protocol CodexAuthActivating: CodexAuthFingerprintReading {
+protocol CodexAuthActivating {
     func activate(_ account: CodexAccount) throws
 }
 
@@ -22,18 +22,18 @@ struct SwitchAccountWorkflow {
     private let authService: CodexAuthActivating
     private let repository: AccountCatalogPersisting
     private let appController: CodexAppRelaunching
-    private let accountMatcher: CodexAccountMatcher
+    private let identityResolver: SavedAccountIdentityResolver
 
     init(
         authService: CodexAuthActivating,
         repository: AccountCatalogPersisting,
         appController: CodexAppRelaunching,
-        accountMatcher: CodexAccountMatcher = CodexAccountMatcher()
+        identityResolver: SavedAccountIdentityResolver
     ) {
         self.authService = authService
         self.repository = repository
         self.appController = appController
-        self.accountMatcher = accountMatcher
+        self.identityResolver = identityResolver
     }
 
     func run(
@@ -43,14 +43,7 @@ struct SwitchAccountWorkflow {
         try authService.activate(account)
         try repository.saveAccounts(accounts)
 
-        let activeAccountID = accountMatcher.match(
-            liveStableAccountID: authService.currentStableAccountID(),
-            liveAuthPrincipalIdentity: authService.currentAuthPrincipalIdentity(),
-            liveWorkspaceIdentity: authService.currentWorkspaceIdentity(),
-            liveAuthFingerprint: authService.currentAuthFingerprint(),
-            liveRemoteIdentity: nil,
-            accounts: accounts
-        ).matchedAccountID
+        let activeAccountID = identityResolver.resolveCurrentAccountID(accounts: accounts)
 
         try await appController.relaunchCodex()
         return activeAccountID

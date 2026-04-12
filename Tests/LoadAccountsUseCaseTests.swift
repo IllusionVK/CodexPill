@@ -16,11 +16,13 @@ struct LoadAccountsUseCaseTests {
 
         let repository = LoadingRepositorySpy(accountsToLoad: [saved])
         let auth = ReconcileSpy(reconciledAccounts: [reconciled])
-        let resolver = ActiveAccountResolver(authService: CurrentFingerprintStub(fingerprint: "live", stableAccountID: nil))
+        let resolver = SavedAccountIdentityResolver(
+            liveIdentityReader: CurrentFingerprintStub(fingerprint: "live", stableAccountID: nil),
+            storedAccountReconciler: auth
+        )
         let useCase = LoadAccountsUseCase(
             repository: repository,
-            authService: auth,
-            activeAccountResolver: resolver
+            identityResolver: resolver
         )
 
         let result = try useCase.run()
@@ -38,11 +40,13 @@ struct LoadAccountsUseCaseTests {
         let saved = makeAccount(name: "Work", fingerprint: "live")
         let repository = LoadingRepositorySpy(accountsToLoad: [saved])
         let auth = ReconcileSpy(reconciledAccounts: [saved])
-        let resolver = ActiveAccountResolver(authService: CurrentFingerprintStub(fingerprint: nil, stableAccountID: nil))
+        let resolver = SavedAccountIdentityResolver(
+            liveIdentityReader: CurrentFingerprintStub(fingerprint: nil, stableAccountID: nil),
+            storedAccountReconciler: auth
+        )
         let useCase = LoadAccountsUseCase(
             repository: repository,
-            authService: auth,
-            activeAccountResolver: resolver
+            identityResolver: resolver
         )
 
         let result = try useCase.run()
@@ -88,11 +92,13 @@ struct LoadAccountsUseCaseTests {
 
         let repository = LoadingRepositorySpy(accountsToLoad: [saved])
         let auth = ReconcileSpy(reconciledAccounts: [reconciled])
-        let resolver = ActiveAccountResolver(authService: CurrentFingerprintStub(fingerprint: nil, stableAccountID: "acct-123"))
+        let resolver = SavedAccountIdentityResolver(
+            liveIdentityReader: CurrentFingerprintStub(fingerprint: nil, stableAccountID: "acct-123"),
+            storedAccountReconciler: auth
+        )
         let useCase = LoadAccountsUseCase(
             repository: repository,
-            authService: auth,
-            activeAccountResolver: resolver
+            identityResolver: resolver
         )
 
         let result = try useCase.run()
@@ -186,20 +192,20 @@ struct LoadAccountsUseCaseTests {
 
         let repository = LoadingRepositorySpy(accountsToLoad: [savedBusinessOne, savedBusinessTwo])
         let auth = ReconcileSpy(reconciledAccounts: [reconciledBusinessOne, reconciledBusinessTwo])
-        let resolver = ActiveAccountResolver(
-            authService: CurrentFingerprintStub(
+        let resolver = SavedAccountIdentityResolver(
+            liveIdentityReader: CurrentFingerprintStub(
                 fingerprint: nil,
                 stableAccountID: "acct-team",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(
                     subject: "auth0|business-2",
                     chatGPTUserID: "user-business-2"
                 )
-            )
+            ),
+            storedAccountReconciler: auth
         )
         let useCase = LoadAccountsUseCase(
             repository: repository,
-            authService: auth,
-            activeAccountResolver: resolver
+            identityResolver: resolver
         )
 
         let result = try useCase.run()
@@ -256,7 +262,7 @@ private final class LoadingRepositorySpy: AccountCatalogLoading {
     }
 }
 
-private final class ReconcileSpy: StoredAccountReconciling {
+private final class ReconcileSpy: StoredAccountIdentityReconciling {
     let reconciledAccounts: [CodexAccount]
     var inputAccounts: [CodexAccount]?
 
@@ -270,7 +276,7 @@ private final class ReconcileSpy: StoredAccountReconciling {
     }
 }
 
-private struct CurrentFingerprintStub: CodexAuthFingerprintReading {
+private struct CurrentFingerprintStub: LiveCodexAccountIdentityReading {
     let fingerprint: String?
     let stableAccountID: String?
     let authPrincipalIdentity: CodexAuthPrincipalIdentity?
@@ -288,19 +294,12 @@ private struct CurrentFingerprintStub: CodexAuthFingerprintReading {
         self.workspaceIdentity = workspaceIdentity
     }
 
-    func currentAuthFingerprint() -> String? {
-        fingerprint
-    }
-
-    func currentStableAccountID() -> String? {
-        stableAccountID
-    }
-
-    func currentAuthPrincipalIdentity() -> CodexAuthPrincipalIdentity? {
-        authPrincipalIdentity
-    }
-
-    func currentWorkspaceIdentity() -> CodexWorkspaceIdentity? {
-        workspaceIdentity
+    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
+        LiveCodexAccountIdentity(
+            stableAccountID: stableAccountID,
+            authPrincipalIdentity: authPrincipalIdentity,
+            workspaceIdentity: workspaceIdentity,
+            snapshotFingerprint: fingerprint
+        )
     }
 }

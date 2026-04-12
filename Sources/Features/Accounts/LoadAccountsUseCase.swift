@@ -7,12 +7,6 @@ protocol AccountCatalogLoading: AccountCatalogPersisting {
 
 extension AccountRepository: AccountCatalogLoading {}
 
-protocol StoredAccountReconciling {
-    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount]
-}
-
-extension CodexAuthSnapshotService: StoredAccountReconciling {}
-
 struct LoadAccountsResult {
     let accounts: [CodexAccount]
     let activeAccountID: UUID?
@@ -20,30 +14,27 @@ struct LoadAccountsResult {
 
 struct LoadAccountsUseCase {
     private let repository: AccountCatalogLoading
-    private let authService: StoredAccountReconciling
-    private let activeAccountResolver: ActiveAccountResolver
+    private let identityResolver: SavedAccountIdentityResolver
 
     init(
         repository: AccountCatalogLoading,
-        authService: StoredAccountReconciling,
-        activeAccountResolver: ActiveAccountResolver
+        identityResolver: SavedAccountIdentityResolver
     ) {
         self.repository = repository
-        self.authService = authService
-        self.activeAccountResolver = activeAccountResolver
+        self.identityResolver = identityResolver
     }
 
     func run() throws -> LoadAccountsResult {
         try repository.bootstrapStorage()
         let loadedAccounts = try repository.loadAccounts()
-        let reconciledAccounts = authService.reconcileStoredAccountIdentities(loadedAccounts)
+        let reconciledAccounts = identityResolver.reconcileStoredAccounts(loadedAccounts)
         if reconciledAccounts != loadedAccounts {
             try repository.saveAccounts(reconciledAccounts)
         }
 
         return LoadAccountsResult(
             accounts: reconciledAccounts,
-            activeAccountID: activeAccountResolver.resolveActiveAccountID(accounts: reconciledAccounts)
+            activeAccountID: identityResolver.resolveCurrentAccountID(accounts: reconciledAccounts)
         )
     }
 }

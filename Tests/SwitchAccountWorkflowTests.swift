@@ -15,7 +15,8 @@ struct SwitchAccountWorkflowTests {
         let workflow = SwitchAccountWorkflow(
             authService: auth,
             repository: repository,
-            appController: appController
+            appController: appController,
+            identityResolver: makeResolver(auth: auth)
         )
 
         let activeID = try await workflow.run(account: target, accounts: [target, other])
@@ -36,7 +37,8 @@ struct SwitchAccountWorkflowTests {
         let workflow = SwitchAccountWorkflow(
             authService: auth,
             repository: repository,
-            appController: appController
+            appController: appController,
+            identityResolver: makeResolver(auth: auth)
         )
 
         let activeID = try await workflow.run(account: target, accounts: [target])
@@ -64,7 +66,7 @@ struct SwitchAccountWorkflowTests {
     }
 }
 
-private final class AuthSpy: CodexAuthActivating {
+private final class AuthSpy: CodexAuthActivating, LiveCodexAccountIdentityReading {
     var activatedAccountID: UUID?
     private let fingerprint: String?
     private let stableAccountID: String?
@@ -87,20 +89,13 @@ private final class AuthSpy: CodexAuthActivating {
         activatedAccountID = account.id
     }
 
-    func currentAuthFingerprint() -> String? {
-        fingerprint
-    }
-
-    func currentStableAccountID() -> String? {
-        stableAccountID
-    }
-
-    func currentAuthPrincipalIdentity() -> CodexAuthPrincipalIdentity? {
-        authPrincipalIdentity
-    }
-
-    func currentWorkspaceIdentity() -> CodexWorkspaceIdentity? {
-        workspaceIdentity
+    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
+        LiveCodexAccountIdentity(
+            stableAccountID: stableAccountID,
+            authPrincipalIdentity: authPrincipalIdentity,
+            workspaceIdentity: workspaceIdentity,
+            snapshotFingerprint: fingerprint
+        )
     }
 }
 
@@ -117,5 +112,18 @@ private final class AppControllerSpy: CodexAppRelaunching {
 
     func relaunchCodex() async throws {
         relaunchCount += 1
+    }
+}
+
+private func makeResolver(auth: AuthSpy) -> SavedAccountIdentityResolver {
+    SavedAccountIdentityResolver(
+        liveIdentityReader: auth,
+        storedAccountReconciler: ReconcilePassthrough()
+    )
+}
+
+private struct ReconcilePassthrough: StoredAccountIdentityReconciling {
+    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
+        accounts
     }
 }

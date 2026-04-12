@@ -30,7 +30,10 @@ struct RefreshActiveAccountUseCaseTests {
                     rateLimits: nil
                 )
             ),
-            activeAccountResolver: ActiveAccountResolver(authService: CurrentFingerprintStub(fingerprint: "live")),
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentityReader: CurrentFingerprintStub(fingerprint: "live"),
+                storedAccountReconciler: ReconcilePassthrough()
+            ),
             repository: repository
         )
 
@@ -55,7 +58,10 @@ struct RefreshActiveAccountUseCaseTests {
                     rateLimits: nil
                 )
             ),
-            activeAccountResolver: ActiveAccountResolver(authService: CurrentFingerprintStub(fingerprint: "live")),
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentityReader: CurrentFingerprintStub(fingerprint: "live"),
+                storedAccountReconciler: ReconcilePassthrough()
+            ),
             repository: PersistingRepositorySpy()
         )
 
@@ -103,22 +109,16 @@ private final class PersistingRepositorySpy: AccountCatalogPersisting {
     }
 }
 
-private struct CurrentFingerprintStub: CodexAuthFingerprintReading {
+private struct CurrentFingerprintStub: LiveCodexAccountIdentityReading {
     let fingerprint: String?
 
-    func currentAuthFingerprint() -> String? {
-        fingerprint
+    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
+        LiveCodexAccountIdentity(snapshotFingerprint: fingerprint)
     }
+}
 
-    func currentStableAccountID() -> String? {
-        nil
-    }
-
-    func currentAuthPrincipalIdentity() -> CodexAuthPrincipalIdentity? {
-        nil
-    }
-
-    func currentWorkspaceIdentity() -> CodexWorkspaceIdentity? {
-        nil
+private struct ReconcilePassthrough: StoredAccountIdentityReconciling {
+    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
+        accounts
     }
 }
