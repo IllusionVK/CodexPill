@@ -2,15 +2,14 @@ import Foundation
 import Observation
 import OSLog
 
-private let menuBarStoreLogger = Logger(subsystem: "com.raphhgg.codex-switchboard", category: "MenuBarStore")
+private let accountsControllerLogger = Logger(subsystem: "com.raphhgg.codex-switchboard", category: "AccountsController")
 
 extension Notification.Name {
     static let codexSwitchboardStoreDidChange = Notification.Name("CodexSwitchboardStoreDidChange")
 }
 
 @MainActor
-@Observable
-final class MenuBarStore {
+final class AccountsController {
     private let identityResolver: SavedAccountIdentityResolver
     private let loadAccountsUseCase: LoadAccountsUseCase
     private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
@@ -25,8 +24,9 @@ final class MenuBarStore {
     private var pendingSignedInAccountName: String?
     private var isCompletingPendingSignedInAccount = false
     private(set) var pendingErrorMessage: String?
-    var statusMessage = "Ready"
-    var isBusy = false
+    private(set) var statusMessage = "Ready"
+    private(set) var isBusy = false
+    var onStateDidChange: (() -> Void)?
 
     init(
         repository: AccountRepository,
@@ -79,11 +79,11 @@ final class MenuBarStore {
             accounts = result.accounts
             activeAccountID = result.activeAccountID
             statusMessage = "Loaded \(accounts.count) account(s)"
-            menuBarStoreLogger.log("Loaded \(self.accounts.count, privacy: .public) saved account(s)")
+            accountsControllerLogger.log("Loaded \(self.accounts.count, privacy: .public) saved account(s)")
         } catch {
             statusMessage = "Ready"
             pendingErrorMessage = error.localizedDescription
-            menuBarStoreLogger.error("Failed to load store: \(error.localizedDescription, privacy: .public)")
+            accountsControllerLogger.error("Failed to load store: \(error.localizedDescription, privacy: .public)")
         }
         stateDidChange()
     }
@@ -94,12 +94,7 @@ final class MenuBarStore {
                 customName: customName,
                 existingAccounts: accounts
             )
-            if let index = accounts.firstIndex(where: { $0.id == result.savedAccount.id }) {
-                accounts[index] = result.savedAccount
-            } else {
-                accounts.append(result.savedAccount)
-            }
-            accounts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            applySavedAccount(result.savedAccount)
             activeAccountID = result.activeAccountID
             await silentlyRefreshActiveAccountData(after: .zero)
         }
@@ -123,12 +118,7 @@ final class MenuBarStore {
             ) else {
                 return
             }
-            if let index = accounts.firstIndex(where: { $0.id == result.savedAccount.id }) {
-                accounts[index] = result.savedAccount
-            } else {
-                accounts.append(result.savedAccount)
-            }
-            accounts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            applySavedAccount(result.savedAccount)
             activeAccountID = result.activeAccountID
             self.pendingSignedInAccountName = nil
             await silentlyRefreshActiveAccountData(after: .seconds(2))
@@ -173,14 +163,14 @@ final class MenuBarStore {
     }
 
     func startSignInAnotherAccountFlow(named pendingAccountName: String?) async {
-        menuBarStoreLogger.log("Starting sign-in-another flow")
+        accountsControllerLogger.log("Starting sign-in-another flow")
         await perform("Preparing Codex sign-in...") {
             let result = try signInAnotherWorkflow.prepare(named: pendingAccountName)
             pendingSignedInAccountName = result.pendingAccountName
             activeAccountID = nil
             stateDidChange()
             try await signInAnotherWorkflow.relaunchCodex()
-            menuBarStoreLogger.log("Sign-in-another relaunch finished")
+            accountsControllerLogger.log("Sign-in-another relaunch finished")
         }
     }
 
@@ -188,7 +178,7 @@ final class MenuBarStore {
         activeAccountID = identityResolver.resolveCurrentAccountID(accounts: accounts)
     }
 
-    func refreshObservedContexts() async {
+    func refreshObservedContexts() {
         stateDidChange()
     }
 
@@ -224,32 +214,41 @@ final class MenuBarStore {
         pendingSignedInAccountName != nil
     }
 
-    private func perform(_ status: String, operation: () async throws -> Void) async {
-        menuBarStoreLogger.log("Beginning operation with status: \(status, privacy: .public)")
-        isBusy = true
-        statusMessage = status
-        stateDidChange()
-        do {
-            try await operation()
-            statusMessage = "Done"
-            menuBarStoreLogger.log("Operation completed successfully for status: \(status, privacy: .public)")
-        } catch {
-            statusMessage = "Ready"
-            pendingErrorMessage = error.localizedDescription
-            menuBarStoreLogger.error("Operation failed for status \(status, privacy: .public): \(error.localizedDescription, privacy: .public)")
-        }
-        isBusy = false
-        stateDidChange()
-    }
-
     func consumePendingErrorMessage() -> String? {
         let message = pendingErrorMessage
         pendingErrorMessage = nil
         return message
     }
 
+    private func applySavedAccount(_ account: CodexAccount) {
+        if let index = accounts.firstIndex(where: { $0.id == account.id }) {
+            accounts[index] = account
+        } else {
+            accounts.append(account)
+        }
+        accounts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private func perform(_ status: String, operation: () async throws -> Void) async {
+        accountsControllerLogger.log("Beginning operation with status: \(status, privacy: .public)")
+        isBusy = true
+        statusMessage = status
+        stateDidChange()
+        do {
+            try await operation()
+            statusMessage = "Done"
+            accountsControllerLogger.log("Operation completed successfully for status: \(status, privacy: .public)")
+        } catch {
+            statusMessage = "Ready"
+            pendingErrorMessage = error.localizedDescription
+            accountsControllerLogger.error("Operation failed for status \(status, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
+        isBusy = false
+        stateDidChange()
+    }
+
     private func stateDidChange() {
-        NotificationCenter.default.post(name: .codexSwitchboardStoreDidChange, object: self)
+        onStateDidChange?()
     }
 
     private func silentlyRefreshActiveAccountData(after delay: Duration) async {
@@ -265,7 +264,7 @@ final class MenuBarStore {
             activeAccountID = result.refreshedAccountID
             stateDidChange()
         } catch {
-            menuBarStoreLogger.log("Silent post-activation refresh skipped: \(error.localizedDescription, privacy: .public)")
+            accountsControllerLogger.log("Silent post-activation refresh skipped: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -333,6 +332,95 @@ final class MenuBarStore {
             weeklyUsedPercent: weeklyUsedPercent,
             sessionUsedPercent: sessionUsedPercent
         )
+    }
+}
+
+@MainActor
+@Observable
+final class MenuBarStore {
+    private let controller: AccountsController
+
+    init(
+        repository: AccountRepository,
+        authService: CodexAuthSnapshotService,
+        appController: CodexAppController,
+        appServerClient: CodexAppServerClient
+    ) {
+        self.controller = AccountsController(
+            repository: repository,
+            authService: authService,
+            appController: appController,
+            appServerClient: appServerClient
+        )
+        controller.onStateDidChange = { [weak self] in
+            self?.stateDidChange()
+        }
+    }
+
+    var accounts: [CodexAccount] { controller.accounts }
+    var activeAccountID: UUID? { controller.activeAccountID }
+    var pendingErrorMessage: String? { controller.pendingErrorMessage }
+    var statusMessage: String { controller.statusMessage }
+    var isBusy: Bool { controller.isBusy }
+    var activeAccount: CodexAccount? { controller.activeAccount }
+    var inactiveAccounts: [CodexAccount] { controller.inactiveAccounts }
+    var sortedInactiveAccounts: [CodexAccount] { controller.sortedInactiveAccounts }
+    var hasPendingSignedInAccount: Bool { controller.hasPendingSignedInAccount }
+
+    func load() {
+        controller.load()
+    }
+
+    func saveCurrentAccountSnapshot(named customName: String?) async {
+        await controller.saveCurrentAccountSnapshot(named: customName)
+    }
+
+    func completePendingSignedInAccountIfNeeded() async {
+        await controller.completePendingSignedInAccountIfNeeded()
+    }
+
+    func switchToAccount(_ account: CodexAccount) async {
+        await controller.switchToAccount(account)
+    }
+
+    func removeSavedAccount(_ account: CodexAccount) async {
+        await controller.removeSavedAccount(account)
+    }
+
+    func renameSavedAccount(_ account: CodexAccount, to newName: String) async {
+        await controller.renameSavedAccount(account, to: newName)
+    }
+
+    func refreshAccountData(for account: CodexAccount) async {
+        await controller.refreshAccountData(for: account)
+    }
+
+    func startSignInAnotherAccountFlow(named pendingAccountName: String?) async {
+        await controller.startSignInAnotherAccountFlow(named: pendingAccountName)
+    }
+
+    func refreshActiveAccount() {
+        controller.refreshActiveAccount()
+    }
+
+    func refreshObservedContexts() async {
+        controller.refreshObservedContexts()
+    }
+
+    func isActive(_ account: CodexAccount) -> Bool {
+        controller.isActive(account)
+    }
+
+    func compareForMenu(_ lhs: CodexAccount, _ rhs: CodexAccount) -> Bool {
+        controller.compareForMenu(lhs, rhs)
+    }
+
+    func consumePendingErrorMessage() -> String? {
+        controller.consumePendingErrorMessage()
+    }
+
+    private func stateDidChange() {
+        NotificationCenter.default.post(name: .codexSwitchboardStoreDidChange, object: self)
     }
 }
 
