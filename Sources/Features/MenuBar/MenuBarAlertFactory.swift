@@ -53,29 +53,6 @@ struct MenuBarAlertFactory {
         )
     }
 
-    func makeAddHostRequest() -> MenuBarHostInputAlertRequest {
-        MenuBarHostInputAlertRequest(
-            messageText: "Add remote host",
-            informativeText: "Use an SSH alias or target. CodexPill tests read-only access.",
-            nameFieldTitle: "Display Name",
-            namePlaceholder: "Host Name",
-            targetFieldTitle: "SSH Target",
-            targetPlaceholder: "hostname or user@ip",
-            testTitle: "Test",
-            confirmTitle: "Add",
-            cancelTitle: "Cancel"
-        )
-    }
-
-    func makeRemoveHostRequest(hostName: String) -> MenuBarConfirmationAlertRequest {
-        MenuBarConfirmationAlertRequest(
-            messageText: "Remove host?",
-            informativeText: "This will remove the saved host \(hostName) from CodexPill.\n\nThis action cannot be undone.",
-            confirmTitle: "Remove",
-            cancelTitle: "Cancel"
-        )
-    }
-
     func makeAboutRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "About CodexPill",

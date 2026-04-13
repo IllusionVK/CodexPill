@@ -1,11 +1,6 @@
 import AppKit
 import SwiftUI
 
-struct ActiveObservedAccount: Equatable {
-    let account: CodexAccount
-    let contextBadges: [String]
-}
-
 func menuPlanDisplayName(_ planType: String?) -> String {
     switch planType?.lowercased() {
     case "plus":
@@ -22,11 +17,8 @@ func menuPlanDisplayName(_ planType: String?) -> String {
 }
 
 struct MenuBarMenuState {
-    let activeAccounts: [ActiveObservedAccount]
+    let activeAccount: CodexAccount?
     let inactiveAccounts: [CodexAccount]
-    let savedHosts: [RemoteHostConfig]
-    let hostContexts: [ObservedExecutionContext]
-    let hasLocalActiveSavedAccount: Bool
     let visibleInactiveAccountCount: Int
     let visibleInactiveAccountCountOptions: [Int]
     let refreshIntervalMinutes: Int
@@ -37,7 +29,7 @@ struct MenuBarMenuState {
     let statusMessage: String
 
     var canSaveCurrentAccount: Bool {
-        !isBusy && !hasLocalActiveSavedAccount
+        !isBusy && activeAccount == nil
     }
 
     var canSignInAnotherAccount: Bool {
@@ -56,16 +48,8 @@ struct MenuBarMenuState {
         !isBusy && allSavedAccounts.count > 0
     }
 
-    var canAddRemoteHosts: Bool {
-        !isBusy
-    }
-
-    var canRemoveRemoteHosts: Bool {
-        !isBusy && !savedHosts.isEmpty
-    }
-
     var allSavedAccounts: [CodexAccount] {
-        activeAccounts.map(\.account) + inactiveAccounts
+        [activeAccount].compactMap { $0 } + inactiveAccounts
     }
 
     var visibleInactiveAccounts: [CodexAccount] {
@@ -90,19 +74,17 @@ struct MenuBarMenuBuilder {
         let menu = NSMenu()
         menu.delegate = target
 
-        if !state.activeAccounts.isEmpty {
-            menu.addItem(sectionHeaderItem("Active Accounts", bottomPadding: 4))
-            for activeAccount in state.activeAccounts {
-                menu.addItem(activeAccountItem(for: activeAccount))
-            }
+        if let activeAccount = state.activeAccount {
+            menu.addItem(sectionHeaderItem("Current Account", bottomPadding: 4))
+            menu.addItem(activeAccountItem(for: activeAccount))
         } else {
-            menu.addItem(sectionHeaderItem("Active Accounts", bottomPadding: 4))
-            menu.addItem(disabledInfoItem("No active observed accounts"))
+            menu.addItem(sectionHeaderItem("Current Account", bottomPadding: 4))
+            menu.addItem(disabledInfoItem("No active saved account"))
         }
 
         if !state.visibleInactiveAccounts.isEmpty {
             menu.addItem(.separator())
-            menu.addItem(sectionHeaderItem("Other Saved Accounts", bottomPadding: 4))
+            menu.addItem(sectionHeaderItem("Other Accounts", bottomPadding: 4))
             for account in state.visibleInactiveAccounts {
                 menu.addItem(inactiveAccountItem(for: account, target: target))
             }
@@ -116,8 +98,7 @@ struct MenuBarMenuBuilder {
         }
 
         menu.addItem(.separator())
-        menu.addItem(accountsMenuItem(state: state, target: target))
-        menu.addItem(hostsMenuItem(state: state, target: target))
+        menu.addItem(manageAccountsMenuItem(state: state, target: target))
         menu.addItem(refreshIntervalMenuItem(state: state, target: target))
         menu.addItem(statusBarStyleMenuItem(state: state, target: target))
         menu.addItem(actionItem(title: "About", systemImage: "info.circle", action: #selector(MenuBarCoordinator.showAbout), state: state, target: target))
@@ -136,12 +117,9 @@ struct MenuBarMenuBuilder {
         return menu
     }
 
-    private func activeAccountItem(for activeAccount: ActiveObservedAccount) -> NSMenuItem {
+    private func activeAccountItem(for account: CodexAccount) -> NSMenuItem {
         let item = NSMenuItem()
-        let view = NSHostingView(rootView: ActiveAccountMenuContent(
-            account: activeAccount.account,
-            contextBadges: activeAccount.contextBadges
-        ))
+        let view = NSHostingView(rootView: ActiveAccountMenuContent(account: account))
         view.frame = NSRect(x: 0, y: 0, width: 340, height: 1)
         view.layoutSubtreeIfNeeded()
         let fittingHeight = max(1, view.fittingSize.height)
@@ -199,15 +177,15 @@ struct MenuBarMenuBuilder {
         return item
     }
 
-    private func accountsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+    private func manageAccountsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let item = NSMenuItem(title: "Accounts", action: nil, keyEquivalent: "")
         item.image = NSImage(systemSymbolName: "person.2.circle", accessibilityDescription: "Accounts")
 
         let submenu = NSMenu(title: "Accounts")
         submenu.addItem(addAccountMenuItem(state: state, target: target))
+        submenu.addItem(visibleAccountsMenuItem(state: state, target: target))
         submenu.addItem(renameAccountMenuItem(state: state, target: target))
         submenu.addItem(removeAccountMenuItem(state: state, target: target))
-        submenu.addItem(visibleAccountsMenuItem(state: state, target: target))
 
         item.submenu = submenu
         return item
@@ -241,6 +219,37 @@ struct MenuBarMenuBuilder {
         return item
     }
 
+    private func visibleAccountsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Visible Other Accounts", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "line.3.horizontal.decrease.circle", accessibilityDescription: "Visible Other Accounts")
+
+        let submenu = NSMenu(title: "Visible Other Accounts")
+        for count in state.visibleInactiveAccountCountOptions {
+            let title = count == 0 ? "All" : "\(count)"
+            let option = NSMenuItem(title: title, action: #selector(MenuBarCoordinator.selectVisibleInactiveAccountCount(_:)), keyEquivalent: "")
+            option.target = target
+            option.representedObject = count
+            option.state = state.visibleInactiveAccountCount == count ? .on : .off
+            submenu.addItem(option)
+        }
+
+        item.submenu = submenu
+        return item
+    }
+
+    private func moreAccountsMenuItem(accounts: [CodexAccount], target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "More Accounts", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: "More Accounts")
+
+        let submenu = NSMenu(title: "More Accounts")
+        for account in accounts {
+            submenu.addItem(inactiveAccountItem(for: account, target: target))
+        }
+
+        item.submenu = submenu
+        return item
+    }
+
     private func renameAccountMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let item = NSMenuItem(title: "Rename Account", action: nil, keyEquivalent: "")
         item.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: "Rename Account")
@@ -263,83 +272,6 @@ struct MenuBarMenuBuilder {
             let empty = NSMenuItem(title: "No saved accounts", action: nil, keyEquivalent: "")
             empty.isEnabled = false
             submenu.addItem(empty)
-        }
-
-        item.submenu = submenu
-        return item
-    }
-
-    private func visibleAccountsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Visible Other Accounts", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "line.3.horizontal.decrease.circle", accessibilityDescription: "Visible Other Accounts")
-
-        let submenu = NSMenu(title: "Visible Other Accounts")
-        for count in state.visibleInactiveAccountCountOptions {
-            let title = count == 0 ? "All" : "\(count)"
-            let option = NSMenuItem(title: title, action: #selector(MenuBarCoordinator.selectVisibleInactiveAccountCount(_:)), keyEquivalent: "")
-            option.target = target
-            option.representedObject = count
-            option.state = state.visibleInactiveAccountCount == count ? .on : .off
-            submenu.addItem(option)
-        }
-
-        item.submenu = submenu
-        return item
-    }
-
-    private func hostsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Hosts", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "network", accessibilityDescription: "Hosts")
-
-        let submenu = NSMenu(title: "Hosts")
-        let addHost = NSMenuItem(title: "Add Host…", action: #selector(MenuBarCoordinator.addRemoteHost), keyEquivalent: "")
-        addHost.image = NSImage(systemSymbolName: "plus.circle", accessibilityDescription: "Add Host")
-        addHost.target = target
-        addHost.isEnabled = state.canAddRemoteHosts
-        submenu.addItem(addHost)
-
-        let removeHost = NSMenuItem(title: "Remove Host", action: nil, keyEquivalent: "")
-        removeHost.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Remove Host")
-        removeHost.isEnabled = state.canRemoveRemoteHosts
-
-        let removeSubmenu = NSMenu(title: "Remove Host")
-        for host in state.savedHosts {
-            let option = NSMenuItem(title: host.name, action: #selector(MenuBarCoordinator.removeRemoteHost(_:)), keyEquivalent: "")
-            option.target = target
-            option.representedObject = host.id.uuidString
-            option.isEnabled = state.canRemoveRemoteHosts
-            removeSubmenu.addItem(option)
-        }
-
-        if removeSubmenu.items.isEmpty {
-            let empty = NSMenuItem(title: "No saved hosts", action: nil, keyEquivalent: "")
-            empty.isEnabled = false
-            removeSubmenu.addItem(empty)
-        }
-
-        removeHost.submenu = removeSubmenu
-        submenu.addItem(removeHost)
-
-        if !state.hostContexts.isEmpty {
-            submenu.addItem(.separator())
-            for context in state.hostContexts {
-                let row = NSMenuItem(title: hostTitle(for: context, state: state), action: nil, keyEquivalent: "")
-                row.isEnabled = false
-                submenu.addItem(row)
-            }
-        }
-
-        item.submenu = submenu
-        return item
-    }
-
-    private func moreAccountsMenuItem(accounts: [CodexAccount], target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "More Accounts", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: "More Accounts")
-
-        let submenu = NSMenu(title: "More Accounts")
-        for account in accounts {
-            submenu.addItem(inactiveAccountItem(for: account, target: target))
         }
 
         item.submenu = submenu
@@ -386,72 +318,60 @@ struct MenuBarMenuBuilder {
         return item
     }
 
-    private func hostTitle(for context: ObservedExecutionContext, state: MenuBarMenuState) -> String {
-        switch context.status {
-        case .matched(let accountID):
-            let accountName = state.allSavedAccounts.first(where: { $0.id == accountID })?.name ?? "Unknown"
-            return "\(context.displayName) -> \(accountName)"
-        case .unmatched(let summary):
-            if let email = summary.email {
-                return "\(context.displayName) -> Unmatched (\(email))"
-            }
-            return "\(context.displayName) -> Unmatched"
-        case .unavailable:
-            return "\(context.displayName) -> Unavailable"
-        case .loading:
-            return "\(context.displayName) -> Loading"
-        }
+    private func isLocallyActive(account: CodexAccount, state: MenuBarMenuState) -> Bool {
+        state.activeAccount?.id == account.id
     }
 
-    private func isLocallyActive(account: CodexAccount, state: MenuBarMenuState) -> Bool {
-        state.activeAccounts.contains { $0.account.id == account.id && $0.contextBadges.contains("local") }
-    }
+}
+
+private extension Array {
+    var isNotEmpty: Bool { !isEmpty }
 }
 
 private struct ActiveAccountMenuContent: View {
     let account: CodexAccount
-    let contextBadges: [String]
+    @State private var isHovered = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
-                HStack(spacing: 6) {
-                    Text(account.name)
-                        .font(.system(size: 15, weight: .semibold))
-                    ForEach(contextBadges, id: \.self) { badge in
-                        Text(badge)
-                            .font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(Color.secondary.opacity(0.14)))
-                    }
-                }
+                Text(account.name)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(primaryTextColor)
                 Spacer()
-                HStack(spacing: 6) {
-                    Text(menuPlanDisplayName(account.planType))
-                        .foregroundStyle(.secondary)
-                }
+                Text(menuPlanDisplayName(account.planType))
+                    .foregroundStyle(secondaryTextColor)
             }
 
             HStack(alignment: .firstTextBaseline) {
                 Text("Updated \(RelativeDateTimeFormatter().localizedString(for: account.lastRemoteRefreshAt, relativeTo: .now))")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(secondaryTextColor)
                 Spacer()
                 Text(accountMetadataLine)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(secondaryTextColor)
                     .multilineTextAlignment(.trailing)
             }
             .padding(.top, -2)
 
             ActiveLimitRow(title: "Session", window: account.rateLimits?.primary)
+                .menuRowHovered(isHovered)
             ActiveLimitRow(title: "Weekly", window: account.rateLimits?.secondary)
+                .menuRowHovered(isHovered)
         }
         .padding(.horizontal, 14)
         .padding(.top, 4)
         .padding(.bottom, 10)
         .frame(width: 340, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(rowBackgroundColor)
+        )
+        .padding(.horizontal, 4)
+        .onHover { hovering in
+            isHovered = hovering
+        }
     }
 
     private var accountMetadataLine: String {
@@ -460,11 +380,25 @@ private struct ActiveAccountMenuContent: View {
         }
         return email
     }
+
+    private var rowBackgroundColor: Color {
+        isHovered ? Color.accentColor.opacity(0.22) : .clear
+    }
+
+    private var primaryTextColor: Color {
+        isHovered ? .white : .primary
+    }
+
+    private var secondaryTextColor: Color {
+        isHovered ? Color.white.opacity(0.9) : .secondary
+    }
+
 }
 
 private struct ActiveLimitRow: View {
     let title: String
     let window: CodexRateLimitWindow?
+    @Environment(\.menuRowHovered) private var isHovered
 
     var body: some View {
         let displayedUsedPercent = window?.displayedUsedPercent() ?? 0
@@ -473,21 +407,49 @@ private struct ActiveLimitRow: View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
+                .foregroundStyle(primaryTextColor)
             ProgressView(value: Double(displayedUsedPercent), total: 100)
+                .tint(isHovered ? .white : .accentColor)
             HStack {
                 Text(usageText)
                     .monospacedDigit()
+                    .foregroundStyle(primaryTextColor)
                 Spacer()
                 if let window, let resetStatus = resetStatusText(for: window) {
                     Text(resetStatus)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(secondaryTextColor)
                 } else if window == nil {
                     Text("Unavailable")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(secondaryTextColor)
                 }
             }
             .font(.caption)
         }
+    }
+
+    private var primaryTextColor: Color {
+        isHovered ? .white : .primary
+    }
+
+    private var secondaryTextColor: Color {
+        isHovered ? Color.white.opacity(0.9) : .secondary
+    }
+}
+
+private struct MenuRowHoveredKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+private extension EnvironmentValues {
+    var menuRowHovered: Bool {
+        get { self[MenuRowHoveredKey.self] }
+        set { self[MenuRowHoveredKey.self] = newValue }
+    }
+}
+
+private extension View {
+    func menuRowHovered(_ hovered: Bool) -> some View {
+        environment(\.menuRowHovered, hovered)
     }
 }
 
@@ -508,31 +470,33 @@ private struct SectionHeaderLabel: View {
 
 private func inactiveAccountTitle(for account: CodexAccount) -> NSAttributedString {
     let paragraph = NSMutableParagraphStyle()
-    paragraph.lineSpacing = 3
-    paragraph.paragraphSpacing = 4
+    paragraph.lineSpacing = 1
+    paragraph.paragraphSpacing = 2
 
     let title = NSMutableAttributedString(
         string: "\(account.name)\n",
         attributes: [
-            .font: NSFont.menuFont(ofSize: 13),
+            .font: NSFont.systemFont(ofSize: 14, weight: .semibold),
             .foregroundColor: NSColor.labelColor,
             .paragraphStyle: paragraph
         ]
     )
 
+    let secondary = detailLine(title: "Session", window: account.rateLimits?.primary) + "\n"
     title.append(NSAttributedString(
-        string: inactiveAccountLine(title: "Session", window: account.rateLimits?.primary) + "\n",
+        string: secondary,
         attributes: [
-            .font: NSFont.systemFont(ofSize: 11),
+            .font: NSFont.systemFont(ofSize: 11, weight: .regular),
             .foregroundColor: NSColor.secondaryLabelColor,
             .paragraphStyle: paragraph
         ]
     ))
 
+    let tertiary = detailLine(title: "Weekly", window: account.rateLimits?.secondary)
     title.append(NSAttributedString(
-        string: inactiveAccountLine(title: "Weekly", window: account.rateLimits?.secondary),
+        string: tertiary,
         attributes: [
-            .font: NSFont.systemFont(ofSize: 11),
+            .font: NSFont.systemFont(ofSize: 11, weight: .regular),
             .foregroundColor: NSColor.secondaryLabelColor,
             .paragraphStyle: paragraph
         ]
@@ -541,12 +505,12 @@ private func inactiveAccountTitle(for account: CodexAccount) -> NSAttributedStri
     return title
 }
 
-private func inactiveAccountLine(title: String, window: CodexRateLimitWindow?) -> String {
-    let usedText = window.map { "\($0.displayedUsedPercent())% used" } ?? "--"
+private func detailLine(title: String, window: CodexRateLimitWindow?) -> String {
+    let usedText = window.map { "\($0.displayedUsedPercent())%" } ?? "--"
     guard let window, let resetStatus = resetStatusText(for: window) else {
         return "\(title): \(usedText)"
     }
-    return "\(title): \(usedText), \(resetStatus)"
+    return "\(title): \(usedText) • \(resetStatus)"
 }
 
 private func resetStatusText(for window: CodexRateLimitWindow) -> String? {

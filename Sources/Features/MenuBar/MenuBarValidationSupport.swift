@@ -15,44 +15,11 @@ enum MenuBarValidationSupport {
     static func makeSnapshot(state: MenuBarMenuState, now: Date = .now) -> MenuBarValidationSnapshot {
         var sections: [MenuBarValidationSnapshot.Section] = []
 
-        let activeAccountItems: [String]
-        if !state.activeAccounts.isEmpty {
-            activeAccountItems = state.activeAccounts.map {
-                accountSummary(for: $0.account, badges: $0.contextBadges, now: now)
-            }
-        } else {
-            activeAccountItems = ["No active observed accounts"]
-        }
-        sections.append(.init(title: "Active Accounts", items: activeAccountItems))
-
-        if !state.visibleInactiveAccounts.isEmpty {
-            sections.append(.init(
-                title: "Other Saved Accounts",
-                items: state.visibleInactiveAccounts.map { accountSummary(for: $0, now: now) }
-            ))
-        }
-
-        if !state.overflowInactiveAccounts.isEmpty {
-            sections.append(.init(
-                title: "More Accounts",
-                items: state.overflowInactiveAccounts.map { accountSummary(for: $0, now: now) }
-            ))
-        }
+        sections.append(contentsOf: accountSections(for: state, now: now))
 
         sections.append(.init(
-            title: "Accounts",
-            items: [
-                state.canSaveCurrentAccount ? "Save Current Account" : "Save Current Account (disabled)",
-                state.canSignInAnotherAccount ? "Sign In Another Account…" : "Sign In Another Account… (disabled)",
-                "Rename Account",
-                "Remove Account",
-                "Visible Other Accounts: \(state.visibleInactiveAccountCount == 0 ? "All" : "\(state.visibleInactiveAccountCount)")"
-            ]
-        ))
-
-        sections.append(.init(
-            title: "Hosts",
-            items: ["Add Host…"] + state.hostContexts.map { hostSummary(for: $0, state: state) }
+            title: "Manage Accounts",
+            items: managementSectionItems(for: state)
         ))
 
         sections.append(.init(
@@ -71,6 +38,35 @@ enum MenuBarValidationSupport {
         )
     }
 
+    private static func accountSections(for state: MenuBarMenuState, now: Date) -> [MenuBarValidationSnapshot.Section] {
+        var sections: [MenuBarValidationSnapshot.Section] = []
+
+        if let activeAccount = state.activeAccount {
+            sections.append(.init(
+                title: "Current Account",
+                items: [accountSummary(for: activeAccount, now: now)]
+            ))
+        } else {
+            sections.append(.init(title: "Current Account", items: ["No active saved account"]))
+        }
+
+        if !state.visibleInactiveAccounts.isEmpty {
+            sections.append(.init(
+                title: "Other Accounts",
+                items: state.visibleInactiveAccounts.map { inactiveAccountSummary(for: $0, now: now) }
+            ))
+        }
+
+        if !state.overflowInactiveAccounts.isEmpty {
+            sections.append(.init(
+                title: "More Accounts",
+                items: state.overflowInactiveAccounts.map { inactiveAccountSummary(for: $0, now: now) }
+            ))
+        }
+
+        return sections
+    }
+
     static func makeHostedValidationView(state: MenuBarMenuState, now: Date = .now) -> some View {
         let snapshot = makeSnapshot(state: state, now: now)
 
@@ -81,7 +77,7 @@ enum MenuBarValidationSupport {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.secondary)
 
-                    ForEach(section.items, id: \.self) { item in
+                    ForEach(Array(section.items.enumerated()), id: \.offset) { _, item in
                         Text(item)
                             .font(.system(size: 13))
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -104,30 +100,19 @@ enum MenuBarValidationSupport {
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    private static func accountSummary(for account: CodexAccount, badges: [String] = [], now: Date) -> String {
+    private static func accountSummary(for account: CodexAccount, now: Date) -> String {
         let plan = menuPlanDisplayName(account.planType)
         let email = account.email ?? "No email"
         let session = usageLine(title: "Session", window: account.rateLimits?.primary, now: now)
         let weekly = usageLine(title: "Weekly", window: account.rateLimits?.secondary, now: now)
-        let badgeText = badges.isEmpty ? "" : " [\(badges.joined(separator: ", "))]"
-        return "\(account.name) • \(plan)\(badgeText) • \(email) • \(session) • \(weekly)"
+        return "\(account.name) • \(plan) • \(email) • \(session) • \(weekly)"
     }
 
-    private static func hostSummary(for context: ObservedExecutionContext, state: MenuBarMenuState) -> String {
-        switch context.status {
-        case .matched(let accountID):
-            let accountName = state.allSavedAccounts.first(where: { $0.id == accountID })?.name ?? "Unknown"
-            return "\(context.displayName) -> \(accountName)"
-        case .unmatched(let summary):
-            if let email = summary.email {
-                return "\(context.displayName) -> Unmatched (\(email))"
-            }
-            return "\(context.displayName) -> Unmatched"
-        case .unavailable:
-            return "\(context.displayName) -> Unavailable"
-        case .loading:
-            return "\(context.displayName) -> Loading"
-        }
+    private static func inactiveAccountSummary(for account: CodexAccount, now: Date) -> String {
+        let plan = menuPlanDisplayName(account.planType)
+        let session = account.rateLimits?.primary?.displayedUsedPercent(at: now) ?? 100
+        let weekly = account.rateLimits?.secondary?.displayedUsedPercent(at: now) ?? 100
+        return "\(account.name) • \(plan) • Session \(session)% • Weekly \(weekly)%"
     }
 
     private static func usageLine(title: String, window: CodexRateLimitWindow?, now: Date) -> String {
@@ -139,5 +124,14 @@ enum MenuBarValidationSupport {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return "\(title): \(percentText), Resets \(formatter.localizedString(for: resetsAt, relativeTo: now))"
+    }
+
+    private static func managementSectionItems(for state: MenuBarMenuState) -> [String] {
+        [
+            state.canSaveCurrentAccount ? "Save Current Account" : "Save Current Account (disabled)",
+            state.canSignInAnotherAccount ? "Sign In Another Account…" : "Sign In Another Account… (disabled)",
+            "Rename Account",
+            "Remove Account"
+        ]
     }
 }

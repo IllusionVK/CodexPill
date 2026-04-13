@@ -5,19 +5,25 @@ import Testing
 
 struct MenuBarMenuStateTests {
     @Test
-    func menuBadgeDisplayNamesHideLocalWhenNoRemoteHostsExist() {
-        #expect(menuBadgeDisplayNames(from: ["local"], hasRemoteHosts: false).isEmpty)
-        #expect(menuBadgeDisplayNames(from: ["debian-vm", "local"], hasRemoteHosts: true) == ["debian-vm", "local"])
-    }
-
-    @Test
-    func visibleAndOverflowAccountsRespectConfiguredLimit() {
+    func allSavedAccountsFollowRankedAccountsOrder() {
         let accounts = [
             makeAccount(name: "A"),
             makeAccount(name: "B"),
             makeAccount(name: "C")
         ]
 
+        let state = makeState(inactiveAccounts: accounts)
+
+        #expect(state.allSavedAccounts.map(\.name) == ["A", "B", "C"])
+    }
+
+    @Test
+    func visibleAndOverflowInactiveAccountsSplitBySetting() {
+        let accounts = [
+            makeAccount(name: "A"),
+            makeAccount(name: "B"),
+            makeAccount(name: "C")
+        ]
         let state = makeState(inactiveAccounts: accounts, visibleInactiveAccountCount: 2)
 
         #expect(state.visibleInactiveAccounts.map(\.name) == ["A", "B"])
@@ -25,21 +31,8 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
-    func zeroVisibleCountShowsAllAccountsWithoutOverflow() {
-        let accounts = [
-            makeAccount(name: "A"),
-            makeAccount(name: "B")
-        ]
-
-        let state = makeState(inactiveAccounts: accounts, visibleInactiveAccountCount: 0)
-
-        #expect(state.visibleInactiveAccounts.map(\.name) == ["A", "B"])
-        #expect(state.overflowInactiveAccounts.isEmpty)
-    }
-
-    @Test
     func busyStateDisablesInteractiveActions() {
-        let state = makeState(activeAccounts: [], inactiveAccounts: [], isBusy: true)
+        let state = makeState(inactiveAccounts: [], isBusy: true)
 
         #expect(!state.canSaveCurrentAccount)
         #expect(!state.canSignInAnotherAccount)
@@ -49,14 +42,23 @@ struct MenuBarMenuStateTests {
     @Test
     func activeSavedAccountDisablesSaveCurrentAccount() {
         let state = makeState(
-            activeAccounts: [ActiveObservedAccount(account: makeAccount(name: "Active"), contextBadges: ["local"])],
+            activeAccount: makeAccount(name: "Active"),
             inactiveAccounts: [],
-            hasLocalActiveSavedAccount: true,
             isBusy: false
         )
 
         #expect(!state.canSaveCurrentAccount)
         #expect(state.canSignInAnotherAccount)
+    }
+
+    @Test
+    func activeAccountAppearsInManageAccountOrdering() {
+        let state = makeState(
+            activeAccount: makeAccount(name: "Active"),
+            inactiveAccounts: [],
+        )
+
+        #expect(state.allSavedAccounts.map(\.name) == ["Active"])
     }
 
     @Test
@@ -71,9 +73,8 @@ struct MenuBarMenuStateTests {
     @Test
     func removeAccountsIsAvailableWhenSavedAccountsExist() {
         let state = makeState(
-            activeAccounts: [ActiveObservedAccount(account: makeAccount(name: "Active"), contextBadges: ["local"])],
+            activeAccount: makeAccount(name: "Active"),
             inactiveAccounts: [makeAccount(name: "Other")],
-            hasLocalActiveSavedAccount: true
         )
 
         #expect(state.canRemoveSavedAccounts)
@@ -82,28 +83,23 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
-    func saveCurrentAccountIsAllowedWhenThereAreNoSavedAccounts() {
-        let state = makeState(activeAccounts: [], inactiveAccounts: [], isBusy: false)
+    func emptyStateAllowsSavingCurrentAccount() {
+        let state = makeState(inactiveAccounts: [], isBusy: false)
 
         #expect(state.canSaveCurrentAccount)
         #expect(state.allSavedAccounts.isEmpty)
     }
 
     private func makeState(
-        activeAccounts: [ActiveObservedAccount] = [],
+        activeAccount: CodexAccount? = nil,
         inactiveAccounts: [CodexAccount],
-        hostContexts: [ObservedExecutionContext] = [],
-        hasLocalActiveSavedAccount: Bool = false,
         visibleInactiveAccountCount: Int = 2,
         isBusy: Bool = false,
         statusMessage: String = "Ready"
     ) -> MenuBarMenuState {
         MenuBarMenuState(
-            activeAccounts: activeAccounts,
+            activeAccount: activeAccount,
             inactiveAccounts: inactiveAccounts,
-            savedHosts: [],
-            hostContexts: hostContexts,
-            hasLocalActiveSavedAccount: hasLocalActiveSavedAccount,
             visibleInactiveAccountCount: visibleInactiveAccountCount,
             visibleInactiveAccountCountOptions: [0, 2, 4],
             refreshIntervalMinutes: 5,

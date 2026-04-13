@@ -56,7 +56,6 @@ final class AppSettings: ObservableObject {
             statusBarIndicatorStyle = storedStyle.flatMap(StatusBarIndicatorStyle.init(rawValue:)) ?? .dualArcBadge
         }
         statusBarMonochrome = UserDefaults.standard.bool(forKey: Self.statusBarMonochromeKey)
-
         let storedVisibleInactiveAccountCount = UserDefaults.standard.integer(forKey: Self.visibleInactiveAccountCountKey)
         visibleInactiveAccountCount = visibleInactiveAccountCountOptions.contains(storedVisibleInactiveAccountCount)
             ? storedVisibleInactiveAccountCount

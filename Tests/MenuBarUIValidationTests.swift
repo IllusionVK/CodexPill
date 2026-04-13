@@ -8,31 +8,29 @@ import Testing
 @MainActor
 struct MenuBarUIValidationTests {
     @Test
-    func activeAccountSummaryUsesEmailPlanMetadataAndHostBadges() {
+    func currentAccountSummaryShowsDetailedLimitLines() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let snapshot = MenuBarValidationSupport.makeSnapshot(
             state: makeHostedValidationState(for: "hosted-menu-default", now: now),
             now: now
         )
 
-        let summary = try! #require(snapshot.sections.first?.items.first)
-        #expect(summary.contains("Primary • Pro [local, debian-vm]"))
+        let summary = try! #require(snapshot.sections.first(where: { $0.title == "Current Account" })?.items.first(where: { $0.contains("Primary • Pro") }))
+        #expect(summary.contains("Primary • Pro"))
         #expect(summary.contains("primary@example.com"))
-        #expect(!summary.contains("primary@example.com (Pro)"))
+        #expect(summary.contains("Session: 42% used"))
     }
 
     @Test
-    func localBadgeIsHiddenWhenNoRemoteHostsAreSaved() {
+    func otherAccountsStayCompact() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let snapshot = MenuBarValidationSupport.makeSnapshot(
-            state: makeHostedValidationState(for: "hosted-menu-busy", now: now),
+            state: makeHostedValidationState(for: "hosted-menu-default", now: now),
             now: now
         )
-
-        let summary = try! #require(snapshot.sections.first?.items.first)
-        #expect(!summary.contains("[local]"))
-        #expect(summary.contains("Primary • Pro"))
-        #expect(summary.contains("primary@example.com"))
+        let summary = try! #require(snapshot.sections.first(where: { $0.title == "Other Accounts" })?.items.first)
+        #expect(summary.contains("Research • Pro • Session 8% • Weekly 35%"))
+        #expect(!summary.contains("research@example.com"))
     }
 
     @Test
@@ -108,23 +106,21 @@ struct MenuBarUIValidationTests {
         switch scenario {
         case "hosted-menu-default":
             #expect(snapshot.sections.map(\.title) == [
-                "Active Accounts",
-                "Other Saved Accounts",
+                "Current Account",
+                "Other Accounts",
                 "More Accounts",
-                "Accounts",
-                "Hosts",
+                "Manage Accounts",
                 "Preferences"
             ])
             #expect(snapshot.statusMessage == nil)
             #expect(snapshot.sections[1].items.count == 2)
             #expect(snapshot.sections[2].items.count == 1)
-            #expect(snapshot.sections[4].items.contains("Add Host…"))
+            #expect(snapshot.sections[3].items.contains("Save Current Account (disabled)"))
 
         case "hosted-menu-busy":
             #expect(snapshot.sections.map(\.title) == [
-                "Active Accounts",
-                "Accounts",
-                "Hosts",
+                "Current Account",
+                "Manage Accounts",
                 "Preferences"
             ])
             #expect(snapshot.statusMessage == "Refreshing account data...")
@@ -135,16 +131,14 @@ struct MenuBarUIValidationTests {
 
         case "hosted-menu-empty":
             #expect(snapshot.sections.map(\.title) == [
-                "Active Accounts",
-                "Accounts",
-                "Hosts",
+                "Current Account",
+                "Manage Accounts",
                 "Preferences"
             ])
-            #expect(snapshot.sections[0].items == ["No active observed accounts"])
+            #expect(snapshot.sections[0].items == ["No active saved account"])
             #expect(snapshot.sections[1].items.contains("Save Current Account"))
             #expect(snapshot.sections[1].items.contains("Rename Account"))
             #expect(snapshot.sections[1].items.contains("Remove Account"))
-            #expect(snapshot.sections[2].items == ["Add Host…"])
             #expect(snapshot.statusMessage == nil)
 
         default:
@@ -156,21 +150,19 @@ struct MenuBarUIValidationTests {
         switch scenario {
         case "hosted-menu-default":
             return [
-                "Active Accounts section includes the active observed account summary",
+                "Current Account section includes the active account summary",
                 "Two inactive accounts are visible and one account overflows into More Accounts",
-                "Hosts section includes the add-host entry",
                 "Status message is omitted when the menu is not busy"
             ]
         case "hosted-menu-busy":
             return [
-                "Busy state exposes active accounts plus shared host, account, and preference controls",
+                "Busy state exposes only the current account plus shared account and preference controls",
                 "Busy status message is rendered into the artifact snapshot",
                 "Save and sign-in actions are marked disabled in the snapshot"
             ]
         case "hosted-menu-empty":
             return [
-                "Empty state shows no active observed accounts",
-                "Hosts section still offers Add Host",
+                "Empty state shows no active saved account",
                 "Save Current Account remains available when the menu is idle and empty",
                 "Remove Account still renders as a stable control even when no saved accounts exist"
             ]
@@ -216,23 +208,8 @@ struct MenuBarUIValidationTests {
             ]
 
             return MenuBarMenuState(
-                activeAccounts: [
-                    ActiveObservedAccount(account: active, contextBadges: ["local", "debian-vm"])
-                ],
+                activeAccount: active,
                 inactiveAccounts: others,
-                savedHosts: [
-                    RemoteHostConfig(id: UUID(), name: "debian-vm", sshAlias: "debian-vm")
-                ],
-                hostContexts: [
-                    ObservedExecutionContext(
-                        id: "host-1",
-                        kind: .sshHost(hostID: UUID()),
-                        displayName: "debian-vm",
-                        status: .matched(accountID: active.id),
-                        lastObservedAt: now
-                    )
-                ],
-                hasLocalActiveSavedAccount: true,
                 visibleInactiveAccountCount: 2,
                 visibleInactiveAccountCountOptions: [2, 3, 5, 0],
                 refreshIntervalMinutes: 5,
@@ -254,13 +231,8 @@ struct MenuBarUIValidationTests {
             )
 
             return MenuBarMenuState(
-                activeAccounts: [
-                    ActiveObservedAccount(account: active, contextBadges: [])
-                ],
+                activeAccount: active,
                 inactiveAccounts: [],
-                savedHosts: [],
-                hostContexts: [],
-                hasLocalActiveSavedAccount: true,
                 visibleInactiveAccountCount: 2,
                 visibleInactiveAccountCountOptions: [2, 3, 5, 0],
                 refreshIntervalMinutes: 5,
@@ -273,11 +245,8 @@ struct MenuBarUIValidationTests {
 
         case "hosted-menu-empty":
             return MenuBarMenuState(
-                activeAccounts: [],
+                activeAccount: nil,
                 inactiveAccounts: [],
-                savedHosts: [],
-                hostContexts: [],
-                hasLocalActiveSavedAccount: false,
                 visibleInactiveAccountCount: 2,
                 visibleInactiveAccountCountOptions: [2, 3, 5, 0],
                 refreshIntervalMinutes: 10,

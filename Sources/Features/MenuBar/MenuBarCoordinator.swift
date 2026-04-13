@@ -3,12 +3,6 @@ import OSLog
 
 private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.codex-switchboard", category: "MenuBarCoordinator")
 
-func menuBadgeDisplayNames(from contexts: [String], hasRemoteHosts: Bool) -> [String] {
-    contexts
-        .filter { hasRemoteHosts || $0 != "local" }
-        .sorted()
-}
-
 @MainActor
 final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
@@ -50,7 +44,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         rebuildMenu()
         scheduleAutoRefresh()
         syncBackgroundState()
-        Task { await store.refreshObservedContexts() }
     }
 
     func invalidate() {
@@ -78,7 +71,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         store.refreshActiveAccount()
         rebuildMenu()
-        Task { await store.refreshObservedContexts() }
     }
 
     func handleSystemDidWake() {
@@ -154,44 +146,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     }
 
     @objc
-    func addRemoteHost() {
-        let request = alertFactory.makeAddHostRequest()
-        guard let input = alertPresenter.presentValidatedHostInput(
-            request,
-            validator: { [weak self] input in
-                guard let self else { return "Host validation is unavailable right now." }
-                return await self.store.validateRemoteHost(
-                    name: input.name,
-                    sshTarget: input.sshTarget
-                )
-            }
-        ) else {
-            return
-        }
-
-        Task {
-            if let failure = await store.addRemoteHost(name: input.name, sshTarget: input.sshTarget) {
-                alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: failure))
-            }
-        }
-    }
-
-    @objc
-    func removeRemoteHost(_ sender: NSMenuItem) {
-        guard
-            let idString = sender.representedObject as? String,
-            let id = UUID(uuidString: idString),
-            let host = store.remoteHosts.first(where: { $0.id == id })
-        else {
-            return
-        }
-
-        let request = alertFactory.makeRemoveHostRequest(hostName: host.name)
-        guard alertPresenter.presentConfirmation(request) else { return }
-        Task { await store.removeRemoteHost(host) }
-    }
-
-    @objc
     func selectRefreshInterval(_ sender: NSMenuItem) {
         guard let minutes = sender.representedObject as? Int else { return }
         settings.refreshIntervalMinutes = minutes
@@ -229,11 +183,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
             return
         }
 
-        let runningCLISessions = cliProcessInspector.runningCLISessionCount()
-        let request = alertFactory.makeSwitchAccountRequest(accountName: account.name, runningCLISessions: runningCLISessions)
-
-        guard alertPresenter.presentConfirmation(request) else { return }
-        Task { await store.switchToAccount(account) }
+        requestSwitch(to: account)
     }
 
     @objc
@@ -253,38 +203,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     }
 
     private func menuState() -> MenuBarMenuState {
-        let matchedContexts = store.observedContexts.compactMap { context -> (UUID, String)? in
-            guard case .matched(let accountID) = context.status else { return nil }
-            return (accountID, context.displayName)
-        }
-        let groupedContexts = Dictionary(grouping: matchedContexts, by: \.0)
-        let activeAccounts = store.accounts.compactMap { account -> ActiveObservedAccount? in
-            guard let contexts = groupedContexts[account.id] else { return nil }
-            return ActiveObservedAccount(
-                account: account,
-                contextBadges: menuBadgeDisplayNames(
-                    from: contexts.map(\.1),
-                    hasRemoteHosts: !store.remoteHosts.isEmpty
-                )
-            )
-        }
-        let activeAccountIDs = Set(activeAccounts.map { $0.account.id })
-
         return MenuBarMenuState(
-            activeAccounts: activeAccounts.sorted {
-                $0.account.name.localizedCaseInsensitiveCompare($1.account.name) == .orderedAscending
-            },
-            inactiveAccounts: store.accounts
-                .filter { !activeAccountIDs.contains($0.id) }
-                .sorted(by: store.compareForMenu),
-            savedHosts: store.remoteHosts.sorted {
-                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-            },
-            hostContexts: store.observedContexts.filter {
-                if case .sshHost = $0.kind { return true }
-                return false
-            },
-            hasLocalActiveSavedAccount: store.activeAccountID != nil,
+            activeAccount: store.activeAccount,
+            inactiveAccounts: store.sortedInactiveAccounts,
             visibleInactiveAccountCount: settings.visibleInactiveAccountCount,
             visibleInactiveAccountCountOptions: settings.visibleInactiveAccountCountOptions,
             refreshIntervalMinutes: settings.refreshIntervalMinutes,
@@ -294,6 +215,19 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
             isBusy: store.isBusy,
             statusMessage: store.statusMessage
         )
+    }
+
+    func requestSwitch(toAccountID accountID: UUID) {
+        guard let account = store.accounts.first(where: { $0.id == accountID }) else { return }
+        requestSwitch(to: account)
+    }
+
+    private func requestSwitch(to account: CodexAccount) {
+        let runningCLISessions = cliProcessInspector.runningCLISessionCount()
+        let request = alertFactory.makeSwitchAccountRequest(accountName: account.name, runningCLISessions: runningCLISessions)
+
+        guard alertPresenter.presentConfirmation(request) else { return }
+        Task { await store.switchToAccount(account) }
     }
 
     private func scheduleAutoRefresh() {
@@ -311,8 +245,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         Task {
             if let activeAccount = store.activeAccount {
                 await store.refreshAccountData(for: activeAccount)
-            } else {
-                await store.refreshObservedContexts()
             }
         }
     }

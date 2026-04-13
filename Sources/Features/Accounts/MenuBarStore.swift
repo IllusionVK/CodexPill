@@ -14,10 +14,6 @@ final class MenuBarStore {
     private let identityResolver: SavedAccountIdentityResolver
     private let loadAccountsUseCase: LoadAccountsUseCase
     private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
-    private let hostRepository: RemoteHostCatalog
-    private let addRemoteHostUseCase: AddRemoteHostUseCase
-    private let deleteRemoteHostUseCase: DeleteRemoteHostUseCase
-    private let observeExecutionContextsUseCase: ObserveExecutionContextsUseCase
     private let deleteSavedAccountUseCase: DeleteSavedAccountUseCase
     private let renameSavedAccountUseCase: RenameSavedAccountUseCase
     private let switchAccountWorkflow: SwitchAccountWorkflow
@@ -25,8 +21,6 @@ final class MenuBarStore {
     private let signInAnotherWorkflow: SignInAnotherWorkflow
 
     private(set) var accounts: [CodexAccount] = []
-    private(set) var remoteHosts: [RemoteHostConfig] = []
-    private(set) var observedContexts: [ObservedExecutionContext] = []
     private(set) var activeAccountID: UUID?
     private var pendingSignedInAccountName: String?
     private var isCompletingPendingSignedInAccount = false
@@ -36,25 +30,16 @@ final class MenuBarStore {
 
     init(
         repository: AccountRepository,
-        hostRepository: RemoteHostRepository,
         authService: CodexAuthSnapshotService,
         appController: CodexAppController,
-        appServerClient: CodexAppServerClient,
-        remoteHostObserver: RemoteHostObserving = RemoteHostCodexObserver()
+        appServerClient: CodexAppServerClient
     ) {
         self.identityResolver = SavedAccountIdentityResolver(
             liveIdentityReader: authService,
             storedAccountReconciler: authService
         )
-        self.hostRepository = hostRepository
         self.loadAccountsUseCase = LoadAccountsUseCase(
             repository: repository,
-            identityResolver: self.identityResolver
-        )
-        self.addRemoteHostUseCase = AddRemoteHostUseCase(repository: hostRepository)
-        self.deleteRemoteHostUseCase = DeleteRemoteHostUseCase(repository: hostRepository)
-        self.observeExecutionContextsUseCase = ObserveExecutionContextsUseCase(
-            remoteObserver: remoteHostObserver,
             identityResolver: self.identityResolver
         )
         self.refreshActiveAccountUseCase = RefreshActiveAccountUseCase(
@@ -93,7 +78,6 @@ final class MenuBarStore {
             let result = try loadAccountsUseCase.run()
             accounts = result.accounts
             activeAccountID = result.activeAccountID
-            remoteHosts = try hostRepository.loadHosts()
             statusMessage = "Loaded \(accounts.count) account(s)"
             menuBarStoreLogger.log("Loaded \(self.accounts.count, privacy: .public) saved account(s)")
         } catch {
@@ -185,10 +169,6 @@ final class MenuBarStore {
             let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
             accounts = result.accounts
             activeAccountID = result.refreshedAccountID
-            observedContexts = await observeExecutionContextsUseCase.run(
-                hosts: remoteHosts,
-                accounts: accounts
-            )
         }
     }
 
@@ -209,105 +189,7 @@ final class MenuBarStore {
     }
 
     func refreshObservedContexts() async {
-        let loadingContexts = remoteHosts
-            .sorted(by: { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending })
-            .map {
-                ObservedExecutionContext(
-                    id: "host-\($0.id.uuidString)",
-                    kind: .sshHost(hostID: $0.id),
-                    displayName: $0.name,
-                    status: .loading,
-                    lastObservedAt: nil
-                )
-            }
-        observedContexts = localContextIfAvailable() + loadingContexts
         stateDidChange()
-
-        observedContexts = await observeExecutionContextsUseCase.run(
-            hosts: remoteHosts,
-            accounts: accounts
-        )
-        stateDidChange()
-    }
-
-    func addRemoteHost(name: String, sshTarget: String) async -> String? {
-        menuBarStoreLogger.log("Beginning add-host operation")
-        isBusy = true
-        statusMessage = "Adding host..."
-        stateDidChange()
-
-        defer {
-            isBusy = false
-            stateDidChange()
-        }
-
-        do {
-            let previousHosts = remoteHosts
-            let result = try addRemoteHostUseCase.run(name: name, sshTarget: sshTarget, hosts: remoteHosts)
-            let candidateHosts = result.hosts
-            let candidateContexts = await observeExecutionContextsUseCase.run(
-                hosts: candidateHosts,
-                accounts: accounts
-            )
-
-            if let hostContext = candidateContexts.first(where: {
-                if case .sshHost(let hostID) = $0.kind {
-                    return hostID == result.addedHost.id
-                }
-                return false
-            }), case .unavailable(let message) = hostContext.status {
-                try hostRepository.saveHosts(previousHosts)
-                throw MenuBarStoreError.remoteHostUnavailable(target: result.addedHost.sshTarget, reason: message)
-            }
-
-            remoteHosts = candidateHosts
-            observedContexts = candidateContexts
-            statusMessage = "Done"
-            menuBarStoreLogger.log("Add-host operation completed successfully")
-            return nil
-        } catch {
-            statusMessage = "Ready"
-            menuBarStoreLogger.error("Add-host operation failed: \(error.localizedDescription, privacy: .public)")
-            return error.localizedDescription
-        }
-    }
-
-    func validateRemoteHost(name: String, sshTarget: String) async -> String? {
-        do {
-            let host = try addRemoteHostUseCase.makeHost(
-                name: name,
-                sshTarget: sshTarget,
-                hosts: remoteHosts
-            )
-            let contexts = await observeExecutionContextsUseCase.run(
-                hosts: [host],
-                accounts: accounts
-            )
-
-            if let context = contexts.first(where: {
-                if case .sshHost(let hostID) = $0.kind {
-                    return hostID == host.id
-                }
-                return false
-            }), case .unavailable(let message) = context.status {
-                throw MenuBarStoreError.remoteHostUnavailable(target: host.sshTarget, reason: message)
-            }
-
-            return nil
-        } catch {
-            return error.localizedDescription
-        }
-    }
-
-    func removeRemoteHost(_ host: RemoteHostConfig) async {
-        await perform("Removing host...") {
-            let result = try deleteRemoteHostUseCase.run(host: host, hosts: remoteHosts)
-            remoteHosts = result.hosts
-            observedContexts = await observeExecutionContextsUseCase.run(
-                hosts: remoteHosts,
-                accounts: accounts
-            )
-        }
     }
 
     func isActive(_ account: CodexAccount) -> Bool {
@@ -327,7 +209,15 @@ final class MenuBarStore {
     }
 
     func compareForMenu(_ lhs: CodexAccount, _ rhs: CodexAccount) -> Bool {
-        compareInactiveAccounts(lhs, rhs)
+        if lhs.id == activeAccountID, rhs.id != activeAccountID {
+            return true
+        }
+
+        if rhs.id == activeAccountID, lhs.id != activeAccountID {
+            return false
+        }
+
+        return compareInactiveAccounts(lhs, rhs)
     }
 
     var hasPendingSignedInAccount: Bool {
@@ -373,27 +263,10 @@ final class MenuBarStore {
             let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
             accounts = result.accounts
             activeAccountID = result.refreshedAccountID
-            observedContexts = await observeExecutionContextsUseCase.run(
-                hosts: remoteHosts,
-                accounts: accounts
-            )
             stateDidChange()
         } catch {
             menuBarStoreLogger.log("Silent post-activation refresh skipped: \(error.localizedDescription, privacy: .public)")
         }
-    }
-
-    private func localContextIfAvailable() -> [ObservedExecutionContext] {
-        guard let activeAccountID else { return [] }
-        return [
-            ObservedExecutionContext(
-                id: "local",
-                kind: .local,
-                displayName: "local",
-                status: .matched(accountID: activeAccountID),
-                lastObservedAt: .now
-            )
-        ]
     }
 
     private func compareInactiveAccounts(_ lhs: CodexAccount, _ rhs: CodexAccount) -> Bool {
@@ -460,17 +333,6 @@ final class MenuBarStore {
             weeklyUsedPercent: weeklyUsedPercent,
             sessionUsedPercent: sessionUsedPercent
         )
-    }
-}
-
-enum MenuBarStoreError: LocalizedError {
-    case remoteHostUnavailable(target: String, reason: String)
-
-    var errorDescription: String? {
-        switch self {
-        case let .remoteHostUnavailable(target, reason):
-            "Could not connect to SSH target '\(target)'. \(reason)"
-        }
     }
 }
 

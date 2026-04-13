@@ -6,7 +6,6 @@ private let appPathsLogger = Logger(subsystem: "com.raphhgg.codex-switchboard", 
 struct AppPaths {
     let appSupportDirectory: URL
     let accountsFile: URL
-    let remoteHostsFile: URL
     let snapshotsDirectory: URL
     let codexAuthFile: URL
 
@@ -31,7 +30,6 @@ struct AppPaths {
 
         appSupportDirectory = targetDirectory
         accountsFile = appSupportDirectory.appendingPathComponent("accounts.json")
-        remoteHostsFile = appSupportDirectory.appendingPathComponent("hosts.json")
         snapshotsDirectory = appSupportDirectory.appendingPathComponent("snapshots", isDirectory: true)
         codexAuthFile = fileManager.homeDirectoryForCurrentUser
             .appendingPathComponent(".codex", isDirectory: true)
@@ -39,12 +37,10 @@ struct AppPaths {
 
         let resolvedAppSupportPath = appSupportDirectory.path
         let resolvedAccountsPath = accountsFile.path
-        let resolvedHostsPath = remoteHostsFile.path
         let resolvedSnapshotsPath = snapshotsDirectory.path
         let resolvedAuthPath = codexAuthFile.path
         appPathsLogger.log("Resolved app support directory: \(resolvedAppSupportPath, privacy: .public)")
         appPathsLogger.log("Resolved accounts file: \(resolvedAccountsPath, privacy: .public)")
-        appPathsLogger.log("Resolved hosts file: \(resolvedHostsPath, privacy: .public)")
         appPathsLogger.log("Resolved snapshots directory: \(resolvedSnapshotsPath, privacy: .public)")
         appPathsLogger.log("Resolved auth file: \(resolvedAuthPath, privacy: .public)")
     }
