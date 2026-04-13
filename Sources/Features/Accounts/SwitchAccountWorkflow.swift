@@ -13,6 +13,7 @@ protocol AccountCatalogPersisting {
 extension AccountRepository: AccountCatalogPersisting {}
 
 protocol CodexAppRelaunching {
+    func assertCodexAvailable() throws
     func relaunchCodex() async throws
 }
 
@@ -40,6 +41,7 @@ struct SwitchAccountWorkflow {
         account: CodexAccount,
         accounts: [CodexAccount]
     ) async throws -> UUID? {
+        try appController.assertCodexAvailable()
         try authService.activate(account)
         try repository.saveAccounts(accounts)
 

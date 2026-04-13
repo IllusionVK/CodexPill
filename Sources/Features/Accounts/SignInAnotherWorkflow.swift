@@ -39,6 +39,7 @@ struct SignInAnotherWorkflow {
 
     func prepare(named pendingAccountName: String?) throws -> SignInAnotherPreparationResult {
         let resolvedName = resolveAccountName(pendingAccountName, fallbackEmail: nil)
+        try appController.assertCodexAvailable()
         try authService.prepareForNewSignIn()
         return SignInAnotherPreparationResult(pendingAccountName: resolvedName)
     }

@@ -6,8 +6,16 @@ private let appControllerLogger = Logger(subsystem: "com.raphhgg.codex-switchboa
 struct CodexAppController {
     let bundleIdentifier = "com.openai.codex"
 
+    func assertCodexAvailable() throws {
+        guard NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) != nil else {
+            appControllerLogger.error("Could not resolve Codex application URL")
+            throw CodexAppControllerError.applicationNotFound
+        }
+    }
+
     func relaunchCodex() async throws {
         appControllerLogger.log("Starting Codex relaunch flow")
+        try assertCodexAvailable()
         try await terminateForRelaunch()
         appControllerLogger.log("Termination phase complete, launching Codex")
         try await launchCodex()
@@ -50,8 +58,8 @@ struct CodexAppController {
     }
 
     private func launchCodex() async throws {
+        try assertCodexAvailable()
         guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
-            appControllerLogger.error("Could not resolve Codex application URL")
             throw CodexAppControllerError.applicationNotFound
         }
 

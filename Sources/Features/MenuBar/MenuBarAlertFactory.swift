@@ -85,7 +85,7 @@ struct MenuBarAlertFactory {
 
         if runningCLISessions > 0 {
             let sessionText = runningCLISessions == 1 ? "1 running Codex CLI session was" : "\(runningCLISessions) running Codex CLI sessions were"
-            lines.append("\(sessionText) detected. Existing CLI sessions may continue using the previous account until they are restarted.")
+            lines.append("\(sessionText) detected. Restart any open Codex CLI terminals to use the new account.")
         }
 
         return lines.joined(separator: " ")
@@ -98,7 +98,7 @@ struct MenuBarAlertFactory {
 
         if runningCLISessions > 0 {
             let sessionText = runningCLISessions == 1 ? "1 running Codex CLI session was" : "\(runningCLISessions) running Codex CLI sessions were"
-            lines.append("\(sessionText) detected. Existing CLI sessions may continue using the previous account until they are restarted.")
+            lines.append("\(sessionText) detected. Restart any open Codex CLI terminals after signing in to use the new account.")
         }
 
         return lines.joined(separator: " ")

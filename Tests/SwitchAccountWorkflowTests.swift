@@ -28,6 +28,30 @@ struct SwitchAccountWorkflowTests {
     }
 
     @Test
+    func runDoesNotActivateOrPersistWhenCodexIsUnavailable() async throws {
+        let target = makeAccount(name: "Target", fingerprint: "live-fingerprint")
+
+        let auth = AuthSpy(currentFingerprint: "live-fingerprint", currentStableAccountID: nil)
+        let repository = RepositorySpy()
+        let appController = AppControllerSpy()
+        appController.availabilityError = CodexAppControllerError.applicationNotFound
+        let workflow = SwitchAccountWorkflow(
+            authService: auth,
+            repository: repository,
+            appController: appController,
+            identityResolver: makeResolver(auth: auth)
+        )
+
+        await #expect(throws: CodexAppControllerError.applicationNotFound) {
+            try await workflow.run(account: target, accounts: [target])
+        }
+
+        #expect(auth.activatedAccountID == nil)
+        #expect(repository.savedAccounts == nil)
+        #expect(appController.relaunchCount == 0)
+    }
+
+    @Test
     func runStillRelaunchesEvenWhenMatcherCannotResolveActiveAccount() async throws {
         let target = makeAccount(name: "Target", fingerprint: "saved-fingerprint")
 
@@ -109,6 +133,15 @@ private final class RepositorySpy: AccountCatalogPersisting {
 
 private final class AppControllerSpy: CodexAppRelaunching {
     var relaunchCount = 0
+    var availabilityCheckCount = 0
+    var availabilityError: Error?
+
+    func assertCodexAvailable() throws {
+        availabilityCheckCount += 1
+        if let availabilityError {
+            throw availabilityError
+        }
+    }
 
     func relaunchCodex() async throws {
         relaunchCount += 1

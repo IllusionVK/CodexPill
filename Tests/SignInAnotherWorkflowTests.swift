@@ -24,6 +24,27 @@ struct SignInAnotherWorkflowTests {
     }
 
     @Test
+    func prepareDoesNotClearAuthWhenCodexIsUnavailable() throws {
+        let auth = SignInAnotherAuthSpy(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"))
+        let appController = AppControllerSpy()
+        appController.availabilityError = CodexAppControllerError.applicationNotFound
+        let workflow = SignInAnotherWorkflow(
+            authService: auth,
+            appController: appController,
+            appServerClient: AppServerSpy(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
+            repository: RepositorySpy(),
+            identityResolver: makeResolver(auth: auth)
+        )
+
+        #expect(throws: CodexAppControllerError.applicationNotFound) {
+            try workflow.prepare(named: "Secondary")
+        }
+
+        #expect(auth.prepareForNewSignInCount == 0)
+        #expect(appController.relaunchCount == 0)
+    }
+
+    @Test
     func relaunchCodexDelegatesToAppController() async throws {
         let auth = SignInAnotherAuthSpy(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"))
         let appController = AppControllerSpy()
@@ -221,6 +242,15 @@ private final class SignInAnotherAuthSpy: CodexSignInAnotherAuthHandling, LiveCo
 
 private final class AppControllerSpy: CodexAppRelaunching {
     var relaunchCount = 0
+    var availabilityCheckCount = 0
+    var availabilityError: Error?
+
+    func assertCodexAvailable() throws {
+        availabilityCheckCount += 1
+        if let availabilityError {
+            throw availabilityError
+        }
+    }
 
     func relaunchCodex() async throws {
         relaunchCount += 1

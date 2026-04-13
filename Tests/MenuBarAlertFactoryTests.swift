@@ -28,6 +28,7 @@ struct MenuBarAlertFactoryTests {
 
         #expect(request.informativeText.contains("switch the local Codex account to Work"))
         #expect(request.informativeText.contains("2 running Codex CLI sessions were detected"))
+        #expect(request.informativeText.contains("Restart any open Codex CLI terminals to use the new account."))
     }
 
     @Test
@@ -36,6 +37,14 @@ struct MenuBarAlertFactoryTests {
 
         #expect(request.informativeText.contains("sign Codex out, restart the app"))
         #expect(!request.informativeText.contains("running Codex CLI session"))
+    }
+
+    @Test
+    func signInAnotherWarningMentionsTerminalRestartWhenCliSessionsExist() {
+        let request = factory.makeSignInAnotherRequest(runningCLISessions: 1)
+
+        #expect(request.informativeText.contains("1 running Codex CLI session was detected"))
+        #expect(request.informativeText.contains("Restart any open Codex CLI terminals after signing in to use the new account."))
     }
 
     @Test
