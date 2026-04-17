@@ -54,7 +54,7 @@ final class MenuBarAccountsStore {
         await controller.renameSavedAccount(account, to: newName)
     }
 
-    func refreshAccountData(for account: CodexAccount) async {
+    func refreshAccountData(for account: CodexAccount) async -> AccountsController.BackgroundRefreshOutcome {
         await controller.refreshAccountData(for: account)
     }
 

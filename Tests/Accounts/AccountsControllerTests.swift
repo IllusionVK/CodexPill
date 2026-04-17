@@ -57,8 +57,9 @@ struct AccountsControllerTests {
         )
 
         controller.load()
-        await controller.refreshAccountData(for: account)
+        let outcome = await controller.refreshAccountData(for: account)
 
+        #expect(outcome == .failed)
         #expect(controller.activeAccountID == account.id)
         #expect(controller.accounts == [account])
         #expect(controller.pendingErrorMessage == nil)

@@ -20,6 +20,15 @@ case "${SCENARIO}" in
   live-account-switch)
     INVARIANT_IDS_JSON='["accounts.switch_account.menu_action_changes_active_account"]'
     ;;
+  live-scheduled-refresh)
+    INVARIANT_IDS_JSON='["accounts.scheduled_refresh.requested_and_completed"]'
+    ;;
+  live-sign-in-another-prompt)
+    INVARIANT_IDS_JSON='["accounts.sign_in_another.prompt_presented_and_cancellable"]'
+    ;;
+  live-save-current-prompt)
+    INVARIANT_IDS_JSON='["accounts.save_current_account.prompt_presented_and_cancellable"]'
+    ;;
   *)
     INVARIANT_IDS_JSON='["menubar.status_item_content.fallback_icon_only","menubar.inactive_accounts.render_and_wired_for_switch"]'
     ;;
@@ -649,6 +658,174 @@ end tell
 EOF
 }
 
+trigger_save_current_prompt() {
+  osascript <<'EOF'
+tell application "System Events"
+    tell process "CodexPill"
+        tell menu bar 2
+            click menu bar item 1
+            delay 0.5
+            tell menu item "Accounts" of menu 1 of menu bar item 1
+                tell menu 1
+                    tell menu item "Add Account"
+                        tell menu 1
+                            click menu item "Save Current Account"
+                        end tell
+                    end tell
+                end tell
+            end tell
+        end tell
+    end tell
+end tell
+EOF
+}
+
+trigger_sign_in_another_prompt() {
+  osascript <<'EOF'
+tell application "System Events"
+    tell process "CodexPill"
+        tell menu bar 2
+            click menu bar item 1
+            delay 0.5
+            tell menu item "Accounts" of menu 1 of menu bar item 1
+                tell menu 1
+                    tell menu item "Add Account"
+                        tell menu 1
+                            click menu item "Sign In Another Account…"
+                        end tell
+                    end tell
+                end tell
+            end tell
+        end tell
+    end tell
+end tell
+EOF
+}
+
+cancel_text_input_prompt() {
+  osascript <<'EOF'
+tell application "System Events"
+    tell process "CodexPill"
+        if not (exists window 1) then error "No text input prompt window"
+        tell window 1
+            if exists button "Cancel" then
+                click button "Cancel"
+                return "cancelled"
+            end if
+            if exists button 2 then
+                click button 2
+                return "cancelled"
+            end if
+        end tell
+    end tell
+end tell
+EOF
+}
+
+read_save_current_prompt_proof() {
+  ruby - "${VALIDATION_EVENTS_PATH}" <<'RUBY'
+require "json"
+
+events_path = ARGV.fetch(0)
+events = if File.exist?(events_path)
+  File.readlines(events_path, chomp: true).map do |line|
+    next if line.strip.empty?
+    JSON.parse(line)
+  rescue JSON::ParserError
+    nil
+  end.compact
+else
+  []
+end
+
+requirements = [
+  ["menu_action_dispatched", ->(event) { event.dig("payload", "action") == "addCurrentAccount" }],
+  ["save_current_prompt_presented", ->(_event) { true }],
+  ["save_current_prompt_cancelled", ->(_event) { true }]
+]
+
+cursor = 0
+proof_sequence = []
+
+requirements.each do |required_name, predicate|
+  matched = false
+  while cursor < events.length
+    event = events[cursor]
+    if event["event"] == required_name && predicate.call(event)
+      proof_sequence << required_name
+      cursor += 1
+      matched = true
+      break
+    end
+    cursor += 1
+  end
+  break unless matched
+end
+
+puts JSON.generate(
+  {
+    "passed" => proof_sequence == requirements.map(&:first),
+    "requiredSequence" => requirements.map(&:first),
+    "proofSequence" => proof_sequence,
+    "eventCount" => events.length,
+    "eventsPathPresent" => File.exist?(events_path)
+  }
+)
+RUBY
+}
+
+read_sign_in_another_prompt_proof() {
+  ruby - "${VALIDATION_EVENTS_PATH}" <<'RUBY'
+require "json"
+
+events_path = ARGV.fetch(0)
+events = if File.exist?(events_path)
+  File.readlines(events_path, chomp: true).map do |line|
+    next if line.strip.empty?
+    JSON.parse(line)
+  rescue JSON::ParserError
+    nil
+  end.compact
+else
+  []
+end
+
+requirements = [
+  ["menu_action_dispatched", ->(event) { event.dig("payload", "action") == "signInAnotherAccount" }],
+  ["sign_in_another_prompt_presented", ->(_event) { true }],
+  ["sign_in_another_prompt_cancelled", ->(_event) { true }]
+]
+
+cursor = 0
+proof_sequence = []
+
+requirements.each do |required_name, predicate|
+  matched = false
+  while cursor < events.length
+    event = events[cursor]
+    if event["event"] == required_name && predicate.call(event)
+      proof_sequence << required_name
+      cursor += 1
+      matched = true
+      break
+    end
+    cursor += 1
+  end
+  break unless matched
+end
+
+puts JSON.generate(
+  {
+    "passed" => proof_sequence == requirements.map(&:first),
+    "requiredSequence" => requirements.map(&:first),
+    "proofSequence" => proof_sequence,
+    "eventCount" => events.length,
+    "eventsPathPresent" => File.exist?(events_path)
+  }
+)
+RUBY
+}
+
 read_switch_event_proof() {
   ruby - "${VALIDATION_EVENTS_PATH}" "$1" "$2" <<'RUBY'
 require "json"
@@ -674,6 +851,57 @@ requirements = [
     event.dig("payload", "toName") == target_name &&
       (original_name.to_s.empty? || event.dig("payload", "fromName") == original_name)
   }]
+]
+
+cursor = 0
+proof_sequence = []
+
+requirements.each do |required_name, predicate|
+  matched = false
+  while cursor < events.length
+    event = events[cursor]
+    if event["event"] == required_name && predicate.call(event)
+      proof_sequence << required_name
+      cursor += 1
+      matched = true
+      break
+    end
+    cursor += 1
+  end
+  break unless matched
+end
+
+puts JSON.generate(
+  {
+    "passed" => proof_sequence == requirements.map(&:first),
+    "requiredSequence" => requirements.map(&:first),
+    "proofSequence" => proof_sequence,
+    "eventCount" => events.length,
+    "eventsPathPresent" => File.exist?(events_path)
+  }
+)
+RUBY
+}
+
+read_scheduled_refresh_proof() {
+  ruby - "${VALIDATION_EVENTS_PATH}" <<'RUBY'
+require "json"
+
+events_path = ARGV.fetch(0)
+events = if File.exist?(events_path)
+  File.readlines(events_path, chomp: true).map do |line|
+    next if line.strip.empty?
+    JSON.parse(line)
+  rescue JSON::ParserError
+    nil
+  end.compact
+else
+  []
+end
+
+requirements = [
+  ["scheduled_refresh_requested", ->(_event) { true }],
+  ["scheduled_refresh_completed", ->(_event) { true }]
 ]
 
 cursor = 0
@@ -739,6 +967,101 @@ if [[ "${RUNTIME_ASSERTIONS_PASSED}" -ne 1 ]]; then
 EOF
   echo "Live smoke failed: runtime snapshot assertions did not pass." >&2
   exit 8
+fi
+
+if [[ "${SCENARIO}" == "live-scheduled-refresh" ]]; then
+  SCENARIO_SCREENSHOT_CAPTURED=0
+  if screencapture -x "${SCREENSHOT_PATH}" >/dev/null 2>&1; then
+    SCENARIO_SCREENSHOT_CAPTURED=1
+  fi
+
+  cat > "${UI_TREE_PATH}" <<EOF
+{
+  "liveSnapshotPath": "live-menu-snapshot.json",
+  "runtimeAssertionsPath": "runtime-assertions.json",
+  "runtimeSnapshot": $(cat "${LIVE_SNAPSHOT_PATH}"),
+  "runtimeAssertions": $(cat "${RUNTIME_ASSERTIONS_PATH}")
+}
+EOF
+
+  SCHEDULED_REFRESH_PROOF_JSON=""
+  for _ in $(seq 1 30); do
+    SCHEDULED_REFRESH_PROOF_JSON="$(read_scheduled_refresh_proof)"
+    if [[ "$(printf '%s' "${SCHEDULED_REFRESH_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')" == "1" ]]; then
+      break
+    fi
+    sleep 1
+  done
+
+  SCHEDULED_REFRESH_PROOF_PASSED="$(printf '%s' "${SCHEDULED_REFRESH_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
+  SCHEDULED_REFRESH_PROOF_SEQUENCE="$(printf '%s' "${SCHEDULED_REFRESH_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"]))')"
+
+  if [[ "${SCHEDULED_REFRESH_PROOF_PASSED}" != "1" ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The app emitted a runtime menu snapshot during launch"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The app did not emit the expected scheduled refresh event sequence before timeout."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "proofSequence": ${SCHEDULED_REFRESH_PROOF_SEQUENCE},
+  "failureClass": "product_regression",
+  "failureStep": "scheduled_refresh_events"
+}
+EOF
+    echo "Live scheduled-refresh smoke failed: refresh event proof did not complete." >&2
+    exit 23
+  fi
+
+  SCREENSHOT_ARTIFACTS=""
+  if [[ "${SCENARIO_SCREENSHOT_CAPTURED}" -eq 1 ]]; then
+    SCREENSHOT_ARTIFACTS='"screenshots/'"${SCENARIO}"'.png",'
+  fi
+
+  cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    ${SCREENSHOT_ARTIFACTS}
+    "live-auth-status.json",
+    "app-server-status.json",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The app emitted a runtime menu snapshot during launch",
+    "The scheduled refresh timer requested a background refresh",
+    "The scheduled refresh completed successfully"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [],
+  "scenario": "${SCENARIO}",
+  "status": "passed",
+  "proofSequence": ${SCHEDULED_REFRESH_PROOF_SEQUENCE}
+}
+EOF
+
+  echo "Live scheduled-refresh smoke artifacts written to ${ARTIFACT_ROOT}"
+  exit 0
 fi
 
 MENU_BAR_COUNT_OUTPUT="$(osascript -e 'tell application "System Events" to tell process "CodexPill" to get count of menu bars' 2>&1)" || true
@@ -835,6 +1158,310 @@ cat > "${UI_TREE_PATH}" <<EOF
   "runtimeAssertions": $(cat "${RUNTIME_ASSERTIONS_PATH}")
 }
 EOF
+
+if [[ "${SCENARIO}" == "live-save-current-prompt" ]]; then
+  if ! trigger_save_current_prompt >/dev/null 2>&1; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The live probe could not trigger Accounts > Add Account > Save Current Account."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "failureClass": "environment_block",
+  "failureStep": "save_current_menu_path"
+}
+EOF
+    echo "Live save-current prompt smoke failed: could not trigger the menu path." >&2
+    exit 17
+  fi
+
+  PROMPT_CANCELLED=0
+  for _ in $(seq 1 20); do
+    if cancel_text_input_prompt >/dev/null 2>&1; then
+      PROMPT_CANCELLED=1
+      break
+    fi
+    sleep 0.5
+  done
+
+  if [[ "${PROMPT_CANCELLED}" -ne 1 ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The live probe triggered the Save Current Account menu path"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The Save Current Account prompt was not reachable for cancellation."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "failureClass": "environment_block",
+  "failureStep": "save_current_prompt_cancel"
+}
+EOF
+    echo "Live save-current prompt smoke failed: could not cancel the prompt." >&2
+    exit 18
+  fi
+
+  SAVE_CURRENT_PROOF_JSON=""
+  for _ in $(seq 1 20); do
+    SAVE_CURRENT_PROOF_JSON="$(read_save_current_prompt_proof)"
+    if [[ "$(printf '%s' "${SAVE_CURRENT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')" == "1" ]]; then
+      break
+    fi
+    sleep 0.5
+  done
+
+  SAVE_CURRENT_PROOF_PASSED="$(printf '%s' "${SAVE_CURRENT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
+  SAVE_CURRENT_PROOF_SEQUENCE="$(printf '%s' "${SAVE_CURRENT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"]))')"
+
+  if [[ "${SAVE_CURRENT_PROOF_PASSED}" != "1" ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The live probe triggered the Save Current Account menu path",
+    "The text-input prompt was cancelled"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The app did not emit the expected Save Current Account prompt event sequence."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "proofSequence": ${SAVE_CURRENT_PROOF_SEQUENCE},
+  "failureClass": "product_regression",
+  "failureStep": "save_current_prompt_events"
+}
+EOF
+    echo "Live save-current prompt smoke failed: prompt event proof did not complete." >&2
+    exit 19
+  fi
+
+  cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu",
+    "The Save Current Account menu path was triggered",
+    "The Save Current Account prompt was presented",
+    "The Save Current Account prompt was cancelled cleanly"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [],
+  "scenario": "${SCENARIO}",
+  "status": "passed",
+  "proofSequence": ${SAVE_CURRENT_PROOF_SEQUENCE}
+}
+EOF
+
+  echo "Live save-current prompt smoke artifacts written to ${ARTIFACT_ROOT}"
+  exit 0
+fi
+
+if [[ "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
+  if ! trigger_sign_in_another_prompt >/dev/null 2>&1; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The live probe could not trigger Accounts > Add Account > Sign In Another Account…."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "failureClass": "environment_block",
+  "failureStep": "sign_in_another_menu_path"
+}
+EOF
+    echo "Live sign-in-another prompt smoke failed: could not trigger the menu path." >&2
+    exit 20
+  fi
+
+  PROMPT_CANCELLED=0
+  for _ in $(seq 1 20); do
+    if cancel_text_input_prompt >/dev/null 2>&1; then
+      PROMPT_CANCELLED=1
+      break
+    fi
+    sleep 0.5
+  done
+
+  if [[ "${PROMPT_CANCELLED}" -ne 1 ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The live probe triggered the Sign In Another Account… menu path"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The Sign In Another Account… prompt was not reachable for cancellation."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "failureClass": "environment_block",
+  "failureStep": "sign_in_another_prompt_cancel"
+}
+EOF
+    echo "Live sign-in-another prompt smoke failed: could not cancel the prompt." >&2
+    exit 21
+  fi
+
+  SIGN_IN_ANOTHER_PROOF_JSON=""
+  for _ in $(seq 1 20); do
+    SIGN_IN_ANOTHER_PROOF_JSON="$(read_sign_in_another_prompt_proof)"
+    if [[ "$(printf '%s' "${SIGN_IN_ANOTHER_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')" == "1" ]]; then
+      break
+    fi
+    sleep 0.5
+  done
+
+  SIGN_IN_ANOTHER_PROOF_PASSED="$(printf '%s' "${SIGN_IN_ANOTHER_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
+  SIGN_IN_ANOTHER_PROOF_SEQUENCE="$(printf '%s' "${SIGN_IN_ANOTHER_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"]))')"
+
+  if [[ "${SIGN_IN_ANOTHER_PROOF_PASSED}" != "1" ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The live probe triggered the Sign In Another Account… menu path",
+    "The text-input prompt was cancelled"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The app did not emit the expected Sign In Another Account… prompt event sequence."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "proofSequence": ${SIGN_IN_ANOTHER_PROOF_SEQUENCE},
+  "failureClass": "product_regression",
+  "failureStep": "sign_in_another_prompt_events"
+}
+EOF
+    echo "Live sign-in-another prompt smoke failed: prompt event proof did not complete." >&2
+    exit 22
+  fi
+
+  cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu",
+    "The Sign In Another Account… menu path was triggered",
+    "The Sign In Another Account… prompt was presented",
+    "The Sign In Another Account… prompt was cancelled cleanly"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [],
+  "scenario": "${SCENARIO}",
+  "status": "passed",
+  "proofSequence": ${SIGN_IN_ANOTHER_PROOF_SEQUENCE}
+}
+EOF
+
+  echo "Live sign-in-another prompt smoke artifacts written to ${ARTIFACT_ROOT}"
+  exit 0
+fi
 
 if [[ "${SCENARIO}" == "live-account-switch" ]]; then
   if [[ "${CODEXPILL_ALLOW_LIVE_ACCOUNT_SWITCH_VALIDATION:-0}" != "1" ]]; then

@@ -6,7 +6,7 @@ Human QA is residual in this repo. If an agent can prove a behavior through test
 
 - native alert copy and text-entry UX that current automation does not drive
 - real Codex sign-in completion across external app surfaces
-- scheduled refresh timing and wake or long-running lifecycle behavior not yet covered by a dedicated smoke
+- wake or longer-running lifecycle behavior not yet covered by a dedicated smoke
 - OS-level focus, permission, or pointer-control issues that block live agent proof
 
 ## Setup
@@ -33,14 +33,13 @@ Human QA is residual in this repo. If an agent can prove a behavior through test
 Verify:
 
 - save-current-account prompts show the expected copy
-- switch-account warnings mention the correct target account
 - duplicate-name rejection is understandable to a human and returns the app to a stable state
 
 ### 2. Real Sign-In-Another Flow
 
 Verify:
 
-- the external Codex sign-in flow completes successfully
+- the external Codex sign-in flow completes successfully after the prompt is confirmed
 - the resulting account is captured once
 - the new account becomes active without duplication
 
@@ -48,7 +47,6 @@ Verify:
 
 Verify:
 
-- scheduled refresh still behaves correctly over real elapsed time
 - the app recovers correctly after wake or longer-running idle periods
 
 ### 4. Manual Recovery From OS-Level Issues

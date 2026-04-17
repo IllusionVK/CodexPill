@@ -1,28 +1,30 @@
+import Foundation
 import Testing
 
 @testable import CodexPill
 
 struct AppRuntimeEnvironmentTests {
     @Test
-    func validationOutputSuppressesEmptyStatePrompt() {
-        #expect(
-            AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt(
-                environment: [MenuBarValidationConfiguration.outputPathEnvironmentKey: "/tmp/live-menu.json"]
-            )
-        )
+    func validationAutoRefreshIntervalSecondsParsesPositiveValues() {
+        let environment = [
+            AppRuntimeEnvironment.validationAutoRefreshIntervalSecondsEnvironmentKey: "2.5"
+        ]
+
+        #expect(AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(environment: environment) == 2.5)
     }
 
     @Test
-    func explicitSuppressFlagAcceptsTruthyValues() {
+    func validationAutoRefreshIntervalSecondsRejectsInvalidValues() {
+        #expect(AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(environment: [:]) == nil)
         #expect(
-            AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt(
-                environment: [AppRuntimeEnvironment.suppressEmptyStatePromptEnvironmentKey: "true"]
-            )
+            AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(
+                environment: [AppRuntimeEnvironment.validationAutoRefreshIntervalSecondsEnvironmentKey: "0"]
+            ) == nil
         )
-    }
-
-    @Test
-    func emptyEnvironmentKeepsPromptEnabled() {
-        #expect(AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt(environment: [:]) == false)
+        #expect(
+            AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(
+                environment: [AppRuntimeEnvironment.validationAutoRefreshIntervalSecondsEnvironmentKey: "abc"]
+            ) == nil
+        )
     }
 }

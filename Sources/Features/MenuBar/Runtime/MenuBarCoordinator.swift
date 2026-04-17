@@ -9,6 +9,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private static let liveProofLayer = "live_ui"
     private static let hoverInvariantIDs = ["menubar.text_on_hover.stays_visible_inside_resized_bounds"]
     private static let switchInvariantIDs = ["accounts.switch_account.menu_action_changes_active_account"]
+    private static let saveCurrentPromptInvariantIDs = ["accounts.save_current_account.prompt_presented_and_cancellable"]
+    private static let signInAnotherPromptInvariantIDs = ["accounts.sign_in_another.prompt_presented_and_cancellable"]
+    private static let scheduledRefreshInvariantIDs = ["accounts.scheduled_refresh.requested_and_completed"]
 
     private let statusItem: NSStatusItem
     private let store: MenuBarAccountsStore
@@ -109,8 +112,26 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     func addCurrentAccount() {
         recordMenuAction("addCurrentAccount")
         let request = alertFactory.makeSaveCurrentAccountRequest(activeAccountEmail: store.activeAccount?.email)
+        recordValidationEvent(
+            "save_current_prompt_presented",
+            step: "save_current_prompt",
+            invariantIds: Self.saveCurrentPromptInvariantIDs
+        )
 
-        guard let name = alertPresenter.presentTextInput(request) else { return }
+        guard let name = alertPresenter.presentTextInput(request) else {
+            recordValidationEvent(
+                "save_current_prompt_cancelled",
+                step: "save_current_prompt",
+                invariantIds: Self.saveCurrentPromptInvariantIDs
+            )
+            return
+        }
+        recordValidationEvent(
+            "save_current_prompt_confirmed",
+            step: "save_current_prompt",
+            invariantIds: Self.saveCurrentPromptInvariantIDs,
+            payload: ["enteredName": name]
+        )
         Task { await store.saveCurrentAccountSnapshot(named: name) }
     }
 
@@ -122,12 +143,28 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         menuBarCoordinatorLogger.log("Running CLI sessions before sign-in-another: \(runningCLISessions, privacy: .public)")
 
         let request = alertFactory.makeSignInAnotherRequest(runningCLISessions: runningCLISessions)
+        recordValidationEvent(
+            "sign_in_another_prompt_presented",
+            step: "sign_in_another_prompt",
+            invariantIds: Self.signInAnotherPromptInvariantIDs
+        )
 
         menuBarCoordinatorLogger.log("Presenting sign-in-another confirmation alert")
         guard let name = alertPresenter.presentTextInput(request) else {
             menuBarCoordinatorLogger.log("Sign-in-another flow cancelled from alert")
+            recordValidationEvent(
+                "sign_in_another_prompt_cancelled",
+                step: "sign_in_another_prompt",
+                invariantIds: Self.signInAnotherPromptInvariantIDs
+            )
             return
         }
+        recordValidationEvent(
+            "sign_in_another_prompt_confirmed",
+            step: "sign_in_another_prompt",
+            invariantIds: Self.signInAnotherPromptInvariantIDs,
+            payload: ["enteredName": name]
+        )
 
         menuBarCoordinatorLogger.log("Dispatching sign-in-another task to store")
         Task { await store.startSignInAnotherAccountFlow(named: name) }
@@ -360,7 +397,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     private func scheduleAutoRefresh() {
         autoRefreshTimer?.invalidate()
-        let interval = TimeInterval(settings.refreshIntervalMinutes * 60)
+        let interval = AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds() ?? TimeInterval(settings.refreshIntervalMinutes * 60)
         autoRefreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.performScheduledRefresh()
@@ -372,7 +409,19 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         guard !store.isBusy else { return }
         Task {
             if let activeAccount = store.activeAccount {
-                await store.refreshAccountData(for: activeAccount)
+                self.recordValidationEvent(
+                    "scheduled_refresh_requested",
+                    step: "scheduled_refresh_request",
+                    invariantIds: Self.scheduledRefreshInvariantIDs,
+                    payload: ["accountName": activeAccount.name]
+                )
+                let outcome = await store.refreshAccountData(for: activeAccount)
+                self.recordValidationEvent(
+                    outcome == .refreshed ? "scheduled_refresh_completed" : "scheduled_refresh_failed",
+                    step: "scheduled_refresh_result",
+                    invariantIds: Self.scheduledRefreshInvariantIDs,
+                    payload: ["accountName": activeAccount.name]
+                )
             }
         }
     }

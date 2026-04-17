@@ -44,7 +44,7 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
         coordinator.start()
         Task { @MainActor in
             if let activeAccount = store.activeAccount {
-                await store.refreshAccountData(for: activeAccount)
+                _ = await store.refreshAccountData(for: activeAccount)
             }
             await store.hydrateSavedAccountsMetadataIfNeeded()
         }

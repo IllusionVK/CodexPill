@@ -49,6 +49,12 @@ The following behavior should be treated as automated first and should not live 
   - unit plus `SCENARIO=live-status-item-hover make verify-ui-live`
 - save-current-account naming and duplicate handling:
   - `SaveCurrentAccountWorkflowTests`
+- save-current-account prompt presentation and cancellation:
+  - `SCENARIO=live-save-current-prompt make verify-ui-live`
+- sign-in-another prompt presentation and cancellation:
+  - `SCENARIO=live-sign-in-another-prompt make verify-ui-live`
+- scheduled refresh timer requests and completes a background refresh:
+  - `CODEXPILL_VALIDATION_AUTO_REFRESH_INTERVAL_SECONDS=2 SCENARIO=live-scheduled-refresh make verify-ui-live`
 - active-account refresh and identity matching:
   - `RefreshActiveAccountUseCaseTests`
 - background wake or timer refresh failures stay silent in the UI:
@@ -95,6 +101,33 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `owner_layer`: `integration`
 - `proofs_required`: `["integration", "live_ui"]`
 - `scenarios`: `["active_saved_account", "matched_saved_identity"]`
+
+### `accounts.save_current_account.prompt_presented_and_cancellable`
+
+- `feature`: `accounts`
+- `rule`: Triggering `Save Current Account` from the running menubar presents the text-input prompt and allows clean cancellation without mutating account state.
+- `owner_layer`: `live_ui`
+- `proofs_required`: `["live_ui"]`
+- `scenarios`: `["save_current_prompt"]`
+- `event_evidence`: `["menu_action_dispatched", "save_current_prompt_presented", "save_current_prompt_cancelled"]`
+
+### `accounts.sign_in_another.prompt_presented_and_cancellable`
+
+- `feature`: `accounts`
+- `rule`: Triggering `Sign In Another Account…` from the running menubar presents the text-input prompt and allows clean cancellation without mutating account state.
+- `owner_layer`: `live_ui`
+- `proofs_required`: `["live_ui"]`
+- `scenarios`: `["sign_in_another_prompt"]`
+- `event_evidence`: `["menu_action_dispatched", "sign_in_another_prompt_presented", "sign_in_another_prompt_cancelled"]`
+
+### `accounts.scheduled_refresh.requested_and_completed`
+
+- `feature`: `accounts`
+- `rule`: The scheduled refresh timer requests a background refresh and the running app emits completion proof without surfacing a blocking alert.
+- `owner_layer`: `live_ui`
+- `proofs_required`: `["integration", "live_ui"]`
+- `scenarios`: `["scheduled_refresh"]`
+- `event_evidence`: `["scheduled_refresh_requested", "scheduled_refresh_completed"]`
 
 ### `accounts.switch_account.menu_action_changes_active_account`
 

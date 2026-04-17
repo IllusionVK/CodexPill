@@ -7,6 +7,11 @@ private let accountsControllerLogger = Logger(subsystem: "com.raphhgg.codexpill"
 @MainActor
 @Observable
 final class AccountsController {
+    enum BackgroundRefreshOutcome: Equatable {
+        case refreshed
+        case failed
+    }
+
     private let identityResolver: SavedAccountIdentityResolver
     private let loadAccountsUseCase: LoadAccountsUseCase
     private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
@@ -179,14 +184,16 @@ final class AccountsController {
         }
     }
 
-    func refreshAccountData(for account: CodexAccount) async {
+    func refreshAccountData(for account: CodexAccount) async -> BackgroundRefreshOutcome {
         do {
             let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
             accounts = result.accounts
             activeAccountID = result.refreshedAccountID
             accountsControllerLogger.log("Background refresh completed for \(account.name, privacy: .public)")
+            return .refreshed
         } catch {
             accountsControllerLogger.log("Background refresh skipped for \(account.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            return .failed
         }
     }
 
