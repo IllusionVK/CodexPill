@@ -1,8 +1,10 @@
+import AppKit
 import Foundation
 import Testing
 
 @testable import CodexPill
 
+@MainActor
 struct MenuBarLiveValidationTests {
     @Test
     func fileSinkWritesSnapshotJSON() throws {
@@ -101,5 +103,65 @@ struct MenuBarLiveValidationTests {
                 environment: [MenuBarValidationConfiguration.scenarioEnvironmentKey: "live-status-item-hover"]
             ) == "live-status-item-hover"
         )
+    }
+
+    @Test
+    func coordinatorRefreshesLiveSnapshotWhenStatusItemRuntimeStateChanges() throws {
+        let sink = RecordingValidationSink()
+        let repository = try AccountRepository()
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient()
+        )
+        let suiteName = "MenuBarLiveValidationTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        settings.statusBarDisplayMode = .textOnHover
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let runtime = StatusItemRuntime(
+            statusItem: statusItem,
+            hoverActivationDelay: 0,
+            hoverExitDelay: 0,
+            hoverPollingInterval: 60
+        )
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: runtime,
+            store: store,
+            settings: settings,
+            alertPresenter: MenuBarAlertPresenter(),
+            validationSink: sink,
+            validationScenario: "live-status-item-hover",
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        let initialSnapshotCount = sink.snapshots.count
+
+        runtime.handleHoverChanged(true)
+
+        #expect(sink.events.contains(where: { $0.event == "status_item_hover_entered" }))
+        #expect(sink.snapshots.count > initialSnapshotCount)
+        #expect(sink.snapshots.last?.statusItem?.isHovered == true)
+    }
+}
+
+private final class RecordingValidationSink: @unchecked Sendable, MenuBarValidationSink {
+    private(set) var snapshots: [MenuBarValidationSnapshot] = []
+    private(set) var events: [MenuBarValidationEvent] = []
+
+    func record(_ snapshot: MenuBarValidationSnapshot) throws {
+        snapshots.append(snapshot)
+    }
+
+    func record(_ event: MenuBarValidationEvent) throws {
+        events.append(event)
     }
 }

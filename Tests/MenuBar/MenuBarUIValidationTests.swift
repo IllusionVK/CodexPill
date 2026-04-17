@@ -131,17 +131,21 @@ struct MenuBarUIValidationTests {
     }
 
     @Test
-    func snapshotCapturesStatusItemRuntimeStateWhenButtonIsProvided() {
+    func snapshotCapturesStatusItemRuntimeStateWhenProvided() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
-        let button = NSStatusBarButton(frame: NSRect(x: 0, y: 0, width: 54, height: 22))
-        button.imagePosition = .imageLeading
-        button.attributedTitle = NSAttributedString(string: "S 42% W 68%")
+        let runtimeState = StatusItemRuntimeSnapshot(
+            isHovered: true,
+            isPointerInsideButton: true,
+            isTitleVisible: true,
+            displayedTitle: "S 42% W 68%",
+            imagePosition: "imageLeading",
+            buttonFrame: .init(x: 10, y: 20, width: 54, height: 22),
+            pointerLocation: .init(x: 32, y: 28)
+        )
 
         let snapshot = MenuBarValidationSupport.makeSnapshot(
             state: makeHostedValidationState(for: "hosted-menu-default", now: now),
-            statusItemButton: button,
-            isStatusItemHovered: true,
-            shouldShowStatusTitle: true,
+            statusItemState: runtimeState,
             now: now
         )
 
@@ -149,6 +153,7 @@ struct MenuBarUIValidationTests {
         #expect(snapshot.statusItem?.isTitleVisible == true)
         #expect(snapshot.statusItem?.displayedTitle == "S 42% W 68%")
         #expect(snapshot.statusItem?.imagePosition == "imageLeading")
+        #expect(snapshot.statusItem?.isPointerInsideButton == true)
     }
 
     @Test

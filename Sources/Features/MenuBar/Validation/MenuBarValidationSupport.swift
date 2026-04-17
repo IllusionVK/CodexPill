@@ -69,9 +69,7 @@ enum MenuBarValidationSupport {
     static func makeSnapshot(
         state: MenuBarMenuState,
         menu: NSMenu? = nil,
-        statusItemButton: NSStatusBarButton? = nil,
-        isStatusItemHovered: Bool = false,
-        shouldShowStatusTitle: Bool = false,
+        statusItemState: StatusItemRuntimeSnapshot? = nil,
         actionTrace: MenuBarValidationSnapshot.ActionTrace? = nil,
         now: Date = .now
     ) -> MenuBarValidationSnapshot {
@@ -101,13 +99,7 @@ enum MenuBarValidationSupport {
             currentAccount: state.activeAccount.map(accountIdentity(for:)),
             hasStatusItemContentData: state.hasStatusItemContentData,
             effectiveStatusBarDisplayMode: state.effectiveStatusBarDisplayMode.rawValue,
-            statusItem: statusItemButton.map {
-                statusItemState(
-                    for: $0,
-                    isHovered: isStatusItemHovered,
-                    shouldShowStatusTitle: shouldShowStatusTitle
-                )
-            },
+            statusItem: statusItemState.map(statusItemState(from:)),
             actionTrace: actionTrace,
             menuItems: menuItems(from: menu)
         )
@@ -280,61 +272,19 @@ enum MenuBarValidationSupport {
         }
     }
 
-    private static func statusItemState(
-        for button: NSStatusBarButton,
-        isHovered: Bool,
-        shouldShowStatusTitle: Bool
-    ) -> MenuBarValidationSnapshot.StatusItemState {
-        let title = button.attributedTitle.string.trimmingCharacters(in: .whitespacesAndNewlines)
-        let pointerLocation = NSEvent.mouseLocation
-        let buttonFrame = buttonFrame(for: button)
+    private static func statusItemState(from snapshot: StatusItemRuntimeSnapshot) -> MenuBarValidationSnapshot.StatusItemState {
         return .init(
-            isHovered: isHovered,
-            isPointerInsideButton: buttonFrame.map {
-                CGRect(x: $0.x, y: $0.y, width: $0.width, height: $0.height).contains(pointerLocation)
-            } ?? false,
-            isTitleVisible: shouldShowStatusTitle && !title.isEmpty,
-            displayedTitle: title.isEmpty ? nil : title,
-            imagePosition: imagePositionName(button.imagePosition),
-            buttonFrame: buttonFrame,
-            pointerLocation: .init(x: pointerLocation.x, y: pointerLocation.y)
+            isHovered: snapshot.isHovered,
+            isPointerInsideButton: snapshot.isPointerInsideButton,
+            isTitleVisible: snapshot.isTitleVisible,
+            displayedTitle: snapshot.displayedTitle,
+            imagePosition: snapshot.imagePosition,
+            buttonFrame: snapshot.buttonFrame.map {
+                .init(x: $0.x, y: $0.y, width: $0.width, height: $0.height)
+            },
+            pointerLocation: snapshot.pointerLocation.map {
+                .init(x: $0.x, y: $0.y)
+            }
         )
-    }
-
-    private static func buttonFrame(for button: NSStatusBarButton) -> MenuBarValidationSnapshot.Rect? {
-        guard let window = button.window else { return nil }
-        let frameInWindow = button.convert(button.bounds, to: nil)
-        let frameInScreen = window.convertToScreen(frameInWindow)
-        return .init(
-            x: frameInScreen.origin.x,
-            y: frameInScreen.origin.y,
-            width: frameInScreen.size.width,
-            height: frameInScreen.size.height
-        )
-    }
-
-    private static func imagePositionName(_ position: NSControl.ImagePosition) -> String {
-        switch position {
-        case .imageOnly:
-            return "imageOnly"
-        case .imageLeading:
-            return "imageLeading"
-        case .imageTrailing:
-            return "imageTrailing"
-        case .imageLeft:
-            return "imageLeft"
-        case .imageRight:
-            return "imageRight"
-        case .imageBelow:
-            return "imageBelow"
-        case .imageAbove:
-            return "imageAbove"
-        case .imageOverlaps:
-            return "imageOverlaps"
-        case .noImage:
-            return "noImage"
-        @unknown default:
-            return "unknown"
-        }
     }
 }

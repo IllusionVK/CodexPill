@@ -250,8 +250,9 @@ struct MenuBarMenuBuilderTests {
         defaults.removePersistentDomain(forName: suiteName)
         let settings = AppSettings(userDefaults: defaults)
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        let statusItemRuntime = StatusItemRuntime(statusItem: statusItem)
         let coordinator = MenuBarCoordinator(
-            statusItem: statusItem,
+            statusItemRuntime: statusItemRuntime,
             store: store,
             settings: settings,
             alertPresenter: MenuBarAlertPresenter()

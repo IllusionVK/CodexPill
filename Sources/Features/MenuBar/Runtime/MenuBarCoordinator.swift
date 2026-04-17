@@ -13,10 +13,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private static let signInAnotherPromptInvariantIDs = ["accounts.sign_in_another.prompt_presented_and_cancellable"]
     private static let scheduledRefreshInvariantIDs = ["accounts.scheduled_refresh.requested_and_completed"]
 
-    private let statusItem: NSStatusItem
+    private let statusItemRuntime: StatusItemRuntime
     private let store: MenuBarAccountsStore
     private let settings: AppSettings
-    private let iconRenderer: StatusBarIconRenderer
     private let cliProcessInspector: CodexCLIProcessInspector
     private let alertPresenter: MenuBarAlertPresenter
     private let alertFactory: MenuBarAlertFactory
@@ -27,33 +26,22 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private var autoRefreshTimer: Timer?
     private var pendingSignInMonitorTimer: Timer?
     private var wakeRefreshTask: Task<Void, Never>?
-    private var hoverActivationTimer: Timer?
-    private var hoverExitValidationTimer: Timer?
-    private var hoverPollingTimer: Timer?
-    private var hoverTracker: StatusItemHoverTracker?
     private var hasPromptedForEmptyState = false
     private var isObservingSettings = false
     private var isObservingStore = false
-    private var isMenuOpen = false
-    private var isStatusItemHovered = false
-    private var isPointerInsideStatusItem = false
-    private var keepsStatusTitleWhileMenuOpen = false
-    private var keepsStatusTitleForNextMenuOpen = false
     private var lastMenuAction: String?
     private var lastSwitchTargetName: String?
     private var lastConfirmationRequest: String?
     private var lastConfirmationAccepted: Bool?
-    private var lastRenderedStatusTitleVisible: Bool?
     private var lastObservedActiveAccountID: UUID?
     private var lastObservedActiveAccountName: String?
     private var pendingSwitchValidationTargetID: UUID?
     private var pendingSwitchValidationTargetName: String?
 
     init(
-        statusItem: NSStatusItem,
+        statusItemRuntime: StatusItemRuntime,
         store: MenuBarAccountsStore,
         settings: AppSettings,
-        iconRenderer: StatusBarIconRenderer = StatusBarIconRenderer(),
         cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
         alertPresenter: MenuBarAlertPresenter,
         alertFactory: MenuBarAlertFactory = MenuBarAlertFactory(),
@@ -61,10 +49,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         validationScenario: String? = MenuBarValidationConfiguration.scenario(),
         allowsEmptyStatePrompt: Bool = true
     ) {
-        self.statusItem = statusItem
+        self.statusItemRuntime = statusItemRuntime
         self.store = store
         self.settings = settings
-        self.iconRenderer = iconRenderer
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
         self.alertFactory = alertFactory
@@ -74,15 +61,16 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func start() {
-        configureStatusItemButton()
+        statusItemRuntime.onEvent = { [weak self] event in
+            self?.handleStatusItemRuntimeEvent(event)
+        }
+        statusItemRuntime.start(presentation: statusItemPresentation(for: menuState()))
         lastObservedActiveAccountID = store.activeAccountID
         lastObservedActiveAccountName = store.activeAccount?.name
         startObservingStore()
         startObservingSettings()
-        updateStatusItemAppearance()
         rebuildMenu()
         scheduleAutoRefresh()
-        startHoverPolling()
         syncBackgroundState()
     }
 
@@ -90,10 +78,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         autoRefreshTimer?.invalidate()
         pendingSignInMonitorTimer?.invalidate()
         wakeRefreshTask?.cancel()
-        hoverActivationTimer?.invalidate()
-        hoverExitValidationTimer?.invalidate()
-        hoverPollingTimer?.invalidate()
-        hoverTracker?.invalidate()
+        statusItemRuntime.invalidate()
     }
 
     func handleSystemDidWake() {
@@ -282,15 +267,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        isMenuOpen = true
-        keepsStatusTitleWhileMenuOpen = keepsStatusTitleForNextMenuOpen || isStatusItemHovered
-        keepsStatusTitleForNextMenuOpen = false
+        statusItemRuntime.handleMenuWillOpen()
         recordValidationEvent(
             "menu_opened",
             step: "menu_open",
-            payload: ["menuItemCount": String(statusItem.menu?.items.count ?? 0)]
+            payload: ["menuItemCount": String(statusItemRuntime.menuItemCount)]
         )
-        updateStatusItemAppearance()
+        recordValidationSnapshot(for: menuState())
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -299,9 +282,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func menuDidClose(_ menu: NSMenu) {
-        isMenuOpen = false
-        keepsStatusTitleWhileMenuOpen = false
-        updateStatusItemAppearance()
+        statusItemRuntime.handleMenuDidClose()
+        recordValidationSnapshot(for: menuState())
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
@@ -326,9 +308,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     private func rebuildMenu() {
         let state = menuState()
-        let menu = statusItem.menu ?? NSMenu()
+        let menu = statusItemRuntime.menu ?? NSMenu()
         menuBuilder.populate(menu: menu, state: state, target: self)
-        statusItem.menu = menu
+        statusItemRuntime.menu = menu
         recordValidationSnapshot(for: state)
     }
 
@@ -426,49 +408,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
     }
 
-    private func updateStatusItemAppearance() {
-        guard let button = statusItem.button else { return }
-        let primary = store.activeAccount?.rateLimits?.primary?.displayedUsedPercent()
-        let secondary = store.activeAccount?.rateLimits?.secondary?.displayedUsedPercent()
-        applyStatusItemAppearance(
-            to: button,
-            primary: primary,
-            secondary: secondary
-        )
-        recordStatusTitleVisibilityTransition(
-            isVisible: shouldShowStatusTitle,
-            displayedTitle: shouldShowStatusTitle ? button.title : nil
-        )
-        recordValidationSnapshot(for: menuState())
-    }
-
-    private func applyStatusItemAppearance(to button: NSStatusBarButton, primary: Int?, secondary: Int?) {
-        button.image = iconRenderer.makeImage(
-            style: settings.statusBarIndicatorStyle,
-            primaryPercent: primary,
-            secondaryPercent: secondary,
-            monochrome: settings.statusBarMonochrome
-        )
-        button.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
-        if shouldShowStatusTitle {
-            let title = hoverStatusTitle(primary: primary, secondary: secondary)
-            button.imagePosition = .imageLeading
-            button.title = title
-            button.attributedTitle = NSAttributedString(
-                string: title,
-                attributes: [
-                    .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .medium),
-                    .foregroundColor: NSColor.labelColor
-                ]
-            )
-        } else {
-            button.imagePosition = .imageOnly
-            button.title = ""
-            button.attributedTitle = NSAttributedString(string: "")
-        }
-        button.toolTip = statusItemTooltip(primary: primary, secondary: secondary)
-    }
-
     private func startObservingStore() {
         guard !isObservingStore else { return }
         isObservingStore = true
@@ -497,7 +436,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         if !store.accounts.isEmpty {
             hasPromptedForEmptyState = false
         }
-        updateStatusItemAppearance()
+        statusItemRuntime.update(presentation: statusItemPresentation(for: menuState()))
         rebuildMenu()
         presentPendingErrorIfNeeded()
         syncBackgroundState()
@@ -557,153 +496,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func handleSettingsChange() {
-        updateStatusItemAppearance()
+        statusItemRuntime.update(presentation: statusItemPresentation(for: menuState()))
         scheduleAutoRefresh()
         rebuildMenu()
-    }
-
-    private func animateStatusItemAppearanceUpdate() {
-        updateStatusItemAppearance()
-    }
-
-    private var shouldShowStatusTitle: Bool {
-        StatusItemTitleVisibilityPolicy(
-            displayMode: menuState().effectiveStatusBarDisplayMode,
-            isStatusItemHovered: isStatusItemHovered,
-            isMenuOpen: isMenuOpen,
-            keepsStatusTitleWhileMenuOpen: keepsStatusTitleWhileMenuOpen
-        ).shouldShowTitle
-    }
-
-    private func statusItemTooltip(primary: Int?, secondary: Int?) -> String? {
-        let _ = primary
-        let _ = secondary
-        return statusItemTooltipText(for: store.activeAccount)
-    }
-
-    private func hoverStatusTitle(primary: Int?, secondary: Int?) -> String {
-        let _ = primary
-        let _ = secondary
-        return statusItemHoverTitle(for: store.activeAccount)
-    }
-
-    private func configureStatusItemButton() {
-        guard let button = statusItem.button else { return }
-        button.target = self
-        button.action = nil
-        button.sendAction(on: [])
-        button.imageHugsTitle = true
-        if hoverTracker == nil {
-            let tracker = StatusItemHoverTracker(button: button)
-            tracker.onHoverChanged = { [weak self] isHovered in
-                guard let self else { return }
-                if isHovered {
-                    self.handleStatusItemHoverEnter()
-                } else {
-                    self.scheduleStatusItemHoverCancellation()
-                }
-            }
-            hoverTracker = tracker
-        }
-        hoverTracker?.installIfNeeded()
-    }
-
-    private func startHoverPolling() {
-        hoverPollingTimer?.invalidate()
-        hoverPollingTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.syncStatusItemPointerState()
-            }
-        }
-    }
-
-    private func syncStatusItemPointerState() {
-        let isPointerInside = isPointerInsideButtonBounds
-        guard isPointerInside != isPointerInsideStatusItem else { return }
-        isPointerInsideStatusItem = isPointerInside
-        if isPointerInside {
-            handleStatusItemHoverEnter()
-        } else {
-            scheduleStatusItemHoverCancellation()
-        }
-    }
-
-    private func handleStatusItemHoverEnter() {
-        hoverExitValidationTimer?.invalidate()
-        guard !isMenuOpen else {
-            if !isStatusItemHovered {
-                isStatusItemHovered = true
-                recordValidationEvent(
-                    "status_item_hover_entered",
-                    step: "hover_enter",
-                    invariantIds: Self.hoverInvariantIDs
-                )
-            }
-            updateStatusItemAppearance()
-            return
-        }
-        hoverActivationTimer?.invalidate()
-        hoverActivationTimer = Timer.scheduledTimer(withTimeInterval: 0.18, repeats: false) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self, !self.isMenuOpen else { return }
-                guard !self.isStatusItemHovered else { return }
-                self.isStatusItemHovered = true
-                self.recordValidationEvent(
-                    "status_item_hover_entered",
-                    step: "hover_enter",
-                    invariantIds: Self.hoverInvariantIDs
-                )
-                self.animateStatusItemAppearanceUpdate()
-            }
-        }
-    }
-
-    private func scheduleStatusItemHoverCancellation() {
-        hoverExitValidationTimer?.invalidate()
-        recordValidationEvent(
-            "status_item_hover_exit_scheduled",
-            step: "hover_exit_schedule",
-            invariantIds: Self.hoverInvariantIDs
-        )
-        hoverExitValidationTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: false) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.cancelStatusItemHover()
-            }
-        }
-    }
-
-    private func cancelStatusItemHover() {
-        hoverActivationTimer?.invalidate()
-        hoverActivationTimer = nil
-        hoverExitValidationTimer?.invalidate()
-        guard shouldEndStatusItemHover else { return }
-        guard isStatusItemHovered else { return }
-        isStatusItemHovered = false
-        recordValidationEvent(
-            "status_item_hover_exited",
-            step: "hover_exit",
-            invariantIds: Self.hoverInvariantIDs
-        )
-        animateStatusItemAppearanceUpdate()
-    }
-
-    private func handleStatusItemMouseDown() {
-        keepsStatusTitleForNextMenuOpen = shouldShowStatusTitle
-    }
-
-    private var shouldEndStatusItemHover: Bool {
-        !isPointerInsideButtonBounds
-    }
-
-    private var isPointerInsideButtonBounds: Bool {
-        guard let button = statusItem.button, let window = button.window else { return false }
-        let pointerLocation = NSEvent.mouseLocation
-        let windowLocation = window.convertPoint(fromScreen: pointerLocation)
-        let buttonLocation = button.convert(windowLocation, from: nil)
-        return !StatusItemHoverExitPolicy.shouldEndHover(
-            pointerLocation: buttonLocation,
-            in: button.bounds
-        )
     }
 
     private func presentPendingErrorIfNeeded() {
@@ -718,10 +513,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             try validationSink.record(
                 MenuBarValidationSupport.makeSnapshot(
                     state: state,
-                    menu: statusItem.menu,
-                    statusItemButton: statusItem.button,
-                    isStatusItemHovered: isStatusItemHovered,
-                    shouldShowStatusTitle: shouldShowStatusTitle,
+                    menu: statusItemRuntime.menu,
+                    statusItemState: statusItemRuntime.snapshotState(),
                     actionTrace: .init(
                         lastMenuAction: lastMenuAction,
                         lastSwitchTargetName: lastSwitchTargetName,
@@ -759,27 +552,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
     }
 
-    private func recordStatusTitleVisibilityTransition(isVisible: Bool, displayedTitle: String?) {
-        defer { lastRenderedStatusTitleVisible = isVisible }
-        guard let lastRenderedStatusTitleVisible else { return }
-        guard lastRenderedStatusTitleVisible != isVisible else { return }
-
-        if isVisible {
-            recordValidationEvent(
-                "status_item_title_became_visible",
-                step: "hover_title_visible",
-                invariantIds: Self.hoverInvariantIDs,
-                payload: ["displayedTitle": displayedTitle ?? ""]
-            )
-        } else {
-            recordValidationEvent(
-                "status_item_title_hidden",
-                step: "hover_title_hidden",
-                invariantIds: Self.hoverInvariantIDs
-            )
-        }
-    }
-
     private func syncBackgroundState() {
         schedulePendingSignInMonitorIfNeeded()
         promptForEmptyStateIfNeeded()
@@ -813,6 +585,55 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         DispatchQueue.main.async { [weak self] in
             guard let self, self.store.accounts.isEmpty, !self.store.isBusy, !self.store.hasPendingSignedInAccount else { return }
             self.addCurrentAccount()
+        }
+    }
+
+    private func statusItemPresentation(for state: MenuBarMenuState) -> StatusItemRuntimePresentation {
+        StatusItemRuntimePresentation(
+            activeAccount: store.activeAccount,
+            indicatorStyle: settings.statusBarIndicatorStyle,
+            monochrome: settings.statusBarMonochrome,
+            displayMode: state.effectiveStatusBarDisplayMode
+        )
+    }
+
+    private func handleStatusItemRuntimeEvent(_ event: StatusItemRuntime.Event) {
+        defer {
+            recordValidationSnapshot(for: menuState())
+        }
+
+        switch event {
+        case .hoverEntered:
+            recordValidationEvent(
+                "status_item_hover_entered",
+                step: "hover_enter",
+                invariantIds: Self.hoverInvariantIDs
+            )
+        case .hoverExitScheduled:
+            recordValidationEvent(
+                "status_item_hover_exit_scheduled",
+                step: "hover_exit_schedule",
+                invariantIds: Self.hoverInvariantIDs
+            )
+        case .hoverExited:
+            recordValidationEvent(
+                "status_item_hover_exited",
+                step: "hover_exit",
+                invariantIds: Self.hoverInvariantIDs
+            )
+        case .titleBecameVisible(let displayedTitle):
+            recordValidationEvent(
+                "status_item_title_became_visible",
+                step: "hover_title_visible",
+                invariantIds: Self.hoverInvariantIDs,
+                payload: ["displayedTitle": displayedTitle ?? ""]
+            )
+        case .titleHidden:
+            recordValidationEvent(
+                "status_item_title_hidden",
+                step: "hover_title_hidden",
+                invariantIds: Self.hoverInvariantIDs
+            )
         }
     }
 }

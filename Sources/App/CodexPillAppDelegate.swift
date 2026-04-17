@@ -4,7 +4,7 @@ import AppKit
 final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
     private var coordinator: MenuBarCoordinator!
     private let settings = AppSettings()
-    private var statusItem: NSStatusItem!
+    private var statusItemRuntime: StatusItemRuntime!
     private var wakeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -19,10 +19,9 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
             appServerClient: appServerClient
         )
 
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.imagePosition = .imageOnly
+        statusItemRuntime = StatusItemRuntime()
         coordinator = MenuBarCoordinator(
-            statusItem: statusItem,
+            statusItemRuntime: statusItemRuntime,
             store: store,
             settings: settings,
             alertPresenter: MenuBarAlertPresenter(),
