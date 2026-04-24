@@ -5,9 +5,9 @@ import OSLog
 private let accountsControllerLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "AccountsController")
 
 struct PersistSavedAccountMetadataUseCase {
-    private let repository: AccountCatalogPersisting
+    private let repository: AccountCatalogStore
 
-    init(repository: AccountCatalogPersisting) {
+    init(repository: AccountCatalogStore) {
         self.repository = repository
     }
 
@@ -59,8 +59,8 @@ final class AccountsController {
     init(
         repository: AccountRepository,
         authService: CodexAuthSnapshotService,
-        appController: CodexAppController,
-        appServerClient: CodexAppServerClient,
+        codexAppProcessClient: CodexAppProcessClient,
+        accountStatusClient: CodexAccountStatusClient,
         remoteHostClient: RemoteHostSwitching = UnavailableRemoteHostClient()
     ) {
         self.identityResolver = SavedAccountIdentityResolver(
@@ -74,7 +74,7 @@ final class AccountsController {
             identityResolver: self.identityResolver
         )
         let refreshActiveAccountUseCase = RefreshActiveAccountUseCase(
-            appServerClient: appServerClient,
+            accountStatusClient: accountStatusClient,
             identityResolver: self.identityResolver,
             repository: repository
         )
@@ -85,7 +85,7 @@ final class AccountsController {
         )
         self.hydrateSavedAccountsMetadataUseCase = HydrateSavedAccountsMetadataUseCase(
             authService: authService,
-            appServerClient: appServerClient,
+            accountStatusClient: accountStatusClient,
             identityResolver: self.identityResolver,
             repository: repository
         )
@@ -98,7 +98,7 @@ final class AccountsController {
         self.switchAccountWorkflow = SwitchAccountWorkflow(
             authService: authService,
             repository: repository,
-            appController: appController,
+            codexAppProcessClient: codexAppProcessClient,
             identityResolver: self.identityResolver
         )
         self.switchAccountOnHostWorkflow = SwitchAccountOnHostWorkflow(
@@ -106,14 +106,14 @@ final class AccountsController {
         )
         self.remoteHostAccountVerifier = RemoteHostAccountVerifier()
         self.saveCurrentAccountWorkflow = SaveCurrentAccountWorkflow(
-            appServerClient: appServerClient,
+            accountStatusClient: accountStatusClient,
             authService: authService,
             repository: repository,
             identityResolver: self.identityResolver
         )
         self.addAccountWorkflow = AddAccountWorkflow(
             authService: authService,
-            appController: appController,
+            codexAppProcessClient: codexAppProcessClient,
             repository: repository
         )
     }

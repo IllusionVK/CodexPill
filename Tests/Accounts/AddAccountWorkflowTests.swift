@@ -14,17 +14,17 @@ struct AddAccountWorkflowTests {
             capturedAuth: Data()
         )
         let captureClient = DeviceAuthCaptureClientSpy(capture: capture)
-        let appController = AppControllerSpy()
+        let codexAppProcessClient = RecordingCodexAppProcessClient()
         let workflow = AddAccountWorkflow(
             authService: SnapshotImportSpy(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint")),
-            appController: appController,
+            codexAppProcessClient: codexAppProcessClient,
             captureClient: captureClient,
             repository: RepositorySpy()
         )
 
         let started = try await workflow.begin(named: "  Business 2  ")
 
-        #expect(appController.availabilityCheckCount == 1)
+        #expect(codexAppProcessClient.availabilityCheckCount == 1)
         #expect(started.accountName == "Business 2")
         #expect(captureClient.startedSessions.count == 1)
     }
@@ -47,7 +47,7 @@ struct AddAccountWorkflowTests {
         let authService = SnapshotImportSpy(savedAccount: makeAccount(name: "ignored", fingerprint: "old"))
         let workflow = AddAccountWorkflow(
             authService: authService,
-            appController: AppControllerSpy(),
+            codexAppProcessClient: RecordingCodexAppProcessClient(),
             captureClient: DeviceAuthCaptureClientSpy(capture: capture),
             repository: repository
         )
@@ -110,7 +110,7 @@ struct AddAccountWorkflowTests {
         let repository = RepositorySpy()
         let workflow = AddAccountWorkflow(
             authService: authService,
-            appController: AppControllerSpy(),
+            codexAppProcessClient: RecordingCodexAppProcessClient(),
             captureClient: DeviceAuthCaptureClientSpy(capture: capture),
             repository: repository
         )
@@ -147,7 +147,7 @@ struct AddAccountWorkflowTests {
         )
         let workflow = AddAccountWorkflow(
             authService: SnapshotImportSpy(savedAccount: other),
-            appController: AppControllerSpy(),
+            codexAppProcessClient: RecordingCodexAppProcessClient(),
             captureClient: DeviceAuthCaptureClientSpy(capture: capture),
             repository: RepositorySpy()
         )
@@ -297,7 +297,7 @@ private final class DeviceAuthCaptureSpy: CodexDeviceAuthCaptureHandling {
     }
 }
 
-private final class AppControllerSpy: CodexAppRelaunching {
+private final class RecordingCodexAppProcessClient: CodexAppProcessClient {
     var relaunchCount = 0
     var availabilityCheckCount = 0
     var availabilityError: Error?
@@ -314,7 +314,7 @@ private final class AppControllerSpy: CodexAppRelaunching {
     }
 }
 
-private final class RepositorySpy: AccountCatalogPersisting {
+private final class RepositorySpy: AccountCatalogStore {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {

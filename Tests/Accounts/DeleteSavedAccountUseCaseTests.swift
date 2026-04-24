@@ -43,7 +43,7 @@ struct DeleteSavedAccountUseCaseTests {
     }
 }
 
-private final class SnapshotDeletingRepositorySpy: AccountSnapshotDeleting {
+private final class SnapshotDeletingRepositorySpy: AccountSnapshotRemover {
     var deletedAccountIDs: [UUID] = []
     var savedAccounts: [CodexAccount]?
 

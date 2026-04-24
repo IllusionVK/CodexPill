@@ -10,18 +10,31 @@ let project = Project(
             product: .app,
             bundleId: "com.raphhgg.codexpill",
             deploymentTargets: .macOS("14.0"),
-            infoPlist: .extendingDefault(
-                with: [
-                    "LSUIElement": true,
-                    "CFBundleDisplayName": "CodexPill",
-                    "CFBundleIconFile": "AppIcon",
-                    "CFBundleIconName": "AppIcon",
-                ]
-            ),
+            infoPlist: .dictionary([
+                "CFBundleDevelopmentRegion": "en",
+                "CFBundleDisplayName": "CodexPill",
+                "CFBundleExecutable": "$(EXECUTABLE_NAME)",
+                "CFBundleIconFile": "AppIcon",
+                "CFBundleIdentifier": "$(PRODUCT_BUNDLE_IDENTIFIER)",
+                "CFBundleInfoDictionaryVersion": "6.0",
+                "CFBundleName": "$(PRODUCT_NAME)",
+                "CFBundlePackageType": "APPL",
+                "CFBundleShortVersionString": "1.0",
+                "CFBundleVersion": "$(CURRENT_PROJECT_VERSION)",
+                "LSMinimumSystemVersion": "$(MACOSX_DEPLOYMENT_TARGET)",
+                "LSUIElement": true,
+                "NSPrincipalClass": "NSApplication",
+            ]),
             sources: ["Sources/**"],
-            resources: ["Resources/**"],
+            resources: [
+                "Resources/AppIcon.icns",
+                "Resources/AppIcon.png",
+                "Resources/CodexMono.svg",
+            ],
             settings: .settings(base: [
-                "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
+                "CODE_SIGN_INJECT_BASE_ENTITLEMENTS": "NO",
+                "CURRENT_PROJECT_VERSION": "1",
+                "ENABLE_DEBUG_DYLIB": "NO",
             ])
         ),
         .target(

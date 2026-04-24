@@ -51,8 +51,11 @@ struct CodexAccountMatcher {
             return scopedStableMatch
         }
 
-        if scopedStableMatch != .noMatch,
-           let liveStableAccountID {
+        if scopedStableMatch == .noMatch {
+            return .noMatch
+        }
+
+        if let liveStableAccountID {
             let stableMatches = accounts
                 .filter { $0.identity.stableAccountID == liveStableAccountID }
                 .map(\.id)

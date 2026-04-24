@@ -1,11 +1,11 @@
 import Foundation
 
-protocol AccountCatalogLoading: AccountCatalogPersisting {
+protocol AccountCatalogLoader: AccountCatalogStore {
     func bootstrapStorage() throws
     func loadAccounts() throws -> [CodexAccount]
 }
 
-extension AccountRepository: AccountCatalogLoading {}
+extension AccountRepository: AccountCatalogLoader {}
 
 struct LoadAccountsResult {
     let accounts: [CodexAccount]
@@ -13,11 +13,11 @@ struct LoadAccountsResult {
 }
 
 struct LoadAccountsUseCase {
-    private let repository: AccountCatalogLoading
+    private let repository: AccountCatalogLoader
     private let identityResolver: SavedAccountIdentityResolver
 
     init(
-        repository: AccountCatalogLoading,
+        repository: AccountCatalogLoader,
         identityResolver: SavedAccountIdentityResolver
     ) {
         self.repository = repository

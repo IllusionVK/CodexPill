@@ -1,10 +1,10 @@
 import Foundation
 
-protocol AccountSnapshotDeleting: AccountCatalogPersisting {
+protocol AccountSnapshotRemover: AccountCatalogStore {
     func deleteSnapshot(for account: CodexAccount) throws
 }
 
-extension AccountRepository: AccountSnapshotDeleting {}
+extension AccountRepository: AccountSnapshotRemover {}
 
 struct DeleteSavedAccountResult {
     let accounts: [CodexAccount]
@@ -12,11 +12,11 @@ struct DeleteSavedAccountResult {
 }
 
 struct DeleteSavedAccountUseCase {
-    private let repository: AccountSnapshotDeleting
+    private let repository: AccountSnapshotRemover
     private let identityResolver: SavedAccountIdentityResolver
 
     init(
-        repository: AccountSnapshotDeleting,
+        repository: AccountSnapshotRemover,
         identityResolver: SavedAccountIdentityResolver
     ) {
         self.repository = repository

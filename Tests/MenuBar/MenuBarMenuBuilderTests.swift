@@ -1144,8 +1144,8 @@ struct MenuBarMenuBuilderTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -1255,4 +1255,9 @@ struct MenuBarMenuBuilderTests {
             deployedAccountIDs: deployedAccountIDs
         )
     }
+}
+
+private struct DisabledCodexAppProcessClient: CodexAppProcessClient {
+    func assertCodexAvailable() throws {}
+    func relaunchCodex() async throws {}
 }

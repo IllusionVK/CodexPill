@@ -78,7 +78,6 @@ struct MenuBarAccountCatalogEntry: Equatable {
 }
 
 struct MenuBarMenuState {
-    private static let nonActiveAccountVisibilityLimit = 3
     private let savedAccountRelinker = SavedAccountRelinker()
     private let inactiveAccountAvailabilityRanking = InactiveAccountAvailabilityRanking()
     private let availabilityService = AccountAvailabilityService()
@@ -220,14 +219,26 @@ struct MenuBarMenuState {
     var visibleAccountEntries: [MenuBarAccountCatalogEntry] {
         let activeEntries = accountCatalogEntries.filter(\.isActive)
         let nonActiveEntries = accountCatalogEntries.filter { !$0.isActive }
-        return activeEntries + Array(nonActiveEntries.prefix(Self.nonActiveAccountVisibilityLimit))
+        guard shouldLimitVisibleInactiveAccounts else {
+            return activeEntries + nonActiveEntries
+        }
+        return activeEntries + Array(nonActiveEntries.prefix(nonActiveAccountVisibilityLimit))
     }
 
     var overflowAccountEntries: [MenuBarAccountCatalogEntry] {
+        guard shouldLimitVisibleInactiveAccounts else { return [] }
         let activeCount = accountCatalogEntries.filter(\.isActive).count
-        let visibleCount = activeCount + Self.nonActiveAccountVisibilityLimit
+        let visibleCount = activeCount + nonActiveAccountVisibilityLimit
         guard accountCatalogEntries.count > visibleCount else { return [] }
         return Array(accountCatalogEntries.dropFirst(visibleCount))
+    }
+
+    private var nonActiveAccountVisibilityLimit: Int {
+        max(0, visibleInactiveAccountCount)
+    }
+
+    private var shouldLimitVisibleInactiveAccounts: Bool {
+        visibleInactiveAccountCount > 0
     }
 
     var shouldShowStatusMessage: Bool {

@@ -24,7 +24,7 @@ struct MenuBarLiveValidationTests {
                 limitName: nil,
                 planType: "team",
                 primary: CodexRateLimitWindow(
-                    usedPercent: 95,
+                    usedPercent: 100,
                     resetsAt: now.addingTimeInterval(60 * 60),
                     windowDurationMinutes: 300
                 ),
@@ -69,8 +69,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient(),
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient(),
             remoteHostClient: ValidationRemoteHostClient(
                 seedStates: [
                     PersistedRemoteHostState(
@@ -88,6 +88,7 @@ struct MenuBarLiveValidationTests {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = AppSettings(userDefaults: defaults)
+        settings.notificationsWhenOutEnabled = true
         settings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@debian-vm", displayName: "debian-vm"),
@@ -116,6 +117,7 @@ struct MenuBarLiveValidationTests {
         )
 
         coordinator.start()
+        try await Task.sleep(for: .milliseconds(120))
         await coordinator.handleNotificationResponse(
             actionIdentifier: "use_remote",
             userInfo: [
@@ -135,13 +137,39 @@ struct MenuBarLiveValidationTests {
     func notificationResponseFailureOpensAppAndShowsRealError() async throws {
         let repository = try makeIsolatedRepository()
         let now = Date()
-        let notifiedAccount = CodexAccount(
+        let outAccount = CodexAccount(
             id: UUID(),
             name: "Business 4",
             snapshotFileName: "business-4.json",
             createdAt: now,
             updatedAt: now,
             email: "business-4@example.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 100,
+                    resetsAt: now.addingTimeInterval(60 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 20,
+                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            ),
+            identity: .empty
+        )
+        let notifiedAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "business-2@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: nil,
@@ -162,16 +190,21 @@ struct MenuBarLiveValidationTests {
             identity: .empty
         )
         try repository.bootstrapStorage()
-        try repository.saveAccounts([notifiedAccount])
+        try repository.saveAccounts([outAccount, notifiedAccount])
 
         let failingHostClient = RemoteHostClientStatusSpy(
-            readError: RemoteHostClientError.commandFailed("ssh failure")
+            status: CodexAccountStatus(
+                email: outAccount.email,
+                planType: outAccount.planType,
+                rateLimits: outAccount.rateLimits
+            ),
+            switchError: RemoteHostClientError.commandFailed("ssh failure")
         )
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient(),
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient(),
             remoteHostClient: failingHostClient
         )
         store.load()
@@ -180,12 +213,13 @@ struct MenuBarLiveValidationTests {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = AppSettings(userDefaults: defaults)
+        settings.notificationsWhenOutEnabled = true
         settings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@debian-vm", displayName: "debian-vm"),
-                installedAccountIDs: [notifiedAccount.id],
-                desiredAccountID: notifiedAccount.id,
-                verifiedAccount: notifiedAccount
+                installedAccountIDs: [outAccount.id, notifiedAccount.id],
+                desiredAccountID: outAccount.id,
+                verifiedAccount: outAccount
             )
         ]
         let alertPresenter = TestMenuBarAlertPresenter()
@@ -208,6 +242,7 @@ struct MenuBarLiveValidationTests {
         )
 
         coordinator.start()
+        try await Task.sleep(for: .milliseconds(120))
         await coordinator.handleNotificationResponse(
             actionIdentifier: "use_remote",
             userInfo: [
@@ -259,8 +294,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         store.load()
 
@@ -625,8 +660,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationNotificationPermission-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -666,8 +701,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -713,8 +748,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -780,8 +815,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationRemoteFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -841,8 +876,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationMissingDesiredRemote-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -889,8 +924,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationMultipleRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -964,8 +999,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationMixedRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -1046,8 +1081,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationReverifyRemote-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -1146,8 +1181,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         store.load()
 
@@ -1214,8 +1249,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationRemoteMismatch-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -1294,8 +1329,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         store.load()
 
@@ -1383,8 +1418,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient(),
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient(),
             remoteHostClient: remoteHostClient
         )
         store.load()
@@ -1515,8 +1550,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient(),
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient(),
             remoteHostClient: remoteHostClient
         )
         store.load()
@@ -1606,8 +1641,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient(),
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient(),
             remoteHostClient: remoteHostClient
         )
         store.load()
@@ -1644,8 +1679,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationRemoteLimitsFallback-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -1768,51 +1803,13 @@ struct MenuBarLiveValidationTests {
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
             )
         )
-        let personalAccount = CodexAccount(
-            id: UUID(),
-            name: "Personal 1",
-            snapshotFileName: "personal-1.json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: "raphaelgrau@gmail.com",
-            planType: "plus",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "plus",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 44,
-                    resetsAt: Date().addingTimeInterval(7200),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 8,
-                    resetsAt: Date().addingTimeInterval(3 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
-                fetchedAt: .now
-            ),
-            identity: CodexAccountIdentity(
-                stableAccountID: "acct-personal",
-                authPrincipalIdentity: CodexAuthPrincipalIdentity(
-                    subject: "auth0|business-2",
-                    chatGPTUserID: "user-business-2"
-                ),
-                workspaceIdentity: CodexWorkspaceIdentity(
-                    workspaceAccountID: "org-business-2",
-                    workspaceLabel: "Personal"
-                ),
-                snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
-            )
-        )
         try repository.bootstrapStorage()
         try repository.saveAccounts([matchingSavedAccount])
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         store.load()
 
@@ -1948,8 +1945,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         store.load()
 
@@ -2096,8 +2093,8 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         store.load()
 
@@ -2190,7 +2187,7 @@ struct MenuBarLiveValidationTests {
         )
         #expect(remoteSummary.contains("Session: 39% used"))
         #expect(remoteSummary.contains("Weekly: 6% used"))
-        #expect(remoteHostClient.readCount(for: "user@debian-vm") >= 2)
+        #expect(await remoteHostClient.readCount(for: "user@debian-vm") >= 2)
     }
 
     private func makeIsolatedRepository() throws -> AccountRepository {
@@ -2242,16 +2239,26 @@ private final class RecordingApplicationForegrounder: ApplicationForegrounding {
     }
 }
 
+private struct DisabledCodexAppProcessClient: CodexAppProcessClient {
+    func assertCodexAvailable() throws {}
+    func relaunchCodex() async throws {}
+}
+
 private struct RemoteHostClientStatusSpy: RemoteHostSwitching {
     var status: CodexAccountStatus?
     var statusesByDestination: [String: CodexAccountStatus] = [:]
     var readError: Error?
     var readErrorsByDestination: [String: Error] = [:]
+    var switchError: Error?
 
     func testConnection(to host: RemoteHost) async throws {}
     func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState { .installed }
     func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
-    func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
+    func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {
+        if let switchError {
+            throw switchError
+        }
+    }
     func refreshCodexAppServer(on host: RemoteHost) async throws {}
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
         if let scopedError = readErrorsByDestination[host.destination] {
@@ -2270,8 +2277,7 @@ private struct RemoteHostClientStatusSpy: RemoteHostSwitching {
     }
 }
 
-private final class SequencedRemoteHostClientSpy: @unchecked Sendable, RemoteHostSwitching {
-    private let lock = NSLock()
+private actor SequencedRemoteHostClientSpy: RemoteHostSwitching {
     private var statusesByDestination: [String: [CodexAccountStatus]]
     private var readCounts: [String: Int] = [:]
 
@@ -2286,8 +2292,6 @@ private final class SequencedRemoteHostClientSpy: @unchecked Sendable, RemoteHos
     func refreshCodexAppServer(on host: RemoteHost) async throws {}
 
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
-        lock.lock()
-        defer { lock.unlock() }
         readCounts[host.destination, default: 0] += 1
         guard var statuses = statusesByDestination[host.destination], let first = statuses.first else {
             return CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)
@@ -2300,8 +2304,6 @@ private final class SequencedRemoteHostClientSpy: @unchecked Sendable, RemoteHos
     }
 
     func readCount(for destination: String) -> Int {
-        lock.lock()
-        defer { lock.unlock() }
         return readCounts[destination, default: 0]
     }
 }

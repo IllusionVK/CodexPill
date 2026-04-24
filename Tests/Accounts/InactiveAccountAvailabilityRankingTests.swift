@@ -693,6 +693,50 @@ struct InactiveAccountAvailabilityRankingTests {
     }
 
     @Test
+    func notificationActionResolverRejectsPreferredRemoteHostWhenNoLongerSuggested() {
+        let service = AccountAvailabilityService()
+        let resolver = AccountAvailabilityNotificationActionResolver()
+        let now = Date()
+        let noLongerOut = makeAccount(
+            name: "Business 4",
+            sessionUsedPercent: 20,
+            weeklyUsedPercent: 20
+        )
+        let ready = makeAccount(name: "Business 2", sessionUsedPercent: 0, weeklyUsedPercent: 20)
+
+        let resolution = resolver.resolve(
+            notifiedAccountID: ready.id,
+            requestedTarget: .remote(preferredHostDestination: "debian-vm"),
+            currentSnapshots: [
+                service.snapshot(
+                    for: noLongerOut,
+                    remoteTargets: [
+                        RemoteAccountTargetContext(
+                            hostDestination: "debian-vm",
+                            connectionState: .connected,
+                            verificationState: .verified,
+                            activeAccount: noLongerOut,
+                            displayAccount: noLongerOut
+                        )
+                    ],
+                    now: now
+                ),
+                service.snapshot(for: ready, now: now)
+            ],
+            activeAccounts: [
+                ActiveAccountAvailabilityContext(
+                    target: .remote(hostDestination: "debian-vm"),
+                    accountID: noLongerOut.id
+                )
+            ],
+            settings: AccountAvailabilityNotificationSettings(whenOutEnabled: true),
+            now: now
+        )
+
+        #expect(resolution == nil)
+    }
+
+    @Test
     func notificationActionResolverReturnsNilWhenNoValidAccountRemains() {
         let service = AccountAvailabilityService()
         let resolver = AccountAvailabilityNotificationActionResolver()
@@ -874,13 +918,13 @@ struct InactiveAccountAvailabilityRankingTests {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                appServerClient: RankingFailingAccountStatusReader(error: RankingTestFailure.backgroundRefreshFailed),
+                accountStatusClient: RankingFailingAccountStatusReader(error: RankingTestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: RankingNoopAuthService(),
-                appServerClient: RankingFailingAccountStatusReader(error: RankingTestFailure.backgroundRefreshFailed),
+                accountStatusClient: RankingFailingAccountStatusReader(error: RankingTestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -893,18 +937,18 @@ struct InactiveAccountAvailabilityRankingTests {
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: RankingNoopAuthService(),
                 repository: repository,
-                appController: RankingNoopAppController(),
+                codexAppProcessClient: DisabledCodexAppProcessClient(),
                 identityResolver: identityResolver
             ),
             saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                appServerClient: RankingFailingAccountStatusReader(error: RankingTestFailure.backgroundRefreshFailed),
+                accountStatusClient: RankingFailingAccountStatusReader(error: RankingTestFailure.backgroundRefreshFailed),
                 authService: RankingNoopAuthService(),
                 repository: repository,
                 identityResolver: identityResolver
             ),
             addAccountWorkflow: AddAccountWorkflow(
                 authService: RankingNoopAuthService(),
-                appController: RankingNoopAppController(),
+                codexAppProcessClient: DisabledCodexAppProcessClient(),
                 captureClient: RankingNoopDeviceAuthCaptureClient(),
                 repository: repository
             )
@@ -978,7 +1022,7 @@ private enum RankingTestFailure: LocalizedError {
     }
 }
 
-private final class RankingFailingAccountStatusReader: CodexAccountStatusReading {
+private final class RankingFailingAccountStatusReader: CodexAccountStatusClient {
     let error: Error
 
     init(error: Error) {
@@ -990,7 +1034,7 @@ private final class RankingFailingAccountStatusReader: CodexAccountStatusReading
     }
 }
 
-private final class RankingLoadingPersistingRepositorySpy: AccountCatalogLoading, AccountSnapshotDeleting {
+private final class RankingLoadingPersistingRepositorySpy: AccountCatalogLoader, AccountSnapshotRemover {
     let accountsToLoad: [CodexAccount]
 
     init(accountsToLoad: [CodexAccount]) {
@@ -1022,7 +1066,7 @@ private struct RankingStoredIdentityPassthrough: StoredAccountIdentityReconcilin
     }
 }
 
-private struct RankingNoopAppController: CodexAppRelaunching {
+private struct DisabledCodexAppProcessClient: CodexAppProcessClient {
     func assertCodexAvailable() throws {}
     func relaunchCodex() async throws {}
 }

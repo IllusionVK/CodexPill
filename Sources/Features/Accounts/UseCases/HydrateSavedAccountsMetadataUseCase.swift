@@ -16,18 +16,18 @@ struct HydrateSavedAccountsMetadataResult {
 
 struct HydrateSavedAccountsMetadataUseCase {
     private let authService: CodexAuthDataRestoring
-    private let appServerClient: CodexAccountStatusReading
+    private let accountStatusClient: CodexAccountStatusClient
     private let identityResolver: SavedAccountIdentityResolver
-    private let repository: AccountCatalogPersisting
+    private let repository: AccountCatalogStore
 
     init(
         authService: CodexAuthDataRestoring,
-        appServerClient: CodexAccountStatusReading,
+        accountStatusClient: CodexAccountStatusClient,
         identityResolver: SavedAccountIdentityResolver,
-        repository: AccountCatalogPersisting
+        repository: AccountCatalogStore
     ) {
         self.authService = authService
-        self.appServerClient = appServerClient
+        self.accountStatusClient = accountStatusClient
         self.identityResolver = identityResolver
         self.repository = repository
     }
@@ -60,7 +60,7 @@ struct HydrateSavedAccountsMetadataUseCase {
             guard let index = updatedAccounts.firstIndex(where: { $0.id == accountID }) else { continue }
 
             try authService.activate(updatedAccounts[index])
-            let remote = try await appServerClient.readCurrentAccountStatus()
+            let remote = try await accountStatusClient.readCurrentAccountStatus()
 
             updatedAccounts[index].applyRemoteMetadata(
                 email: remote.email ?? updatedAccounts[index].email,

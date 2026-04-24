@@ -39,7 +39,7 @@ struct RefreshActiveAccountUseCaseTests {
         accountWithRateLimits.rateLimits = existingRateLimits
         let repository = PersistingRepositorySpy()
         let useCase = RefreshActiveAccountUseCase(
-            appServerClient: RefreshAppServerSpy(
+            accountStatusClient: RefreshAppServerSpy(
                 status: CodexAccountStatus(
                     email: "new@example.com",
                     planType: "pro",
@@ -67,7 +67,7 @@ struct RefreshActiveAccountUseCaseTests {
     func runFailsWhenLiveAccountDoesNotMatchAnySavedAccount() async {
         let account = makeAccount(name: "Work", fingerprint: "saved", email: "saved@example.com")
         let useCase = RefreshActiveAccountUseCase(
-            appServerClient: RefreshAppServerSpy(
+            accountStatusClient: RefreshAppServerSpy(
                 status: CodexAccountStatus(
                     email: "other@example.com",
                     planType: nil,
@@ -105,7 +105,7 @@ struct RefreshActiveAccountUseCaseTests {
     }
 }
 
-private final class RefreshAppServerSpy: CodexAccountStatusReading {
+private final class RefreshAppServerSpy: CodexAccountStatusClient {
     let status: CodexAccountStatus
 
     init(status: CodexAccountStatus) {
@@ -117,7 +117,7 @@ private final class RefreshAppServerSpy: CodexAccountStatusReading {
     }
 }
 
-private final class PersistingRepositorySpy: AccountCatalogPersisting {
+private final class PersistingRepositorySpy: AccountCatalogStore {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {

@@ -8,7 +8,7 @@ struct SilentPostActionRefreshTests {
     func skipsRefreshWhenNoActiveAccountExists() async {
         let repository = SilentRefreshRepositorySpy()
         let useCase = makeUseCase(
-            appServerClient: SilentRefreshFailingStatusReader(error: SilentRefreshTestFailure.refreshFailed),
+            accountStatusClient: SilentRefreshFailingStatusReader(error: SilentRefreshTestFailure.refreshFailed),
             repository: repository
         )
         let refresh = SilentPostActionRefresh(refreshActiveAccountUseCase: useCase)
@@ -27,7 +27,7 @@ struct SilentPostActionRefreshTests {
     func returnsNilWhenRefreshFails() async {
         let repository = SilentRefreshRepositorySpy()
         let useCase = makeUseCase(
-            appServerClient: SilentRefreshFailingStatusReader(error: SilentRefreshTestFailure.refreshFailed),
+            accountStatusClient: SilentRefreshFailingStatusReader(error: SilentRefreshTestFailure.refreshFailed),
             repository: repository
         )
         let refresh = SilentPostActionRefresh(refreshActiveAccountUseCase: useCase)
@@ -56,7 +56,7 @@ struct SilentPostActionRefreshTests {
             fetchedAt: .now
         )
         let useCase = makeUseCase(
-            appServerClient: SilentRefreshStatusReader(
+            accountStatusClient: SilentRefreshStatusReader(
                 status: CodexAccountStatus(
                     email: "business@example.com",
                     planType: "pro",
@@ -84,11 +84,11 @@ struct SilentPostActionRefreshTests {
     }
 
     private func makeUseCase(
-        appServerClient: CodexAccountStatusReading,
+        accountStatusClient: CodexAccountStatusClient,
         repository: SilentRefreshRepositorySpy
     ) -> RefreshActiveAccountUseCase {
         RefreshActiveAccountUseCase(
-            appServerClient: appServerClient,
+            accountStatusClient: accountStatusClient,
             identityResolver: SavedAccountIdentityResolver(
                 liveIdentityReader: SilentRefreshIdentityStub(fingerprint: "live"),
                 storedAccountReconciler: SilentRefreshStoredIdentityPassthrough()
@@ -127,7 +127,7 @@ private enum SilentRefreshTestFailure: LocalizedError {
     }
 }
 
-private final class SilentRefreshFailingStatusReader: CodexAccountStatusReading {
+private final class SilentRefreshFailingStatusReader: CodexAccountStatusClient {
     let error: Error
 
     init(error: Error) {
@@ -139,7 +139,7 @@ private final class SilentRefreshFailingStatusReader: CodexAccountStatusReading 
     }
 }
 
-private final class SilentRefreshStatusReader: CodexAccountStatusReading {
+private final class SilentRefreshStatusReader: CodexAccountStatusClient {
     let status: CodexAccountStatus
 
     init(status: CodexAccountStatus) {
@@ -151,7 +151,7 @@ private final class SilentRefreshStatusReader: CodexAccountStatusReading {
     }
 }
 
-private final class SilentRefreshRepositorySpy: AccountCatalogPersisting {
+private final class SilentRefreshRepositorySpy: AccountCatalogStore {
     private(set) var savedAccounts: [CodexAccount]?
 
     func bootstrapStorage() throws {}

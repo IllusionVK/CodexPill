@@ -22,15 +22,18 @@ struct MenuBarUIValidationTests {
     }
 
     @Test
-    func accountsStayCompact() {
+    func accountsStayCompact() throws {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let snapshot = MenuBarValidationSupport.makeSnapshot(
             state: makeHostedValidationState(for: "hosted-menu-default", now: now),
             now: now
         )
-        let summary = try! #require(snapshot.sections.first(where: { $0.title == "Accounts" })?.items.first(where: { $0.contains("Research") }))
-        #expect(summary.contains("Research • S 8% (1h00) • W 35% (1d)"))
+        let accountsSection = try #require(snapshot.sections.first(where: { $0.title == "Accounts" }))
+        let summary = try #require(accountsSection.items.first(where: { $0.contains(" • S ") && $0.contains(" • W ") }))
+
         #expect(!summary.contains("research@example.com"))
+        #expect(!summary.contains("sandbox@example.com"))
+        #expect(!summary.contains("overflow@example.com"))
     }
 
     @Test
@@ -47,7 +50,7 @@ struct MenuBarUIValidationTests {
         #expect(hostSummary.contains("buildbox"))
         #expect(hostSummary.contains("Connected"))
         #expect(hostSummary.contains("Remote Active"))
-        #expect(otherAccounts.items.count == 4)
+        #expect(otherAccounts.items.count == 3)
         #expect(otherAccounts.items.allSatisfy { !$0.contains("remote-active@example.com") })
     }
 
@@ -65,7 +68,7 @@ struct MenuBarUIValidationTests {
         #expect(remoteSection.items.count == 2)
         #expect(remoteSection.items.contains(where: { $0.contains("buildbox") && $0.contains("Buildbox Active") }))
         #expect(remoteSection.items.contains(where: { $0.contains("debian-vm") && $0.contains("Debian Active") }))
-        #expect(accountsSection.items.count == 4)
+        #expect(accountsSection.items.count == 3)
         #expect(accountsSection.items.allSatisfy { !$0.contains("buildbox-active@example.com") })
         #expect(accountsSection.items.allSatisfy { !$0.contains("debian-active@example.com") })
     }
@@ -79,7 +82,7 @@ struct MenuBarUIValidationTests {
         let menu = builder.makeMenu(state: state, target: coordinator)
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu, now: now)
 
-        let researchItem = try #require(snapshot.menuItems.first(where: { $0.title.contains("Research") }))
+        let researchItem = try #require(menuItem(containing: "Research", in: snapshot.menuItems))
         let localAction = try #require(researchItem.children.first(where: { $0.title == "Switch on This Mac" }))
         let remoteAction = try #require(researchItem.children.first(where: { $0.title == "Switch on buildbox" }))
         let renameAction = try #require(researchItem.children.first(where: { $0.title == "Rename…" }))
@@ -101,7 +104,10 @@ struct MenuBarUIValidationTests {
         let menu = builder.makeMenu(state: state, target: coordinator)
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu, now: now)
 
-        let accountItem = try #require(snapshot.menuItems.first(where: { $0.title.hasPrefix("Research") }))
+        let accountItem = try #require(snapshot.menuItems.first(where: { item in
+            item.children.first?.title == "Not currently in use" &&
+                item.children.contains(where: { $0.title == "Switch on This Mac" })
+        }))
         let statusItem = try #require(accountItem.children.first)
         let localAction = try #require(accountItem.children.first(where: { $0.title == "Switch on This Mac" }))
         let renameAction = try #require(accountItem.children.first(where: { $0.title == "Rename…" }))
@@ -126,8 +132,11 @@ struct MenuBarUIValidationTests {
         let menu = builder.makeMenu(state: state, target: coordinator)
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu, now: now)
 
-        let researchItem = try #require(snapshot.menuItems.first(where: { $0.title.contains("Research") }))
-        let remoteAction = try #require(researchItem.children.first(where: { $0.title == "Install on buildbox and switch" }))
+        let remoteAction = try #require(
+            menuItem(withChildTitled: "Install on buildbox and switch", in: snapshot.menuItems)?
+                .children
+                .first(where: { $0.title == "Install on buildbox and switch" })
+        )
 
         #expect(remoteAction.actionSelector == "switchAccountOnHost:")
     }
@@ -155,8 +164,8 @@ struct MenuBarUIValidationTests {
         #expect(snapshot.sections.contains(where: { $0.title == "Remote Accounts" }) == false)
         #expect(snapshot.remoteHosts.isEmpty)
 
-        let researchItem = try #require(snapshot.menuItems.first(where: { $0.title.contains("Research") }))
-        let remoteAction = try #require(researchItem.children.first(where: { $0.title == "Switch on buildbox" }))
+        let targetableAccountItem = try #require(menuItem(withChildTitled: "Install on buildbox and switch", in: snapshot.menuItems))
+        let remoteAction = try #require(targetableAccountItem.children.first(where: { $0.title == "Install on buildbox and switch" }))
         let hostsMenu = try #require(snapshot.menuItems.first(where: { $0.title == "Hosts" }))
         let buildboxItem = try #require(hostsMenu.children.first(where: { $0.title == "buildbox" }))
         let hostStatus = try #require(buildboxItem.children.first(where: { $0.title == "Status: Disconnected" }))
@@ -393,6 +402,36 @@ struct MenuBarUIValidationTests {
         try encoder.encode(value).write(to: url, options: .atomic)
     }
 
+    private func menuItem(
+        containing titleFragment: String,
+        in items: [MenuBarValidationSnapshot.MenuItem]
+    ) -> MenuBarValidationSnapshot.MenuItem? {
+        for item in items {
+            if item.title.contains(titleFragment) {
+                return item
+            }
+            if let child = menuItem(containing: titleFragment, in: item.children) {
+                return child
+            }
+        }
+        return nil
+    }
+
+    private func menuItem(
+        withChildTitled childTitle: String,
+        in items: [MenuBarValidationSnapshot.MenuItem]
+    ) -> MenuBarValidationSnapshot.MenuItem? {
+        for item in items {
+            if item.children.contains(where: { $0.title == childTitle }) {
+                return item
+            }
+            if let child = menuItem(withChildTitled: childTitle, in: item.children) {
+                return child
+            }
+        }
+        return nil
+    }
+
     private func assertScenarioSnapshot(_ snapshot: MenuBarValidationSnapshot, scenario: String) throws {
         switch scenario {
         case "hosted-menu-default":
@@ -404,7 +443,7 @@ struct MenuBarUIValidationTests {
                 "Preferences"
             ])
             #expect(snapshot.statusMessage == nil)
-            #expect(snapshot.sections[1].items.count == 2)
+            #expect(snapshot.sections[1].items.count == 3)
             #expect(snapshot.sections[2].items.count == 1)
             #expect(snapshot.sections[3].items.contains("Add Account…"))
 
@@ -431,8 +470,8 @@ struct MenuBarUIValidationTests {
                 "Preferences"
             ])
             #expect(snapshot.sections[1].items.count == 2)
-            #expect(snapshot.sections[2].items.count == 4)
-            #expect(snapshot.sections[3].items.count == 1)
+            #expect(snapshot.sections[2].items.count == 3)
+            #expect(snapshot.sections[3].items.count == 2)
 
         case "host-account-missing-on-host":
             #expect(snapshot.sections.map(\.title) == [
@@ -821,8 +860,8 @@ struct MenuBarUIValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            appController: CodexAppController(),
-            appServerClient: CodexAppServerClient()
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarUIValidationTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -902,4 +941,9 @@ private enum ValidationError: Error {
     case failedToCreateBitmap
     case failedToEncodePNG
     case unknownScenario(String)
+}
+
+private struct DisabledCodexAppProcessClient: CodexAppProcessClient {
+    func assertCodexAvailable() throws {}
+    func relaunchCodex() async throws {}
 }

@@ -13,7 +13,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         let repository = HydrationRepositorySpy()
         let useCase = HydrateSavedAccountsMetadataUseCase(
             authService: auth,
-            appServerClient: HydrationAppServerSpy(statusByFingerprint: [
+            accountStatusClient: HydrationAppServerSpy(statusByFingerprint: [
                 "missing": CodexAccountStatus(
                     email: "missing@example.com",
                     planType: "pro",
@@ -53,7 +53,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         let repository = HydrationRepositorySpy()
         let useCase = HydrateSavedAccountsMetadataUseCase(
             authService: auth,
-            appServerClient: HydrationAppServerSpy(statusByFingerprint: [:], authService: auth),
+            accountStatusClient: HydrationAppServerSpy(statusByFingerprint: [:], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
                 liveIdentityReader: HydrationIdentityReader(activeFingerprint: "active"),
                 storedAccountReconciler: HydrationReconcilePassthrough()
@@ -144,7 +144,7 @@ private final class HydrationAuthSpy: CodexAuthDataRestoring {
     }
 }
 
-private struct HydrationAppServerSpy: CodexAccountStatusReading {
+private struct HydrationAppServerSpy: CodexAccountStatusClient {
     let statusByFingerprint: [String: CodexAccountStatus]
     let authService: HydrationAuthSpy
 
@@ -157,7 +157,7 @@ private struct HydrationAppServerSpy: CodexAccountStatusReading {
     }
 }
 
-private final class HydrationRepositorySpy: AccountCatalogPersisting {
+private final class HydrationRepositorySpy: AccountCatalogStore {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {

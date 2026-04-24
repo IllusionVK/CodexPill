@@ -9,8 +9,6 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
     private var wakeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        configureApplicationIcon()
-
         let environment = ProcessInfo.processInfo.environment
         let defaults = AppRuntimeEnvironment.validationUserDefaultsSuiteName(environment: environment)
             .flatMap(UserDefaults.init(suiteName:))
@@ -20,8 +18,8 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
 
         let repository = try! AccountRepository()
         let authService = CodexAuthSnapshotService(repository: repository)
-        let controller = CodexAppController()
-        let appServerClient = CodexAppServerClient()
+        let processClient = SystemCodexAppProcessClient()
+        let accountStatusClient = CodexAppServerClient()
         let remoteHostClient: RemoteHostSwitching
         if AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(environment: environment) {
             remoteHostClient = ValidationRemoteHostClient(seedStates: settings.remoteHostStates)
@@ -31,8 +29,8 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: authService,
-            appController: controller,
-            appServerClient: appServerClient,
+            codexAppProcessClient: processClient,
+            accountStatusClient: accountStatusClient,
             remoteHostClient: remoteHostClient
         )
 
@@ -88,17 +86,14 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
         didReceive response: UNNotificationResponse
     ) async {
         await MainActor.run {
-            Task { @MainActor in
+            let responseTask = Task { @MainActor in
                 await self.coordinator.handleNotificationResponse(
                     actionIdentifier: response.actionIdentifier,
                     userInfo: response.notification.request.content.userInfo
                 )
             }
+            _ = responseTask
         }
     }
 
-    private func configureApplicationIcon() {
-        NSApp.applicationIconImage = NSImage.codexPillAppIcon()
-            ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
-    }
 }

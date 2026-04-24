@@ -204,7 +204,7 @@ struct CodexAccountMatcherTests {
     }
 
     @Test
-    func remoteIdentityFallbackStillWorksWhenScopedStableMatchRejectsGenericStableFallback() {
+    func scopedStableMismatchDoesNotFallBackToRemoteIdentity() {
         let personal = makeAccount(
             email: "admin@raphh.me",
             snapshotFingerprint: "personal-fingerprint",
@@ -236,7 +236,7 @@ struct CodexAccountMatcherTests {
             accounts: [personal, business]
         )
 
-        #expect(outcome == .uniqueRemoteIdentity(business.id))
+        #expect(outcome == .noMatch)
     }
 
     private func makeAccount(

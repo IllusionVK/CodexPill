@@ -22,13 +22,13 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: NoopAuthService(),
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -41,18 +41,18 @@ struct AccountsControllerTests {
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: NoopAuthService(),
                 repository: repository,
-                appController: NoopAppController(),
+                codexAppProcessClient: DisabledCodexAppProcessClient(),
                 identityResolver: identityResolver
             ),
             saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
                 authService: NoopAuthService(),
                 repository: repository,
                 identityResolver: identityResolver
             ),
             addAccountWorkflow: AddAccountWorkflow(
                 authService: NoopAuthService(),
-                appController: NoopAppController(),
+                codexAppProcessClient: DisabledCodexAppProcessClient(),
                 captureClient: NoopDeviceAuthCaptureClient(),
                 repository: repository
             )
@@ -83,13 +83,13 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: NoopAuthService(),
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -102,18 +102,18 @@ struct AccountsControllerTests {
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: NoopAuthService(),
                 repository: repository,
-                appController: NoopAppController(),
+                codexAppProcessClient: DisabledCodexAppProcessClient(),
                 identityResolver: identityResolver
             ),
             saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
                 authService: NoopAuthService(),
                 repository: repository,
                 identityResolver: identityResolver
             ),
             addAccountWorkflow: AddAccountWorkflow(
                 authService: NoopAuthService(),
-                appController: NoopAppController(),
+                codexAppProcessClient: DisabledCodexAppProcessClient(),
                 captureClient: NoopDeviceAuthCaptureClient(),
                 repository: repository
             )
@@ -171,13 +171,13 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: NoopAuthService(),
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -190,7 +190,7 @@ struct AccountsControllerTests {
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: NoopAuthService(),
                 repository: repository,
-                appController: NoopAppController(),
+                codexAppProcessClient: DisabledCodexAppProcessClient(),
                 identityResolver: identityResolver
             ),
             switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
@@ -203,14 +203,14 @@ struct AccountsControllerTests {
                 )
             ),
             saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
                 authService: NoopAuthService(),
                 repository: repository,
                 identityResolver: identityResolver
             ),
             addAccountWorkflow: AddAccountWorkflow(
                 authService: NoopAuthService(),
-                appController: NoopAppController(),
+                codexAppProcessClient: DisabledCodexAppProcessClient(),
                 captureClient: NoopDeviceAuthCaptureClient(),
                 repository: repository
             )
@@ -242,13 +242,13 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: NoopAuthService(),
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -261,21 +261,21 @@ struct AccountsControllerTests {
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: NoopAuthService(),
                 repository: repository,
-                appController: NoopAppController(),
+                codexAppProcessClient: DisabledCodexAppProcessClient(),
                 identityResolver: identityResolver
             ),
             switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
                 remoteHostClient: RemoteHostFailingStub(error: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied"))
             ),
             saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
                 authService: NoopAuthService(),
                 repository: repository,
                 identityResolver: identityResolver
             ),
             addAccountWorkflow: AddAccountWorkflow(
                 authService: NoopAuthService(),
-                appController: NoopAppController(),
+                codexAppProcessClient: DisabledCodexAppProcessClient(),
                 captureClient: NoopDeviceAuthCaptureClient(),
                 repository: repository
             )
@@ -321,7 +321,7 @@ private enum TestFailure: LocalizedError {
     }
 }
 
-private final class FailingAccountStatusReader: CodexAccountStatusReading {
+private final class FailingAccountStatusReader: CodexAccountStatusClient {
     let error: Error
 
     init(error: Error) {
@@ -333,7 +333,7 @@ private final class FailingAccountStatusReader: CodexAccountStatusReading {
     }
 }
 
-private final class LoadingPersistingRepositorySpy: AccountCatalogLoading, AccountSnapshotDeleting {
+private final class LoadingPersistingRepositorySpy: AccountCatalogLoader, AccountSnapshotRemover {
     let accountsToLoad: [CodexAccount]
     private(set) var savedAccounts: [CodexAccount]?
     private(set) var bootstrapCount = 0
@@ -387,7 +387,7 @@ private struct StoredIdentityPassthrough: StoredAccountIdentityReconciling {
     }
 }
 
-private struct NoopAppController: CodexAppRelaunching {
+private struct DisabledCodexAppProcessClient: CodexAppProcessClient {
     func assertCodexAvailable() throws {}
     func relaunchCodex() async throws {}
 }

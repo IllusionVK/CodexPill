@@ -6,9 +6,9 @@ struct RenameSavedAccountResult {
 }
 
 struct RenameSavedAccountUseCase {
-    private let repository: AccountCatalogPersisting
+    private let repository: AccountCatalogStore
 
-    init(repository: AccountCatalogPersisting) {
+    init(repository: AccountCatalogStore) {
         self.repository = repository
     }
 

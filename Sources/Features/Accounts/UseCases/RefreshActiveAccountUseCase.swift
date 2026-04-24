@@ -6,22 +6,22 @@ struct RefreshActiveAccountResult {
 }
 
 struct RefreshActiveAccountUseCase {
-    private let appServerClient: CodexAccountStatusReading
+    private let accountStatusClient: CodexAccountStatusClient
     private let identityResolver: SavedAccountIdentityResolver
-    private let repository: AccountCatalogPersisting
+    private let repository: AccountCatalogStore
 
     init(
-        appServerClient: CodexAccountStatusReading,
+        accountStatusClient: CodexAccountStatusClient,
         identityResolver: SavedAccountIdentityResolver,
-        repository: AccountCatalogPersisting
+        repository: AccountCatalogStore
     ) {
-        self.appServerClient = appServerClient
+        self.accountStatusClient = accountStatusClient
         self.identityResolver = identityResolver
         self.repository = repository
     }
 
     func run(accounts: [CodexAccount]) async throws -> RefreshActiveAccountResult {
-        let remote = try await appServerClient.readCurrentAccountStatus()
+        let remote = try await accountStatusClient.readCurrentAccountStatus()
         let matchOutcome = identityResolver.resolve(
             accounts: accounts,
             liveRemoteIdentity: remote.remoteIdentity

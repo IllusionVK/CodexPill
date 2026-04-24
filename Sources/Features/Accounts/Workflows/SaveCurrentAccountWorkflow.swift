@@ -1,10 +1,10 @@
 import Foundation
 
-protocol CodexAccountStatusReading {
+protocol CodexAccountStatusClient {
     func readCurrentAccountStatus() async throws -> CodexAccountStatus
 }
 
-extension CodexAppServerClient: CodexAccountStatusReading {}
+extension CodexAppServerClient: CodexAccountStatusClient {}
 
 protocol CodexAuthSnapshotSaving {
     func saveCurrentAuthSnapshot(
@@ -21,18 +21,18 @@ struct SaveCurrentAccountWorkflowResult {
 }
 
 struct SaveCurrentAccountWorkflow {
-    private let appServerClient: CodexAccountStatusReading
+    private let accountStatusClient: CodexAccountStatusClient
     private let authService: CodexAuthSnapshotSaving
-    private let repository: AccountCatalogPersisting
+    private let repository: AccountCatalogStore
     private let identityResolver: SavedAccountIdentityResolver
 
     init(
-        appServerClient: CodexAccountStatusReading,
+        accountStatusClient: CodexAccountStatusClient,
         authService: CodexAuthSnapshotSaving,
-        repository: AccountCatalogPersisting,
+        repository: AccountCatalogStore,
         identityResolver: SavedAccountIdentityResolver
     ) {
-        self.appServerClient = appServerClient
+        self.accountStatusClient = accountStatusClient
         self.authService = authService
         self.repository = repository
         self.identityResolver = identityResolver
@@ -42,7 +42,7 @@ struct SaveCurrentAccountWorkflow {
         customName: String?,
         existingAccounts: [CodexAccount]
     ) async throws -> SaveCurrentAccountWorkflowResult {
-        let remote = try await appServerClient.readCurrentAccountStatus()
+        let remote = try await accountStatusClient.readCurrentAccountStatus()
         let matchOutcome = identityResolver.resolve(
             accounts: existingAccounts,
             liveRemoteIdentity: remote.remoteIdentity

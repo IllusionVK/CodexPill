@@ -127,7 +127,7 @@ struct RenameSavedAccountUseCaseTests {
     }
 }
 
-private final class RenamingRepositorySpy: AccountCatalogPersisting {
+private final class RenamingRepositorySpy: AccountCatalogStore {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {

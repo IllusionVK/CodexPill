@@ -271,7 +271,7 @@ struct LoadAccountsUseCaseTests {
             identityResolver: resolver
         ).run()
 
-        #expect(result.activeAccountID == businessID)
+        #expect(result.activeAccountID == nil)
     }
 
     private func makeAccount(
@@ -298,7 +298,7 @@ struct LoadAccountsUseCaseTests {
     }
 }
 
-private final class LoadingRepositorySpy: AccountCatalogLoading {
+private final class LoadingRepositorySpy: AccountCatalogLoader {
     let accountsToLoad: [CodexAccount]
     var bootstrapCount = 0
     var loadCount = 0

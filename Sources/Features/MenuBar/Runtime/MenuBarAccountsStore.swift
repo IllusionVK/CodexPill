@@ -9,15 +9,15 @@ final class MenuBarAccountsStore {
     init(
         repository: AccountRepository,
         authService: CodexAuthSnapshotService,
-        appController: CodexAppController,
-        appServerClient: CodexAppServerClient,
+        codexAppProcessClient: CodexAppProcessClient,
+        accountStatusClient: CodexAccountStatusClient,
         remoteHostClient: RemoteHostSwitching = UnavailableRemoteHostClient()
     ) {
         self.controller = AccountsController(
             repository: repository,
             authService: authService,
-            appController: appController,
-            appServerClient: appServerClient,
+            codexAppProcessClient: codexAppProcessClient,
+            accountStatusClient: accountStatusClient,
             remoteHostClient: remoteHostClient
         )
     }

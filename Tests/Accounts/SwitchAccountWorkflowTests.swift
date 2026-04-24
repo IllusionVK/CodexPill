@@ -11,11 +11,11 @@ struct SwitchAccountWorkflowTests {
 
         let auth = AuthSpy(currentFingerprint: "live-fingerprint", currentStableAccountID: nil)
         let repository = RepositorySpy()
-        let appController = AppControllerSpy()
+        let codexAppProcessClient = RecordingCodexAppProcessClient()
         let workflow = SwitchAccountWorkflow(
             authService: auth,
             repository: repository,
-            appController: appController,
+            codexAppProcessClient: codexAppProcessClient,
             identityResolver: makeResolver(auth: auth)
         )
 
@@ -23,7 +23,7 @@ struct SwitchAccountWorkflowTests {
 
         #expect(auth.activatedAccountID == target.id)
         #expect(repository.savedAccounts?.map(\.id) == [target.id, other.id])
-        #expect(appController.relaunchCount == 1)
+        #expect(codexAppProcessClient.relaunchCount == 1)
         #expect(activeID == target.id)
     }
 
@@ -33,22 +33,22 @@ struct SwitchAccountWorkflowTests {
 
         let auth = AuthSpy(currentFingerprint: "live-fingerprint", currentStableAccountID: nil)
         let repository = RepositorySpy()
-        let appController = AppControllerSpy()
-        appController.availabilityError = CodexAppControllerError.applicationNotFound
+        let codexAppProcessClient = RecordingCodexAppProcessClient()
+        codexAppProcessClient.availabilityError = CodexAppProcessClientError.applicationNotFound
         let workflow = SwitchAccountWorkflow(
             authService: auth,
             repository: repository,
-            appController: appController,
+            codexAppProcessClient: codexAppProcessClient,
             identityResolver: makeResolver(auth: auth)
         )
 
-        await #expect(throws: CodexAppControllerError.applicationNotFound) {
+        await #expect(throws: CodexAppProcessClientError.applicationNotFound) {
             try await workflow.run(account: target, accounts: [target])
         }
 
         #expect(auth.activatedAccountID == nil)
         #expect(repository.savedAccounts == nil)
-        #expect(appController.relaunchCount == 0)
+        #expect(codexAppProcessClient.relaunchCount == 0)
     }
 
     @Test
@@ -57,18 +57,18 @@ struct SwitchAccountWorkflowTests {
 
         let auth = AuthSpy(currentFingerprint: "different-fingerprint", currentStableAccountID: nil)
         let repository = RepositorySpy()
-        let appController = AppControllerSpy()
+        let codexAppProcessClient = RecordingCodexAppProcessClient()
         let workflow = SwitchAccountWorkflow(
             authService: auth,
             repository: repository,
-            appController: appController,
+            codexAppProcessClient: codexAppProcessClient,
             identityResolver: makeResolver(auth: auth)
         )
 
         let activeID = try await workflow.run(account: target, accounts: [target])
 
         #expect(activeID == nil)
-        #expect(appController.relaunchCount == 1)
+        #expect(codexAppProcessClient.relaunchCount == 1)
     }
 
     private func makeAccount(name: String, fingerprint: String) -> CodexAccount {
@@ -123,7 +123,7 @@ private final class AuthSpy: CodexAuthActivating, LiveCodexAccountIdentityReadin
     }
 }
 
-private final class RepositorySpy: AccountCatalogPersisting {
+private final class RepositorySpy: AccountCatalogStore {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {
@@ -131,7 +131,7 @@ private final class RepositorySpy: AccountCatalogPersisting {
     }
 }
 
-private final class AppControllerSpy: CodexAppRelaunching {
+private final class RecordingCodexAppProcessClient: CodexAppProcessClient {
     var relaunchCount = 0
     var availabilityCheckCount = 0
     var availabilityError: Error?

@@ -6,34 +6,27 @@ protocol CodexAuthActivating {
 
 extension CodexAuthSnapshotService: CodexAuthActivating {}
 
-protocol AccountCatalogPersisting {
+protocol AccountCatalogStore {
     func saveAccounts(_ accounts: [CodexAccount]) throws
 }
 
-extension AccountRepository: AccountCatalogPersisting {}
-
-protocol CodexAppRelaunching {
-    func assertCodexAvailable() throws
-    func relaunchCodex() async throws
-}
-
-extension CodexAppController: CodexAppRelaunching {}
+extension AccountRepository: AccountCatalogStore {}
 
 struct SwitchAccountWorkflow {
     private let authService: CodexAuthActivating
-    private let repository: AccountCatalogPersisting
-    private let appController: CodexAppRelaunching
+    private let repository: AccountCatalogStore
+    private let codexAppProcessClient: CodexAppProcessClient
     private let identityResolver: SavedAccountIdentityResolver
 
     init(
         authService: CodexAuthActivating,
-        repository: AccountCatalogPersisting,
-        appController: CodexAppRelaunching,
+        repository: AccountCatalogStore,
+        codexAppProcessClient: CodexAppProcessClient,
         identityResolver: SavedAccountIdentityResolver
     ) {
         self.authService = authService
         self.repository = repository
-        self.appController = appController
+        self.codexAppProcessClient = codexAppProcessClient
         self.identityResolver = identityResolver
     }
 
@@ -41,13 +34,13 @@ struct SwitchAccountWorkflow {
         account: CodexAccount,
         accounts: [CodexAccount]
     ) async throws -> UUID? {
-        try appController.assertCodexAvailable()
+        try codexAppProcessClient.assertCodexAvailable()
         try authService.activate(account)
         try repository.saveAccounts(accounts)
 
         let activeAccountID = identityResolver.resolveCurrentAccountID(accounts: accounts)
 
-        try await appController.relaunchCodex()
+        try await codexAppProcessClient.relaunchCodex()
         return activeAccountID
     }
 }

@@ -17,7 +17,7 @@ struct SaveCurrentAccountWorkflowTests {
         let auth = SnapshotSaveSpy(savedAccount: saved)
         let repository = RepositorySpy()
         let workflow = SaveCurrentAccountWorkflow(
-            appServerClient: appServer,
+            accountStatusClient: appServer,
             authService: auth,
             repository: repository,
             identityResolver: SavedAccountIdentityResolver(
@@ -44,7 +44,7 @@ struct SaveCurrentAccountWorkflowTests {
     func runRejectsDuplicateNameCaseInsensitively() async {
         let existing = makeAccount(name: "Work", fingerprint: "existing")
         let workflow = SaveCurrentAccountWorkflow(
-            appServerClient: AppServerSpy(status: CodexAccountStatus(email: "new@example.com", planType: nil, rateLimits: nil)),
+            accountStatusClient: AppServerSpy(status: CodexAccountStatus(email: "new@example.com", planType: nil, rateLimits: nil)),
             authService: SnapshotSaveSpy(savedAccount: makeAccount(name: "work", fingerprint: "new")),
             repository: RepositorySpy(),
             identityResolver: SavedAccountIdentityResolver(
@@ -70,7 +70,7 @@ struct SaveCurrentAccountWorkflowTests {
         )
         let auth = SnapshotSaveSpy(savedAccount: makeAccount(name: "ignored", fingerprint: "live-fingerprint"))
         let workflow = SaveCurrentAccountWorkflow(
-            appServerClient: AppServerSpy(status: remote),
+            accountStatusClient: AppServerSpy(status: remote),
             authService: auth,
             repository: RepositorySpy(),
             identityResolver: SavedAccountIdentityResolver(
@@ -117,7 +117,7 @@ struct SaveCurrentAccountWorkflowTests {
         let auth = SnapshotSaveSpy(savedAccount: refreshed)
         let repository = RepositorySpy()
         let workflow = SaveCurrentAccountWorkflow(
-            appServerClient: AppServerSpy(status: remote),
+            accountStatusClient: AppServerSpy(status: remote),
             authService: auth,
             repository: repository,
             identityResolver: SavedAccountIdentityResolver(
@@ -170,7 +170,7 @@ struct SaveCurrentAccountWorkflowTests {
         let auth = SnapshotSaveSpy(savedAccount: business)
         let repository = RepositorySpy()
         let workflow = SaveCurrentAccountWorkflow(
-            appServerClient: AppServerSpy(status: remote),
+            accountStatusClient: AppServerSpy(status: remote),
             authService: auth,
             repository: repository,
             identityResolver: SavedAccountIdentityResolver(
@@ -216,7 +216,7 @@ struct SaveCurrentAccountWorkflowTests {
             fingerprint: "other-fingerprint"
         )
         let workflow = SaveCurrentAccountWorkflow(
-            appServerClient: AppServerSpy(status: CodexAccountStatus(email: "raphaelgrau@proton.me", planType: "team", rateLimits: nil)),
+            accountStatusClient: AppServerSpy(status: CodexAccountStatus(email: "raphaelgrau@proton.me", planType: "team", rateLimits: nil)),
             authService: SnapshotSaveSpy(savedAccount: existing),
             repository: RepositorySpy(),
             identityResolver: SavedAccountIdentityResolver(
@@ -288,7 +288,7 @@ struct SaveCurrentAccountWorkflowTests {
     }
 }
 
-private final class AppServerSpy: CodexAccountStatusReading {
+private final class AppServerSpy: CodexAccountStatusClient {
     let status: CodexAccountStatus
     var readCount = 0
 
@@ -318,7 +318,7 @@ private final class SnapshotSaveSpy: CodexAuthSnapshotSaving {
     }
 }
 
-private final class RepositorySpy: AccountCatalogPersisting {
+private final class RepositorySpy: AccountCatalogStore {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {

@@ -18,7 +18,7 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
-    func visibleAndOverflowAccountsUseTopThreeNonActiveRule() {
+    func visibleAndOverflowAccountsUseConfiguredNonActiveLimit() {
         let accounts = [
             makeAccount(name: "A"),
             makeAccount(name: "B"),
@@ -27,8 +27,21 @@ struct MenuBarMenuStateTests {
         ]
         let state = makeState(inactiveAccounts: accounts, visibleInactiveAccountCount: 2)
 
+        #expect(state.visibleAccountEntries.map(\.account.name) == ["A", "B"])
+        #expect(state.overflowAccountEntries.map(\.account.name) == ["C", "D"])
+    }
+
+    @Test
+    func zeroVisibleInactiveAccountCountShowsAllAccountsWithoutOverflow() {
+        let accounts = [
+            makeAccount(name: "A"),
+            makeAccount(name: "B"),
+            makeAccount(name: "C")
+        ]
+        let state = makeState(inactiveAccounts: accounts, visibleInactiveAccountCount: 0)
+
         #expect(state.visibleAccountEntries.map(\.account.name) == ["A", "B", "C"])
-        #expect(state.overflowAccountEntries.map(\.account.name) == ["D"])
+        #expect(state.overflowAccountEntries.isEmpty)
     }
 
     @Test
