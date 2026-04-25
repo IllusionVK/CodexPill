@@ -792,60 +792,80 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 return
             }
 
-            self.settings.upsertRemoteHost(remoteHost)
-            self.setRemoteHostConnectionState(.connected, for: remoteHost.destination)
-
-            if let activeAccount = self.store.activeAccount {
-                let shouldInstallCurrentAccount = self.alertPresenter.presentConfirmation(
-                    self.alertFactory.makeInstallCurrentAccountOnHostRequest(
-                        accountName: activeAccount.name,
-                        hostName: remoteHost.displayName
-                    )
+            guard let activeAccount = self.store.activeAccount else {
+                self.recordValidationEvent(
+                    "add_host_account_setup_unavailable",
+                    step: "add_host_account_setup",
+                    invariantIds: Self.addHostPromptInvariantIDs,
+                    payload: ["hostName": remoteHost.displayName]
                 )
+                self.rebuildMenu()
+                return
+            }
 
-                if shouldInstallCurrentAccount {
-                    self.setRemoteHostConnectionState(.syncing, for: remoteHost.destination)
-                    self.rebuildMenu()
-                    let result = await self.store.switchToAccountOnHost(activeAccount, on: remoteHost)
-                    switch result {
-                    case .verified(let status):
-                        self.settings.updateRemoteHostState(for: remoteHost) { state in
-                            if !state.installedAccountIDs.contains(activeAccount.id) {
-                                state.installedAccountIDs.append(activeAccount.id)
-                            }
-                            state.desiredAccountID = activeAccount.id
-                            state.verifiedAccount = self.mergedRemoteAccount(activeAccount, status: status)
-                            state.detectedAccountID = nil
-                            state.verificationStatus = .verified
-                            state.lastVerificationError = nil
-                        }
-                        self.notificationStateStore.markAccountActivated(activeAccount.id)
-                        self.setRemoteHostConnectionState(.connected, for: remoteHost.destination)
-                    case .notVerified(let message, let detectedAccountID):
-                        self.setRemoteHostConnectionState(.connected, for: remoteHost.destination)
-                        self.settings.updateRemoteHostState(for: remoteHost) { state in
-                            if !state.installedAccountIDs.contains(activeAccount.id) {
-                                state.installedAccountIDs.append(activeAccount.id)
-                            }
-                            state.desiredAccountID = activeAccount.id
-                            state.verifiedAccount = nil
-                            state.detectedAccountID = detectedAccountID
-                            state.verificationStatus = .failed
-                            state.lastVerificationError = message
-                        }
-                    case .failed(let message, let hostReachable):
-                        self.setRemoteHostConnectionState(hostReachable ? .connected : .disconnected, for: remoteHost.destination)
-                        self.settings.updateRemoteHostState(for: remoteHost) { state in
-                            if !state.installedAccountIDs.contains(activeAccount.id) {
-                                state.installedAccountIDs.append(activeAccount.id)
-                            }
-                            state.desiredAccountID = activeAccount.id
-                            state.verifiedAccount = nil
-                            state.detectedAccountID = nil
-                            state.verificationStatus = .failed
-                            state.lastVerificationError = message
-                        }
+            let shouldInstallCurrentAccount = self.alertPresenter.presentConfirmation(
+                self.alertFactory.makeInstallCurrentAccountOnHostRequest(
+                    accountName: activeAccount.name,
+                    hostName: remoteHost.displayName
+                )
+            )
+
+            guard shouldInstallCurrentAccount else {
+                self.recordValidationEvent(
+                    "add_host_account_setup_cancelled",
+                    step: "add_host_account_setup",
+                    invariantIds: Self.addHostPromptInvariantIDs,
+                    payload: ["hostName": remoteHost.displayName]
+                )
+                self.rebuildMenu()
+                return
+            }
+
+            self.settings.updateRemoteHostState(for: remoteHost) { state in
+                state.desiredAccountID = activeAccount.id
+                state.verificationStatus = .verifying
+                state.lastVerificationError = nil
+            }
+            self.setRemoteHostConnectionState(.syncing, for: remoteHost.destination)
+            self.rebuildMenu()
+            let result = await self.store.switchToAccountOnHost(activeAccount, on: remoteHost)
+            switch result {
+            case .verified(let status):
+                self.settings.updateRemoteHostState(for: remoteHost) { state in
+                    if !state.installedAccountIDs.contains(activeAccount.id) {
+                        state.installedAccountIDs.append(activeAccount.id)
                     }
+                    state.desiredAccountID = activeAccount.id
+                    state.verifiedAccount = self.mergedRemoteAccount(activeAccount, status: status)
+                    state.detectedAccountID = nil
+                    state.verificationStatus = .verified
+                    state.lastVerificationError = nil
+                }
+                self.notificationStateStore.markAccountActivated(activeAccount.id)
+                self.setRemoteHostConnectionState(.connected, for: remoteHost.destination)
+            case .notVerified(let message, let detectedAccountID):
+                self.setRemoteHostConnectionState(.connected, for: remoteHost.destination)
+                self.settings.updateRemoteHostState(for: remoteHost) { state in
+                    if !state.installedAccountIDs.contains(activeAccount.id) {
+                        state.installedAccountIDs.append(activeAccount.id)
+                    }
+                    state.desiredAccountID = activeAccount.id
+                    state.verifiedAccount = nil
+                    state.detectedAccountID = detectedAccountID
+                    state.verificationStatus = .failed
+                    state.lastVerificationError = message
+                }
+            case .failed(let message, let hostReachable):
+                self.setRemoteHostConnectionState(hostReachable ? .connected : .disconnected, for: remoteHost.destination)
+                self.settings.updateRemoteHostState(for: remoteHost) { state in
+                    if !state.installedAccountIDs.contains(activeAccount.id) {
+                        state.installedAccountIDs.append(activeAccount.id)
+                    }
+                    state.desiredAccountID = activeAccount.id
+                    state.verifiedAccount = nil
+                    state.detectedAccountID = nil
+                    state.verificationStatus = .failed
+                    state.lastVerificationError = message
                 }
             }
 

@@ -80,9 +80,9 @@ struct MenuBarAlertFactory {
     func makeInstallCurrentAccountOnHostRequest(accountName: String, hostName: String) -> MenuBarConfirmationAlertRequest {
         MenuBarConfirmationAlertRequest(
             messageText: "Install current account on \(hostName)?",
-            informativeText: "CodexPill can install and switch \(accountName) on \(hostName) now, so the host is ready immediately.",
+            informativeText: "CodexPill can install and switch \(accountName) on \(hostName) now, so the host is ready immediately. If you cancel, the host will not be added yet.",
             confirmTitle: "Install and Switch",
-            cancelTitle: "Later"
+            cancelTitle: "Cancel"
         )
     }
 

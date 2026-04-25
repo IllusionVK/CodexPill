@@ -64,8 +64,8 @@ final class StatusItemRuntime {
 
     private var presentation = StatusItemRuntimePresentation(
         activeAccount: nil,
-        indicatorStyle: .dualArcBadge,
-        monochrome: false,
+        indicatorStyle: .twinPills,
+        monochrome: true,
         displayMode: .iconOnly
     )
     private var hoverActivationTimer: Timer?

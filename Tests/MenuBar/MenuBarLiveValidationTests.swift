@@ -695,6 +695,98 @@ struct MenuBarLiveValidationTests {
     }
 
     @Test
+    func addHostCancellationAfterValidationDoesNotPersistPendingHost() async throws {
+        let repository = try makeIsolatedRepository()
+        let activeAccount = try makeActiveAccount(named: "Business 1", email: "business-1@example.com", in: repository)
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient(),
+            remoteHostClient: RemoteHostClientStatusSpy(
+                status: CodexAccountStatus(email: activeAccount.email, planType: activeAccount.planType, rateLimits: nil)
+            )
+        )
+        store.load()
+
+        let suiteName = "MenuBarLiveValidationAddHostCancel-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        let alertPresenter = TestMenuBarAlertPresenter()
+        alertPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
+        alertPresenter.confirmationResponse = false
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: RemoteHostClientStatusSpy(),
+            alertPresenter: alertPresenter,
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.addHost(NSMenuItem())
+        try await Task.sleep(for: .milliseconds(80))
+
+        #expect(alertPresenter.confirmationRequests.count == 1)
+        #expect(settings.remoteHostStates.isEmpty)
+    }
+
+    @Test
+    func addHostPersistsVerifiedHostOnlyAfterInstallConfirmation() async throws {
+        let repository = try makeIsolatedRepository()
+        let activeAccount = try makeActiveAccount(named: "Business 1", email: "business-1@example.com", in: repository)
+        let remoteHostClient = RemoteHostClientStatusSpy(
+            status: CodexAccountStatus(email: activeAccount.email, planType: activeAccount.planType, rateLimits: nil)
+        )
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient(),
+            remoteHostClient: remoteHostClient
+        )
+        store.load()
+
+        let suiteName = "MenuBarLiveValidationAddHostConfirmed-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        let alertPresenter = TestMenuBarAlertPresenter()
+        alertPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
+        alertPresenter.confirmationResponse = true
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: remoteHostClient,
+            alertPresenter: alertPresenter,
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.addHost(NSMenuItem())
+        try await Task.sleep(for: .milliseconds(120))
+
+        let hostState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        #expect(hostState.desiredAccountID == activeAccount.id)
+        #expect(hostState.verifiedAccount?.id == activeAccount.id)
+        #expect(hostState.verificationStatus == .verified)
+        #expect(hostState.installedAccountIDs.contains(activeAccount.id))
+    }
+
+    @Test
     func coordinatorRefreshesLiveSnapshotWhenStatusItemRuntimeStateChanges() throws {
         let sink = RecordingValidationSink()
         let repository = try makeIsolatedRepository()
@@ -2196,6 +2288,23 @@ struct MenuBarLiveValidationTests {
         return try AccountRepository(
             environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: appSupportDirectory.path]
         )
+    }
+
+    private func makeActiveAccount(
+        named name: String,
+        email: String,
+        in repository: AccountRepository
+    ) throws -> CodexAccount {
+        try repository.bootstrapStorage()
+        let authData = Data("auth-\(UUID().uuidString)".utf8)
+        var account = try CodexAuthSnapshotService(repository: repository)
+            .saveAuthSnapshot(authData, named: name)
+        account.email = email
+        account.planType = "team"
+        account.identity.remoteIdentity = CodexRemoteAccountIdentity(emailAddress: email)
+        try repository.saveAccounts([account])
+        try authData.write(to: repository.paths.codexAuthFile, options: .atomic)
+        return account
     }
 }
 

@@ -106,13 +106,14 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
-    func installCurrentAccountOnHostRequestUsesDeferredCancelCopy() {
+    func installCurrentAccountOnHostRequestExplainsCancelAbortsSetup() {
         let request = factory.makeInstallCurrentAccountOnHostRequest(accountName: "Business 1", hostName: "buildbox")
 
         #expect(request.messageText == "Install current account on buildbox?")
         #expect(request.informativeText.contains("install and switch Business 1 on buildbox now"))
+        #expect(request.informativeText.contains("the host will not be added yet"))
         #expect(request.confirmTitle == "Install and Switch")
-        #expect(request.cancelTitle == "Later")
+        #expect(request.cancelTitle == "Cancel")
     }
 
     @Test

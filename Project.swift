@@ -29,7 +29,6 @@ let project = Project(
             resources: [
                 "Resources/AppIcon.icns",
                 "Resources/AppIcon.png",
-                "Resources/CodexMono.svg",
             ],
             settings: .settings(base: [
                 "CODE_SIGN_INJECT_BASE_ENTITLEMENTS": "NO",

@@ -324,10 +324,10 @@ final class AppSettings {
         } else if storedStyle == "splitCapsule" {
             statusBarIndicatorStyle = .twinPills
         } else {
-            statusBarIndicatorStyle = storedStyle.flatMap(StatusBarIndicatorStyle.init(rawValue:)) ?? .dualArcBadge
+            statusBarIndicatorStyle = storedStyle.flatMap(StatusBarIndicatorStyle.init(rawValue:)) ?? .twinPills
         }
 
-        statusBarMonochrome = userDefaults.bool(forKey: Self.statusBarMonochromeKey)
+        statusBarMonochrome = userDefaults.object(forKey: Self.statusBarMonochromeKey) as? Bool ?? true
         statusBarDisplayMode = userDefaults.string(forKey: Self.statusBarDisplayModeKey)
             .flatMap(StatusBarDisplayMode.init(rawValue:)) ?? .textOnHover
 

@@ -6,6 +6,15 @@ import Testing
 @MainActor
 struct AppSettingsTests {
     @Test
+    func statusBarDefaultsUseTwinPillsAndMonochrome() {
+        let defaults = makeDefaults()
+        let settings = AppSettings(userDefaults: defaults)
+
+        #expect(settings.statusBarIndicatorStyle == .twinPills)
+        #expect(settings.statusBarMonochrome)
+    }
+
+    @Test
     func progressAccentColorDefaultAndReset() {
         let defaults = makeDefaults()
         let settings = AppSettings(userDefaults: defaults)
