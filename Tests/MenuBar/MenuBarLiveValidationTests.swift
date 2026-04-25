@@ -497,6 +497,89 @@ struct MenuBarLiveValidationTests {
     }
 
     @Test
+    func enableNotificationsRequestsAuthorizationAndTurnsOnDefaultModesWhenUndetermined() async throws {
+        let repository = try makeIsolatedRepository()
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
+        )
+        let suiteName = "MenuBarLiveValidationEnableNotifications-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        let center = RecordingUserNotificationCenter()
+        center.authorizationStatus = .notDetermined
+        let opener = RecordingNotificationSettingsOpener()
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            alertPresenter: TestMenuBarAlertPresenter(),
+            notificationDelivery: AccountAvailabilityNotificationCenter(center: center),
+            notificationSettingsOpener: opener,
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.enableNotifications(NSMenuItem())
+        try await Task.sleep(for: .milliseconds(50))
+
+        #expect(settings.notificationsWhenBlockedEnabled)
+        #expect(settings.notificationsWhenOutEnabled)
+        #expect(center.requestAuthorizationCallCount == 1)
+        #expect(opener.openCallCount == 0)
+    }
+
+    @Test
+    func enableNotificationsOpensSystemSettingsWhenAuthorizationWasDenied() async throws {
+        let repository = try makeIsolatedRepository()
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
+        )
+        let suiteName = "MenuBarLiveValidationDeniedNotifications-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        settings.notificationsWhenBlockedEnabled = true
+        let center = RecordingUserNotificationCenter()
+        center.authorizationStatus = .denied
+        let opener = RecordingNotificationSettingsOpener()
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            alertPresenter: TestMenuBarAlertPresenter(),
+            notificationDelivery: AccountAvailabilityNotificationCenter(center: center),
+            notificationSettingsOpener: opener,
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.enableNotifications(NSMenuItem())
+        try await Task.sleep(for: .milliseconds(50))
+
+        #expect(settings.notificationsWhenBlockedEnabled)
+        #expect(!settings.notificationsWhenOutEnabled)
+        #expect(center.requestAuthorizationCallCount == 0)
+        #expect(opener.openCallCount == 1)
+    }
+
+    @Test
     func notificationCopyRendererExplainsWhenOutForRemoteTarget() {
         let renderer = AccountAvailabilityNotificationCopyRenderer()
         let drainingAccountID = UUID()
@@ -2322,12 +2405,18 @@ private final class RecordingValidationSink: @unchecked Sendable, MenuBarValidat
 }
 
 private final class RecordingUserNotificationCenter: @unchecked Sendable, UserNotificationCentering {
+    var authorizationStatus: UNAuthorizationStatus = .notDetermined
     private(set) var requestAuthorizationCallCount = 0
     private(set) var addedRequests: [UNNotificationRequest] = []
     private(set) var notificationCategories: Set<UNNotificationCategory> = []
 
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        authorizationStatus
+    }
+
     func requestAuthorization(options _: UNAuthorizationOptions) async throws -> Bool {
         requestAuthorizationCallCount += 1
+        authorizationStatus = .authorized
         return true
     }
 
@@ -2345,6 +2434,14 @@ private final class RecordingApplicationForegrounder: ApplicationForegrounding {
 
     func activate() {
         activateCallCount += 1
+    }
+}
+
+private final class RecordingNotificationSettingsOpener: NotificationSettingsOpening {
+    private(set) var openCallCount = 0
+
+    func openNotificationSettings() {
+        openCallCount += 1
     }
 }
 

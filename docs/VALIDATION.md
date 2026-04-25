@@ -267,10 +267,10 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `notifications.policy.selects_single_best_account`
 
 - `feature`: `notifications`
-- `rule`: Notification policy is account-centric, selects one best saved account using the shared availability ranking logic, ignores barely usable candidates below the shared headroom threshold, may defer delivery for up to 20 minutes when a meaningfully better account becomes available soon, and still surfaces the best already-usable fallback when the current account becomes out of capacity.
+- `rule`: Notification policy is account-centric, selects one best currently usable saved account using the shared availability ranking logic, ignores barely usable candidates below the fixed headroom threshold, does not wait for future resets, and still surfaces the best already-usable fallback when the current account becomes out of capacity.
 - `owner_layer`: `unit`
 - `proofs_required`: `["unit"]`
-- `scenarios`: `["blocked_to_unblocked", "weak_candidate_suppressed", "better_candidate_within_wait_window"]`
+- `scenarios`: `["blocked_to_unblocked", "weak_candidate_suppressed", "future_reset_does_not_defer_notification"]`
 
 ### `notifications.policy.when_out_uses_local_and_verified_remote_activity`
 
@@ -303,6 +303,14 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `owner_layer`: `integration`
 - `proofs_required`: `["integration"]`
 - `scenarios`: `["first_toggle_enable", "second_toggle_enable_after_first"]`
+
+### `notifications.delivery.enable_entry_recovers_permission`
+
+- `feature`: `notifications`
+- `rule`: The Notifications submenu exposes a simple `Enable Notifications…` action when app notification workflows are off or macOS notification authorization is denied; the action enables default app notification workflows when needed, requests macOS authorization when not determined, and opens System Settings instead of re-requesting when authorization was denied.
+- `owner_layer`: `integration`
+- `proofs_required`: `["unit", "integration"]`
+- `scenarios`: `["menu_enable_entry_visibility", "not_determined_requests_authorization", "denied_opens_system_settings"]`
 
 ### `notifications.delivery.renders_policy_output_without_recomputing_selection`
 

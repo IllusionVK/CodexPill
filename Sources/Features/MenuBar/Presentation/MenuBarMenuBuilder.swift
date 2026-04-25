@@ -299,6 +299,17 @@ struct MenuBarMenuBuilder {
 
         let submenu = configuredMenu(title: "Notifications")
 
+        if shouldShowEnableNotificationsItem(state) {
+            let enableNotifications = NSMenuItem(
+                title: "Enable Notifications…",
+                action: #selector(MenuBarCoordinator.enableNotifications(_:)),
+                keyEquivalent: ""
+            )
+            enableNotifications.target = target
+            submenu.addItem(enableNotifications)
+            submenu.addItem(.separator())
+        }
+
         let whenBlocked = NSMenuItem(
             title: "Account Available",
             action: #selector(MenuBarCoordinator.toggleNotificationsWhenBlocked(_:)),
@@ -319,6 +330,21 @@ struct MenuBarMenuBuilder {
 
         item.submenu = submenu
         return item
+    }
+
+    private func shouldShowEnableNotificationsItem(_ state: MenuBarMenuState) -> Bool {
+        if !state.notificationsWhenBlockedEnabled && !state.notificationsWhenOutEnabled {
+            return true
+        }
+
+        switch state.notificationAuthorizationState {
+        case .notDetermined, .denied:
+            return true
+        case .authorized:
+            return false
+        case .unknown:
+            return false
+        }
     }
 
     private func configuredHostMenuItem(_ remoteHost: RemoteHostMenuState, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {

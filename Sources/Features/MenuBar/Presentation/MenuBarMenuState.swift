@@ -1,5 +1,12 @@
 import AppKit
 
+enum NotificationAuthorizationState: Equatable {
+    case notDetermined
+    case authorized
+    case denied
+    case unknown
+}
+
 enum RemoteHostConnectionState: String, Codable, Equatable {
     case connected
     case disconnected
@@ -98,6 +105,7 @@ struct MenuBarMenuState {
     let statusMessage: String
     let notificationsWhenBlockedEnabled: Bool
     let notificationsWhenOutEnabled: Bool
+    let notificationAuthorizationState: NotificationAuthorizationState
 
     init(
         activeAccount: CodexAccount?,
@@ -115,7 +123,8 @@ struct MenuBarMenuState {
         isBusy: Bool,
         statusMessage: String,
         notificationsWhenBlockedEnabled: Bool = false,
-        notificationsWhenOutEnabled: Bool = false
+        notificationsWhenOutEnabled: Bool = false,
+        notificationAuthorizationState: NotificationAuthorizationState = .unknown
     ) {
         self.activeAccount = activeAccount
         self.inactiveAccounts = inactiveAccounts
@@ -133,6 +142,7 @@ struct MenuBarMenuState {
         self.statusMessage = statusMessage
         self.notificationsWhenBlockedEnabled = notificationsWhenBlockedEnabled
         self.notificationsWhenOutEnabled = notificationsWhenOutEnabled
+        self.notificationAuthorizationState = notificationAuthorizationState
     }
 
     var canSaveCurrentAccount: Bool {

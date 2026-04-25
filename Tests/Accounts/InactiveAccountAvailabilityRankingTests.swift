@@ -312,7 +312,7 @@ struct InactiveAccountAvailabilityRankingTests {
     }
 
     @Test
-    func notificationPolicyWaitsForMeaningfullyBetterAccountWithinConfiguredWindow() {
+    func notificationPolicyDoesNotWaitForBetterFutureAccount() {
         let service = AccountAvailabilityService()
         let policy = AccountAvailabilityNotificationPolicy()
         let now = Date()
@@ -358,9 +358,9 @@ struct InactiveAccountAvailabilityRankingTests {
             now: now
         )
 
-        #expect(decision?.shouldNotify == false)
-        #expect(decision?.account.name == "Business 4")
-        #expect(decision?.waitUntil == betterResetAt)
+        #expect(decision?.shouldNotify == true)
+        #expect(decision?.account.name == "Business 2")
+        #expect(decision?.waitUntil == nil)
     }
 
     @Test

@@ -122,19 +122,13 @@ struct ActiveAccountAvailabilityContext: Equatable {
 struct AccountAvailabilityNotificationSettings: Equatable {
     var whenBlockedEnabled: Bool
     var whenOutEnabled: Bool
-    var minimumRemainingPercent: Int
-    var betterAccountWaitWindow: TimeInterval
 
     init(
         whenBlockedEnabled: Bool = false,
-        whenOutEnabled: Bool = false,
-        minimumRemainingPercent: Int = 10,
-        betterAccountWaitWindow: TimeInterval = 20 * 60
+        whenOutEnabled: Bool = false
     ) {
         self.whenBlockedEnabled = whenBlockedEnabled
         self.whenOutEnabled = whenOutEnabled
-        self.minimumRemainingPercent = minimumRemainingPercent
-        self.betterAccountWaitWindow = betterAccountWaitWindow
     }
 }
 
@@ -400,6 +394,7 @@ struct AccountAvailabilityService {
 
 struct AccountAvailabilityNotificationPolicy {
     private let ranking = InactiveAccountAvailabilityRanking()
+    private static let minimumUsableRemainingPercent = 10
 
     func decision(
         previousSnapshots: [AccountAvailabilitySnapshot],
@@ -414,13 +409,13 @@ struct AccountAvailabilityNotificationPolicy {
 
         let currentCandidates = notificationCandidates(
             from: currentSnapshots,
-            minimumRemainingPercent: settings.minimumRemainingPercent,
+            minimumRemainingPercent: Self.minimumUsableRemainingPercent,
             now: now
         )
         let previousCandidateIDs = Set(
             notificationCandidates(
                 from: previousSnapshots,
-                minimumRemainingPercent: settings.minimumRemainingPercent,
+                minimumRemainingPercent: Self.minimumUsableRemainingPercent,
                 now: now
             ).map(\.snapshot.account.id)
         )
@@ -428,7 +423,7 @@ struct AccountAvailabilityNotificationPolicy {
         if settings.whenBlockedEnabled,
            hadNoNotificationWorthyAccounts(
                in: previousSnapshots,
-               minimumRemainingPercent: settings.minimumRemainingPercent,
+               minimumRemainingPercent: Self.minimumUsableRemainingPercent,
                now: now
            ),
            let bestCurrent = bestCandidate(from: currentCandidates, now: now) {
@@ -436,19 +431,9 @@ struct AccountAvailabilityNotificationPolicy {
                 for: bestCurrent.snapshot,
                 activeAccounts: activeAccounts,
                 currentSnapshots: currentSnapshots,
-                minimumRemainingPercent: settings.minimumRemainingPercent,
+                minimumRemainingPercent: Self.minimumUsableRemainingPercent,
                 now: now
             )
-            if let waitDecision = waitDecision(
-                currentBest: bestCurrent,
-                among: currentSnapshots,
-                reason: .whenBlocked,
-                actions: actions,
-                settings: settings,
-                now: now
-            ) {
-                return waitDecision
-            }
 
             return AccountAvailabilityNotificationDecision(
                 shouldNotify: true,
@@ -500,19 +485,9 @@ struct AccountAvailabilityNotificationPolicy {
             for: bestAlternative.snapshot,
             activeAccounts: activeAccounts,
             currentSnapshots: currentSnapshots,
-            minimumRemainingPercent: settings.minimumRemainingPercent,
+            minimumRemainingPercent: Self.minimumUsableRemainingPercent,
             now: now
         )
-        if let waitDecision = waitDecision(
-            currentBest: bestAlternative,
-            among: currentSnapshots,
-            reason: .whenOut,
-            actions: actions,
-            settings: settings,
-            now: now
-        ) {
-            return waitDecision
-        }
 
         return AccountAvailabilityNotificationDecision(
             shouldNotify: true,
@@ -533,7 +508,7 @@ struct AccountAvailabilityNotificationPolicy {
         bestCandidate(
             from: notificationCandidates(
                 from: snapshots,
-                minimumRemainingPercent: settings.minimumRemainingPercent,
+                minimumRemainingPercent: Self.minimumUsableRemainingPercent,
                 now: now
             ),
             now: now
@@ -551,7 +526,7 @@ struct AccountAvailabilityNotificationPolicy {
             for: snapshot,
             activeAccounts: activeAccounts,
             currentSnapshots: currentSnapshots,
-            minimumRemainingPercent: settings.minimumRemainingPercent,
+            minimumRemainingPercent: Self.minimumUsableRemainingPercent,
             now: now
         )
     }
@@ -682,57 +657,6 @@ struct AccountAvailabilityNotificationPolicy {
         }
     }
 
-    private func waitDecision(
-        currentBest: NotificationCandidate,
-        among snapshots: [AccountAvailabilitySnapshot],
-        reason: AccountAvailabilityNotificationReason,
-        actions: [AccountAvailabilityNotificationActionSuggestion],
-        settings: AccountAvailabilityNotificationSettings,
-        now: Date
-    ) -> AccountAvailabilityNotificationDecision? {
-        let horizon = now.addingTimeInterval(settings.betterAccountWaitWindow)
-
-        let betterFutureCandidates = snapshots.compactMap { snapshot -> NotificationCandidate? in
-            let futureAvailability = earliestFutureNotificationAvailability(
-                in: snapshot,
-                minimumRemainingPercent: settings.minimumRemainingPercent,
-                horizon: horizon,
-                now: now
-            )
-            guard let futureAvailability else {
-                return nil
-            }
-
-            if snapshot.account.id == currentBest.snapshot.account.id {
-                return nil
-            }
-
-            let availableAt = ranking.sortKey(for: futureAvailability.sourceAvailability, now: now).effectiveAvailableAt
-            return NotificationCandidate(
-                snapshot: snapshot,
-                availability: futureAvailability.projectedAvailability,
-                availableAt: availableAt
-            )
-        }
-
-        guard let betterFuture = bestCandidate(from: betterFutureCandidates, now: now),
-              ranking.compare(betterFuture.availability, currentBest.availability, now: now),
-              let waitUntil = betterFuture.availableAt,
-              waitUntil <= horizon else {
-            return nil
-        }
-
-        return AccountAvailabilityNotificationDecision(
-            shouldNotify: false,
-            account: betterFuture.snapshot.account,
-            reason: reason,
-            window: notificationWindow(for: betterFuture.availability),
-            waitUntil: waitUntil,
-            suggestedActions: actions,
-            triggerContext: nil
-        )
-    }
-
     private func whenOutTriggerContext(
         from activeAccounts: [ActiveAccountAvailabilityContext],
         snapshots: [AccountAvailabilitySnapshot]
@@ -767,47 +691,6 @@ struct AccountAvailabilityNotificationPolicy {
 
     private func notificationWindow(for availability: AccountTargetAvailability) -> AccountAvailabilityNotificationWindow {
         AccountAvailabilityNotificationWindow(
-            sessionResetAt: availability.sessionResetAt,
-            weeklyResetAt: availability.weeklyResetAt
-        )
-    }
-
-    private func earliestFutureNotificationAvailability(
-        in snapshot: AccountAvailabilitySnapshot,
-        minimumRemainingPercent: Int,
-        horizon: Date,
-        now: Date
-    ) -> ProjectedNotificationAvailability? {
-        snapshot.targetAvailabilities
-            .compactMap { availability -> ProjectedNotificationAvailability? in
-                let availableAt = ranking.sortKey(for: availability, now: now).effectiveAvailableAt
-                guard availableAt > now,
-                      availableAt <= horizon,
-                      isNotificationWorthy(availability, minimumRemainingPercent: minimumRemainingPercent, at: availableAt) else {
-                    return nil
-                }
-                return ProjectedNotificationAvailability(
-                    sourceAvailability: availability,
-                    projectedAvailability: projectedAvailability(from: availability, at: availableAt)
-                )
-            }
-            .min { lhs, rhs in
-                if ranking.compare(lhs.projectedAvailability, rhs.projectedAvailability, now: now) {
-                    return true
-                }
-                if ranking.compare(rhs.projectedAvailability, lhs.projectedAvailability, now: now) {
-                    return false
-                }
-                return stableTargetOrdering(lhs.projectedAvailability.target) < stableTargetOrdering(rhs.projectedAvailability.target)
-            }
-    }
-
-    private func projectedAvailability(from availability: AccountTargetAvailability, at date: Date) -> AccountTargetAvailability {
-        AccountTargetAvailability(
-            target: availability.target,
-            status: projectedStatus(of: availability, at: date),
-            sessionUsedPercent: projectedUsedPercent(for: availability.sessionUsedPercent, resetAt: availability.sessionResetAt, at: date),
-            weeklyUsedPercent: projectedUsedPercent(for: availability.weeklyUsedPercent, resetAt: availability.weeklyResetAt, at: date),
             sessionResetAt: availability.sessionResetAt,
             weeklyResetAt: availability.weeklyResetAt
         )
@@ -1102,9 +985,4 @@ private struct NotificationCandidate {
     let snapshot: AccountAvailabilitySnapshot
     let availability: AccountTargetAvailability
     let availableAt: Date?
-}
-
-private struct ProjectedNotificationAvailability {
-    let sourceAvailability: AccountTargetAvailability
-    let projectedAvailability: AccountTargetAvailability
 }

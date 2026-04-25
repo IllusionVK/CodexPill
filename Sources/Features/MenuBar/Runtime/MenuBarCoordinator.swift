@@ -76,6 +76,7 @@ struct AccountAvailabilityNotificationCopyRenderer {
 }
 
 protocol AccountAvailabilityNotificationDelivering {
+    func authorizationState() async -> NotificationAuthorizationState
     func requestAuthorizationIfNeeded() async
     func deliver(_ payload: AccountAvailabilityNotificationPayload) async -> Bool
 }
@@ -84,13 +85,26 @@ protocol ApplicationForegrounding {
     func activate()
 }
 
+protocol NotificationSettingsOpening {
+    func openNotificationSettings()
+}
+
 protocol UserNotificationCentering: AnyObject {
+    func authorizationStatus() async -> UNAuthorizationStatus
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
     func add(_ request: UNNotificationRequest) async throws
     func setNotificationCategories(_ categories: Set<UNNotificationCategory>)
 }
 
 extension UNUserNotificationCenter: UserNotificationCentering {
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await withCheckedContinuation { continuation in
+            getNotificationSettings { settings in
+                continuation.resume(returning: settings.authorizationStatus)
+            }
+        }
+    }
+
     func add(_ request: UNNotificationRequest) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             add(request) { error in
@@ -110,12 +124,34 @@ struct NSApplicationForegrounder: ApplicationForegrounding {
     }
 }
 
+struct SystemNotificationSettingsOpener: NotificationSettingsOpening {
+    func openNotificationSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") else {
+            return
+        }
+        NSWorkspace.shared.open(url)
+    }
+}
+
 final class AccountAvailabilityNotificationCenter: AccountAvailabilityNotificationDelivering {
     private let center: UserNotificationCentering
     private var hasRequestedAuthorization = false
 
     init(center: UserNotificationCentering = UNUserNotificationCenter.current()) {
         self.center = center
+    }
+
+    func authorizationState() async -> NotificationAuthorizationState {
+        switch await center.authorizationStatus() {
+        case .notDetermined:
+            return .notDetermined
+        case .denied:
+            return .denied
+        case .authorized, .provisional, .ephemeral:
+            return .authorized
+        @unknown default:
+            return .unknown
+        }
     }
 
     func requestAuthorizationIfNeeded() async {
@@ -335,6 +371,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let notificationStateStore: NotificationStateStore
     private let notificationDelivery: AccountAvailabilityNotificationDelivering
     private let applicationForegrounder: ApplicationForegrounding
+    private let notificationSettingsOpener: NotificationSettingsOpening
     private let validationSink: MenuBarValidationSink?
     private let validationScenario: String?
     private let allowsEmptyStatePrompt: Bool
@@ -360,6 +397,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private var pendingSwitchValidationTargetName: String?
     private var remoteHostConnectionStates: [String: RemoteHostConnectionState] = [:]
     private var previousNotificationSnapshots: [UUID: AccountAvailabilitySnapshot] = [:]
+    private var cachedNotificationAuthorizationState: NotificationAuthorizationState = .unknown
 
     init(
         statusItemRuntime: StatusItemRuntime,
@@ -371,6 +409,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         alertFactory: MenuBarAlertFactory = MenuBarAlertFactory(),
         notificationDelivery: AccountAvailabilityNotificationDelivering = AccountAvailabilityNotificationCenter(),
         applicationForegrounder: ApplicationForegrounding = NSApplicationForegrounder(),
+        notificationSettingsOpener: NotificationSettingsOpening = SystemNotificationSettingsOpener(),
         validationSink: MenuBarValidationSink? = nil,
         validationScenario: String? = MenuBarValidationConfiguration.scenario(),
         allowsEmptyStatePrompt: Bool = true
@@ -385,6 +424,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.notificationStateStore = NotificationStateStore(settings: settings)
         self.notificationDelivery = notificationDelivery
         self.applicationForegrounder = applicationForegrounder
+        self.notificationSettingsOpener = notificationSettingsOpener
         self.validationSink = validationSink
         self.validationScenario = validationScenario
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
@@ -404,6 +444,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         rebuildMenu()
         scheduleAutoRefresh()
         syncBackgroundState()
+        refreshNotificationAuthorizationState()
         refreshRemoteHostStateIfNeeded()
     }
 
@@ -595,7 +636,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         let hadAnyNotificationsEnabled = notificationStateStore.whenBlockedEnabled || notificationStateStore.whenOutEnabled
         notificationStateStore.whenBlockedEnabled.toggle()
         if !hadAnyNotificationsEnabled, notificationStateStore.whenBlockedEnabled {
-            Task { await notificationDelivery.requestAuthorizationIfNeeded() }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                await self.notificationDelivery.requestAuthorizationIfNeeded()
+                self.refreshNotificationAuthorizationState()
+            }
         }
     }
 
@@ -605,7 +650,35 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         let hadAnyNotificationsEnabled = notificationStateStore.whenBlockedEnabled || notificationStateStore.whenOutEnabled
         notificationStateStore.whenOutEnabled.toggle()
         if !hadAnyNotificationsEnabled, notificationStateStore.whenOutEnabled {
-            Task { await notificationDelivery.requestAuthorizationIfNeeded() }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                await self.notificationDelivery.requestAuthorizationIfNeeded()
+                self.refreshNotificationAuthorizationState()
+            }
+        }
+    }
+
+    @objc
+    func enableNotifications(_ sender: NSMenuItem) {
+        recordMenuAction("enableNotifications")
+        if !notificationStateStore.whenBlockedEnabled && !notificationStateStore.whenOutEnabled {
+            notificationStateStore.whenBlockedEnabled = true
+            notificationStateStore.whenOutEnabled = true
+        }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            var state = await self.notificationDelivery.authorizationState()
+            switch state {
+            case .denied:
+                self.notificationSettingsOpener.openNotificationSettings()
+            case .notDetermined, .unknown:
+                await self.notificationDelivery.requestAuthorizationIfNeeded()
+                state = await self.notificationDelivery.authorizationState()
+            case .authorized:
+                break
+            }
+            self.cachedNotificationAuthorizationState = state
+            self.rebuildMenu()
         }
     }
 
@@ -1096,7 +1169,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             isBusy: store.isBusy,
             statusMessage: store.statusMessage,
             notificationsWhenBlockedEnabled: notificationStateStore.whenBlockedEnabled,
-            notificationsWhenOutEnabled: notificationStateStore.whenOutEnabled
+            notificationsWhenOutEnabled: notificationStateStore.whenOutEnabled,
+            notificationAuthorizationState: cachedNotificationAuthorizationState
         )
     }
 
@@ -1498,6 +1572,16 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled else { return }
             self.performScheduledRefresh()
+        }
+    }
+
+    private func refreshNotificationAuthorizationState() {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let state = await self.notificationDelivery.authorizationState()
+            guard self.cachedNotificationAuthorizationState != state else { return }
+            self.cachedNotificationAuthorizationState = state
+            self.rebuildMenu()
         }
     }
 

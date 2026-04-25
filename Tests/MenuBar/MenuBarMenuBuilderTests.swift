@@ -264,6 +264,79 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func notificationsSubmenuShowsEnableNotificationsWhenAppNotificationsAreOff() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                notificationAuthorizationState: .authorized
+            ),
+            target: coordinator
+        )
+
+        let submenu = try notificationsSubmenu(in: menu)
+        let enable = try #require(submenu.items.first(where: { $0.title == "Enable Notifications…" }))
+
+        #expect(enable.action == #selector(MenuBarCoordinator.enableNotifications(_:)))
+    }
+
+    @Test
+    func notificationsSubmenuShowsEnableNotificationsWhenAppNotificationsAreOffAndAuthorizationUnknown() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                notificationAuthorizationState: .unknown
+            ),
+            target: coordinator
+        )
+
+        let submenu = try notificationsSubmenu(in: menu)
+        let enable = try #require(submenu.items.first(where: { $0.title == "Enable Notifications…" }))
+
+        #expect(enable.action == #selector(MenuBarCoordinator.enableNotifications(_:)))
+    }
+
+    @Test
+    func notificationsSubmenuHidesEnableNotificationsWhenAppNotificationsAreOnAndAuthorized() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                notificationsWhenBlockedEnabled: true,
+                notificationAuthorizationState: .authorized
+            ),
+            target: coordinator
+        )
+
+        let submenu = try notificationsSubmenu(in: menu)
+
+        #expect(!submenu.items.contains(where: { $0.title == "Enable Notifications…" }))
+    }
+
+    @Test
+    func notificationsSubmenuShowsEnableNotificationsWhenMacNotificationsAreDenied() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                notificationsWhenBlockedEnabled: true,
+                notificationAuthorizationState: .denied
+            ),
+            target: coordinator
+        )
+
+        let submenu = try notificationsSubmenu(in: menu)
+        let enable = try #require(submenu.items.first(where: { $0.title == "Enable Notifications…" }))
+
+        #expect(enable.action == #selector(MenuBarCoordinator.enableNotifications(_:)))
+    }
+
+    @Test
     func visibleAccountsUseNativeSubmenusForSwitching() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
@@ -1135,6 +1208,11 @@ struct MenuBarMenuBuilderTests {
             .submenu
     }
 
+    private func notificationsSubmenu(in menu: NSMenu) throws -> NSMenu {
+        let item = try #require(menu.items.first(where: { $0.title == "Notifications" }))
+        return try #require(item.submenu)
+    }
+
     private func makeCoordinator() throws -> MenuBarCoordinator {
         try makeCoordinatorWithStatusItem().0
     }
@@ -1177,7 +1255,8 @@ struct MenuBarMenuBuilderTests {
         progressAccentColor: NSColor = .controlAccentColor,
         hasCustomProgressAccentColor: Bool = false,
         notificationsWhenBlockedEnabled: Bool = false,
-        notificationsWhenOutEnabled: Bool = false
+        notificationsWhenOutEnabled: Bool = false,
+        notificationAuthorizationState: NotificationAuthorizationState = .unknown
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
@@ -1195,7 +1274,8 @@ struct MenuBarMenuBuilderTests {
             isBusy: false,
             statusMessage: "Ready",
             notificationsWhenBlockedEnabled: notificationsWhenBlockedEnabled,
-            notificationsWhenOutEnabled: notificationsWhenOutEnabled
+            notificationsWhenOutEnabled: notificationsWhenOutEnabled,
+            notificationAuthorizationState: notificationAuthorizationState
         )
     }
 
