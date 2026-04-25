@@ -1,0 +1,363 @@
+import Foundation
+import os
+import SealRecorder
+
+private let codexPillSealValidationLogger = Logger(
+    subsystem: "com.raphhgg.codexpill",
+    category: "SealValidation"
+)
+
+enum CodexPillSealValidationConfiguration {
+    static let proofOutputPathEnvironmentKey = "CODEXPILL_SEAL_PROOF_OUTPUT"
+
+    @MainActor
+    static func makeRun(environment: [String: String] = ProcessInfo.processInfo.environment) -> CodexPillSealValidationRun? {
+        guard let legacyScenario = MenuBarValidationConfiguration.scenario(environment: environment),
+              let scenario = CodexPillSealScenario(legacyScenario: legacyScenario),
+              let proofOutputPath = environment[proofOutputPathEnvironmentKey],
+              !proofOutputPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            return nil
+        }
+
+        return try? CodexPillSealValidationRun(
+            scenario: scenario,
+            outputDirectory: URL(fileURLWithPath: proofOutputPath)
+        )
+    }
+}
+
+@MainActor
+final class CodexPillSealValidationRun {
+    private static let featureID = FeatureID("accounts")
+
+    private let scenario: CodexPillSealScenario
+    private let run: SealRun
+    private var didRecordAccountBefore = false
+    private var didFinish = false
+
+    convenience init(outputDirectory: URL) throws {
+        try self.init(scenario: .saveCurrentAccountNameDialogCancelled, outputDirectory: outputDirectory)
+    }
+
+    fileprivate init(scenario: CodexPillSealScenario, outputDirectory: URL) throws {
+        self.scenario = scenario
+        try SealRecorder.register(features: [Self.feature(scenarios: [scenario])])
+        run = try SealRecorder.startRun(
+            feature: Self.featureID,
+            scenario: scenario.id,
+            executionMode: .liveUI,
+            outputDirectory: outputDirectory
+        )
+    }
+
+    func recordSaveCurrentAccountMenuAction(
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount]
+    ) {
+        guard !didFinish else { return }
+        do {
+            try run.recordEvent(
+                "menu_action_dispatched",
+                step: "menu_action_dispatch",
+                invariantIds: [scenario.nameDialogPresentedID],
+                payload: [
+                    "action": .string(scenario.menuAction),
+                    "activeAccountId": .string(activeAccount?.id.uuidString ?? "")
+                ]
+            )
+            if !didRecordAccountBefore {
+                try run.recordSnapshot(
+                    id: EvidenceID("account_before"),
+                    path: "evidence/account-before.json",
+                    value: AccountStateSnapshot(activeAccount: activeAccount, savedAccounts: savedAccounts)
+                )
+                didRecordAccountBefore = true
+            }
+        } catch {
+            codexPillSealValidationLogger.error("Failed to record Seal menu action proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func recordSaveCurrentAccountNameDialogPresented(activeAccountEmail: String?) {
+        guard !didFinish else { return }
+        recordNameDialogPresented(additionalPayload: [
+            "activeAccountEmail": .string(activeAccountEmail ?? "")
+        ])
+    }
+
+    func recordSaveCurrentAccountNameDialogCancelled(
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount]
+    ) {
+        recordNameDialogCancelled(activeAccount: activeAccount, savedAccounts: savedAccounts)
+    }
+
+    func recordAddAccountMenuAction(
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount]
+    ) {
+        guard !didFinish else { return }
+        do {
+            try run.recordEvent(
+                "menu_action_dispatched",
+                step: "menu_action_dispatch",
+                invariantIds: [scenario.nameDialogPresentedID],
+                payload: [
+                    "action": .string(scenario.menuAction),
+                    "activeAccountId": .string(activeAccount?.id.uuidString ?? "")
+                ]
+            )
+            if !didRecordAccountBefore {
+                try run.recordSnapshot(
+                    id: EvidenceID("account_before"),
+                    path: "evidence/account-before.json",
+                    value: AccountStateSnapshot(activeAccount: activeAccount, savedAccounts: savedAccounts)
+                )
+                didRecordAccountBefore = true
+            }
+        } catch {
+            codexPillSealValidationLogger.error("Failed to record Seal add-account action proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func recordAddAccountNameDialogPresented(runningCLISessions: Int) {
+        guard !didFinish else { return }
+        recordNameDialogPresented(additionalPayload: [
+            "runningCLISessions": .int(runningCLISessions)
+        ])
+    }
+
+    func recordAddAccountNameDialogCancelled(
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount]
+    ) {
+        recordNameDialogCancelled(activeAccount: activeAccount, savedAccounts: savedAccounts)
+    }
+
+    func cancelIfUnfinished() {
+        guard !didFinish else { return }
+        run.cancelIfUnfinished()
+        didFinish = true
+    }
+
+    private func recordNameDialogPresented(additionalPayload: JSONObject) {
+        guard !didFinish else { return }
+        var payload: JSONObject = [
+            "dialogId": .string(scenario.dialogID),
+            "title": .string(scenario.dialogTitle)
+        ]
+        for (key, value) in additionalPayload {
+            payload[key] = value
+        }
+        do {
+            try run.recordEvent(
+                scenario.presentedEventName,
+                step: scenario.dialogStep,
+                invariantIds: [scenario.nameDialogPresentedID],
+                payload: payload
+            )
+        } catch {
+            codexPillSealValidationLogger.error("Failed to record Seal name dialog presentation proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func recordNameDialogCancelled(
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount]
+    ) {
+        guard !didFinish else { return }
+        do {
+            try run.recordEvent(
+                scenario.cancelledEventName,
+                step: scenario.dialogStep,
+                invariantIds: [scenario.nameDialogCancelledID, scenario.cancelKeepsAccountStateID],
+                payload: [
+                    "dialogId": .string(scenario.dialogID),
+                    "activeAccountId": .string(activeAccount?.id.uuidString ?? "")
+                ]
+            )
+            try run.recordSnapshot(
+                id: EvidenceID("name_dialog_snapshot"),
+                path: "evidence/name-dialog-snapshot.json",
+                value: NameDialogSnapshot(
+                    dialogId: scenario.dialogID,
+                    title: scenario.dialogTitle,
+                    wasPresented: true,
+                    finalState: "cancelled"
+                )
+            )
+            try run.recordSnapshot(
+                id: EvidenceID("account_after"),
+                path: "evidence/account-after.json",
+                value: AccountStateSnapshot(activeAccount: activeAccount, savedAccounts: savedAccounts)
+            )
+            try run.finish()
+            didFinish = true
+        } catch {
+            codexPillSealValidationLogger.error("Failed to finish Seal name dialog proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private static func feature(scenarios: [CodexPillSealScenario]) throws -> SealFeature {
+        try SealFeature(
+            id: featureID,
+            scenarios: try scenarios.map(makeScenario)
+        )
+    }
+
+    private static func makeScenario(_ scenario: CodexPillSealScenario) throws -> SealScenario {
+        try SealScenario(
+            id: scenario.id,
+            scenarioType: .failurePath,
+            supportedExecutionModes: [.liveUI],
+            expectations: [
+                try SealExpectation(
+                    text: scenario.presentedAndCancelledExpectation,
+                    invariants: [
+                        SealInvariantRef(
+                            id: scenario.nameDialogPresentedID,
+                            requiredEvidence: [
+                                EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
+                                EvidenceRequirement(id: EvidenceID("name_dialog_snapshot"), kind: .snapshot)
+                            ]
+                        ),
+                        SealInvariantRef(
+                            id: scenario.nameDialogCancelledID,
+                            requiredEvidence: [
+                                EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
+                                EvidenceRequirement(id: EvidenceID("name_dialog_snapshot"), kind: .snapshot)
+                            ]
+                        )
+                    ]
+                ),
+                try SealExpectation(
+                    text: scenario.nonMutatingExpectation,
+                    invariants: [
+                        SealInvariantRef(
+                            id: scenario.cancelKeepsAccountStateID,
+                            requiredEvidence: [
+                                EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
+                                EvidenceRequirement(id: EvidenceID("account_before"), kind: .snapshot),
+                                EvidenceRequirement(id: EvidenceID("account_after"), kind: .snapshot)
+                            ]
+                        )
+                    ]
+                )
+            ]
+        )
+    }
+}
+
+private struct CodexPillSealScenario {
+    let id: ScenarioID
+    let menuAction: String
+    let dialogID: String
+    let dialogTitle: String
+    let dialogStep: String
+    let presentedEventName: String
+    let cancelledEventName: String
+    let nameDialogPresentedID: InvariantID
+    let nameDialogCancelledID: InvariantID
+    let cancelKeepsAccountStateID: InvariantID
+    let presentedAndCancelledExpectation: String
+    let nonMutatingExpectation: String
+
+    private init(
+        id: ScenarioID,
+        menuAction: String,
+        dialogID: String,
+        dialogTitle: String,
+        dialogStep: String,
+        presentedEventName: String,
+        cancelledEventName: String,
+        nameDialogPresentedID: InvariantID,
+        nameDialogCancelledID: InvariantID,
+        cancelKeepsAccountStateID: InvariantID,
+        presentedAndCancelledExpectation: String,
+        nonMutatingExpectation: String
+    ) {
+        self.id = id
+        self.menuAction = menuAction
+        self.dialogID = dialogID
+        self.dialogTitle = dialogTitle
+        self.dialogStep = dialogStep
+        self.presentedEventName = presentedEventName
+        self.cancelledEventName = cancelledEventName
+        self.nameDialogPresentedID = nameDialogPresentedID
+        self.nameDialogCancelledID = nameDialogCancelledID
+        self.cancelKeepsAccountStateID = cancelKeepsAccountStateID
+        self.presentedAndCancelledExpectation = presentedAndCancelledExpectation
+        self.nonMutatingExpectation = nonMutatingExpectation
+    }
+
+    init?(legacyScenario: String) {
+        switch legacyScenario {
+        case "live-save-current-prompt":
+            self = .saveCurrentAccountNameDialogCancelled
+        case "live-sign-in-another-prompt":
+            self = .addAccountNameDialogCancelled
+        default:
+            return nil
+        }
+    }
+
+    static let saveCurrentAccountNameDialogCancelled = CodexPillSealScenario(
+        id: ScenarioID("save-current-account-name-dialog-cancelled"),
+        menuAction: "addCurrentAccount",
+        dialogID: "save_current_account_name",
+        dialogTitle: "Save Current Account",
+        dialogStep: "save_current_account_name_dialog",
+        presentedEventName: "save_current_account_name_dialog_presented",
+        cancelledEventName: "save_current_account_name_dialog_cancelled",
+        nameDialogPresentedID: InvariantID("accounts.save_current_account.name_dialog_presented"),
+        nameDialogCancelledID: InvariantID("accounts.save_current_account.name_dialog_cancelled"),
+        cancelKeepsAccountStateID: InvariantID("accounts.save_current_account.cancel_keeps_account_state"),
+        presentedAndCancelledExpectation: "The Save Current Account name dialog is presented and cancelled",
+        nonMutatingExpectation: "Cancelling the Save Current Account name dialog does not create or change a saved account"
+    )
+
+    static let addAccountNameDialogCancelled = CodexPillSealScenario(
+        id: ScenarioID("add-account-name-dialog-cancelled"),
+        menuAction: "addAccount",
+        dialogID: "add_account_name",
+        dialogTitle: "Add Account",
+        dialogStep: "add_account_name_dialog",
+        presentedEventName: "add_account_name_dialog_presented",
+        cancelledEventName: "add_account_name_dialog_cancelled",
+        nameDialogPresentedID: InvariantID("accounts.add_account.name_dialog_presented"),
+        nameDialogCancelledID: InvariantID("accounts.add_account.name_dialog_cancelled"),
+        cancelKeepsAccountStateID: InvariantID("accounts.add_account.cancel_keeps_account_state"),
+        presentedAndCancelledExpectation: "The Add Account name dialog is presented and cancelled",
+        nonMutatingExpectation: "Cancelling the Add Account name dialog does not create or change a saved account"
+    )
+}
+
+private struct AccountStateSnapshot: Encodable {
+    let activeAccountId: String?
+    let savedAccounts: [SavedAccountSnapshot]
+
+    init(activeAccount: CodexAccount?, savedAccounts: [CodexAccount]) {
+        self.activeAccountId = activeAccount?.id.uuidString
+        self.savedAccounts = savedAccounts.map(SavedAccountSnapshot.init(account:))
+    }
+}
+
+private struct SavedAccountSnapshot: Encodable {
+    let id: String
+    let name: String
+    let email: String?
+
+    init(account: CodexAccount) {
+        self.id = account.id.uuidString
+        self.name = account.name
+        self.email = account.email
+    }
+}
+
+private struct NameDialogSnapshot: Encodable {
+    let dialogId: String
+    let title: String
+    let wasPresented: Bool
+    let finalState: String
+}

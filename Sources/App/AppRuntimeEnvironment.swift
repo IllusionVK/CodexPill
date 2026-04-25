@@ -7,6 +7,8 @@ enum AppRuntimeEnvironment {
     static let validationUserDefaultsSuiteEnvironmentKey = "CODEXPILL_VALIDATION_USER_DEFAULTS_SUITE"
     static let validationSettingsFixtureEnvironmentKey = "CODEXPILL_VALIDATION_SETTINGS_FIXTURE"
     static let validationRemoteHostClientEnvironmentKey = "CODEXPILL_VALIDATION_REMOTE_HOST_CLIENT"
+    static let validationTriggerSaveCurrentPromptEnvironmentKey = "CODEXPILL_VALIDATION_TRIGGER_SAVE_CURRENT_PROMPT"
+    static let validationAllowInteractiveAlertsEnvironmentKey = "CODEXPILL_VALIDATION_ALLOW_INTERACTIVE_ALERTS"
     static let xctestConfigurationFilePathEnvironmentKey = "XCTestConfigurationFilePath"
 
     static func shouldSuppressEmptyStatePrompt(
@@ -68,6 +70,18 @@ enum AppRuntimeEnvironment {
         return false
     }
 
+    static func shouldTriggerSaveCurrentPromptValidation(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Bool {
+        guard let rawValue = environment[validationTriggerSaveCurrentPromptEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() else {
+            return false
+        }
+
+        return ["1", "true", "yes"].contains(rawValue)
+    }
+
     static func isRunningAutomatedTests(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         classLookup: (String) -> AnyClass? = NSClassFromString
@@ -93,9 +107,24 @@ enum AppRuntimeEnvironment {
     }
 
     static func shouldSuppressInteractiveAlerts(
-        environment: [String: String] = ProcessInfo.processInfo.environment
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        classLookup: (String) -> AnyClass? = NSClassFromString
     ) -> Bool {
-        isRunningAutomatedTests(environment: environment) || MenuBarValidationConfiguration.makeSink(environment: environment) != nil
+        if isRunningAutomatedTests(environment: environment, classLookup: classLookup) {
+            return true
+        }
+
+        let hasValidationSink = MenuBarValidationConfiguration.makeSink(environment: environment) != nil
+
+        if let rawValue = environment[validationAllowInteractiveAlertsEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased(),
+           ["1", "true", "yes"].contains(rawValue),
+           hasValidationSink {
+            return false
+        }
+
+        return hasValidationSink
     }
 
     private static func trimmedURLValue(

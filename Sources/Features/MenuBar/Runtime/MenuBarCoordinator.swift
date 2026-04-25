@@ -374,6 +374,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let notificationSettingsOpener: NotificationSettingsOpening
     private let validationSink: MenuBarValidationSink?
     private let validationScenario: String?
+    private let sealValidationRun: CodexPillSealValidationRun?
     private let allowsEmptyStatePrompt: Bool
     private let remoteHostAccountVerifier = RemoteHostAccountVerifier()
     private let savedAccountRelinker = SavedAccountRelinker()
@@ -412,6 +413,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         notificationSettingsOpener: NotificationSettingsOpening = SystemNotificationSettingsOpener(),
         validationSink: MenuBarValidationSink? = nil,
         validationScenario: String? = MenuBarValidationConfiguration.scenario(),
+        sealValidationRun: CodexPillSealValidationRun? = nil,
         allowsEmptyStatePrompt: Bool = true
     ) {
         self.statusItemRuntime = statusItemRuntime
@@ -427,6 +429,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.notificationSettingsOpener = notificationSettingsOpener
         self.validationSink = validationSink
         self.validationScenario = validationScenario
+        self.sealValidationRun = sealValidationRun ?? CodexPillSealValidationConfiguration.makeRun()
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
     }
 
@@ -444,6 +447,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         rebuildMenu()
         scheduleAutoRefresh()
         syncBackgroundState()
+        triggerValidationScenarioIfNeeded()
         refreshNotificationAuthorizationState()
         refreshRemoteHostStateIfNeeded()
     }
@@ -452,6 +456,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         autoRefreshTimer?.invalidate()
         wakeRefreshTask?.cancel()
         notificationWaitTask?.cancel()
+        sealValidationRun?.cancelIfUnfinished()
         statusItemRuntime.invalidate()
     }
 
@@ -470,18 +475,27 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     @objc
     func addCurrentAccount() {
         recordMenuAction("addCurrentAccount")
+        sealValidationRun?.recordSaveCurrentAccountMenuAction(
+            activeAccount: store.activeAccount,
+            savedAccounts: store.accounts
+        )
         let request = alertFactory.makeSaveCurrentAccountRequest(activeAccountEmail: store.activeAccount?.email)
         recordValidationEvent(
             "save_current_prompt_presented",
             step: "save_current_prompt",
             invariantIds: Self.saveCurrentPromptInvariantIDs
         )
+        sealValidationRun?.recordSaveCurrentAccountNameDialogPresented(activeAccountEmail: store.activeAccount?.email)
 
         guard let name = alertPresenter.presentTextInput(request) else {
             recordValidationEvent(
                 "save_current_prompt_cancelled",
                 step: "save_current_prompt",
                 invariantIds: Self.saveCurrentPromptInvariantIDs
+            )
+            sealValidationRun?.recordSaveCurrentAccountNameDialogCancelled(
+                activeAccount: store.activeAccount,
+                savedAccounts: store.accounts
             )
             return
         }
@@ -497,6 +511,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     @objc
     func addAccount() {
         recordMenuAction("addAccount")
+        sealValidationRun?.recordAddAccountMenuAction(
+            activeAccount: store.activeAccount,
+            savedAccounts: store.accounts
+        )
         menuBarCoordinatorLogger.log("addAccount action invoked")
         let runningCLISessions = cliProcessInspector.runningCLISessionCount()
         menuBarCoordinatorLogger.log("Running CLI sessions before add-account: \(runningCLISessions, privacy: .public)")
@@ -507,6 +525,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             step: "add_account_prompt",
             invariantIds: Self.addAccountPromptInvariantIDs
         )
+        sealValidationRun?.recordAddAccountNameDialogPresented(runningCLISessions: runningCLISessions)
 
         menuBarCoordinatorLogger.log("Presenting add-account confirmation alert")
         guard let name = alertPresenter.presentTextInput(request) else {
@@ -515,6 +534,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 "add_account_prompt_cancelled",
                 step: "add_account_prompt",
                 invariantIds: Self.addAccountPromptInvariantIDs
+            )
+            sealValidationRun?.recordAddAccountNameDialogCancelled(
+                activeAccount: store.activeAccount,
+                savedAccounts: store.accounts
             )
             return
         }
@@ -1789,6 +1812,16 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     private func syncBackgroundState() {
         promptForEmptyStateIfNeeded()
+    }
+
+    private func triggerValidationScenarioIfNeeded() {
+        guard validationScenario == "live-save-current-prompt" else { return }
+        guard AppRuntimeEnvironment.shouldTriggerSaveCurrentPromptValidation() else { return }
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.addCurrentAccount()
+        }
     }
 
     private func promptForEmptyStateIfNeeded() {
