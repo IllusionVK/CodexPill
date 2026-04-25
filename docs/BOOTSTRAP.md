@@ -54,6 +54,7 @@ Generated `.xcodeproj` and `.xcworkspace` files are transient build artifacts fo
 - The primary auth file is `~/.codex/auth.json`.
 - Rate-limit reads come from the local `codex app-server` interface.
 - Tuist must be installed locally before build validation can succeed.
+- Privacy and data-handling expectations live in [PRIVACY.md](PRIVACY.md).
 
 ## Next Recommended Step
 
