@@ -747,6 +747,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             "targetName": account.name,
             "hostName": remoteHost.displayName
         ])
+        sealValidationRun?.recordRemoteHostSwitchMenuAction(
+            targetName: account.name,
+            hostName: remoteHost.displayName
+        )
         recordValidationEvent(
             "remote_host_switch_started",
             step: "remote_host_switch_start",
@@ -755,6 +759,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 "targetName": account.name,
                 "hostName": remoteHost.displayName
             ]
+        )
+        sealValidationRun?.recordRemoteHostSwitchStarted(
+            targetName: account.name,
+            hostName: remoteHost.displayName
         )
         lastSwitchTargetName = account.name
         if let previousRemoteAccount = settings.remoteHostState(for: remoteHost.destination)?.verifiedAccount,
@@ -788,6 +796,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                         "targetName": account.name,
                         "hostName": remoteHost.displayName
                     ]
+                )
+                self.sealValidationRun?.recordRemoteHostActiveAccountChanged(
+                    targetName: account.name,
+                    hostName: remoteHost.displayName
                 )
             case .notVerified(let message, let detectedAccountID):
                 self.setRemoteHostConnectionState(.connected, for: remoteHost.destination)

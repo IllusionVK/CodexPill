@@ -50,7 +50,7 @@ esac
 mkdir -p "${ARTIFACT_ROOT}/screenshots" "${ARTIFACT_ROOT}/logs"
 rm -f "${VALIDATION_EVENTS_PATH}"
 
-if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-remote-host-switch" || "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
   rm -rf "${SEAL_PROOF_OUTPUT_PATH}"
 fi
 
@@ -377,7 +377,7 @@ RUN_MENUBAR_ENV=(
   "CODEXPILL_VALIDATION_SCENARIO=${SCENARIO}"
 )
 
-if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-remote-host-switch" || "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
   RUN_MENUBAR_ENV+=(
     "CODEXPILL_SEAL_PROOF_OUTPUT=${PWD}/${SEAL_PROOF_OUTPUT_PATH}"
   )
@@ -563,7 +563,7 @@ add_account_menu = find_child(menu_items, "Add Account…")
 abort "Missing Add Account… menu in runtime snapshot" unless add_account_menu
 
 save_current_account = find_child(add_account_menu.fetch("children", []), "Save Current Account")
-if !["live-account-switch", "live-save-current-account-name-dialog-cancelled", "live-save-current-prompt", "live-add-account-name-dialog-cancelled", "live-sign-in-another-prompt", "live-add-host-destination-validation-failed", "live-add-host-prompt"].include?(scenario)
+if !["live-account-switch", "live-remote-host-switch", "live-save-current-account-name-dialog-cancelled", "live-save-current-prompt", "live-add-account-name-dialog-cancelled", "live-sign-in-another-prompt", "live-add-host-destination-validation-failed", "live-add-host-prompt"].include?(scenario)
   abort "Missing Add Account… > Save Current Account item in runtime snapshot" unless save_current_account
 end
 
@@ -2981,6 +2981,48 @@ EOF
     exit 26
   fi
 
+  if ! verify_seal_proof; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "seal-proof/manifest.json",
+    "seal-proof/evidence/events.jsonl",
+    "logs/seal-verifier.stdout.log",
+    "logs/seal-verifier.stderr.log",
+    "validation-app-support/accounts.json",
+    "validation-settings.json",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility clicked the remote host switch target",
+    "The app emitted the remote host switch event sequence",
+    "The remote card updated to the chosen account on buildbox"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The Seal proof manifest was missing or rejected by the Seal verifier."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "proofSequence": ${REMOTE_SWITCH_PROOF_SEQUENCE},
+  "sealProofVerificationMode": "${SEAL_PROOF_VERIFICATION_MODE}",
+  "failureClass": "product_regression",
+  "failureStep": "seal_proof_verification"
+}
+EOF
+    echo "Live remote-host-switch smoke failed: Seal proof did not verify." >&2
+    exit 27
+  fi
+
   cat > "${SUMMARY_PATH}" <<EOF
 {
   "invariantIds": ${INVARIANT_IDS_JSON},
@@ -2993,6 +3035,10 @@ EOF
     "runtime-assertions.json",
     "ui-tree.json",
     "validation-events.jsonl",
+    "seal-proof/manifest.json",
+    "seal-proof/evidence/events.jsonl",
+    "logs/seal-verifier.stdout.log",
+    "logs/seal-verifier.stderr.log",
     "validation-app-support/accounts.json",
     "validation-settings.json",
     "logs/run-menubar.log"
@@ -3006,13 +3052,15 @@ EOF
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [],
   "scenario": "${SCENARIO}",
+  "sealProofScenario": "switch-account-on-host-changes-remote-active-account",
   "status": "passed",
   "remoteSwitchTarget": {
     "accountName": "${SWITCH_TARGET_NAME}",
     "hostName": "${TARGET_HOST_NAME}",
     "actionTitle": "${SWITCH_TARGET_ACTION_TITLE}"
   },
-  "proofSequence": ${REMOTE_SWITCH_PROOF_SEQUENCE}
+  "proofSequence": ${REMOTE_SWITCH_PROOF_SEQUENCE},
+  "sealProofVerificationMode": "${SEAL_PROOF_VERIFICATION_MODE}"
 }
 EOF
 

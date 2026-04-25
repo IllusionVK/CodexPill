@@ -267,6 +267,44 @@ final class CodexPillSealValidationRun {
         }
     }
 
+    func recordRemoteHostSwitchMenuAction(targetName: String, hostName: String) {
+        recordRemoteHostSwitchEvent(
+            "menu_action_dispatched",
+            step: "menu_action_dispatch",
+            targetName: targetName,
+            hostName: hostName,
+            additionalPayload: ["action": .string("switchAccountOnHost")]
+        )
+    }
+
+    func recordRemoteHostSwitchStarted(targetName: String, hostName: String) {
+        recordRemoteHostSwitchEvent(
+            "remote_host_switch_started",
+            step: "remote_host_switch_start",
+            targetName: targetName,
+            hostName: hostName
+        )
+    }
+
+    func recordRemoteHostActiveAccountChanged(targetName: String, hostName: String) {
+        guard !didFinish else { return }
+        do {
+            try run.recordEvent(
+                "remote_host_active_account_changed",
+                step: "remote_host_switch_result",
+                invariantIds: scenario.remoteHostSwitchInvariantIDs,
+                payload: [
+                    "targetName": .string(targetName),
+                    "hostName": .string(hostName)
+                ]
+            )
+            try run.finish()
+            didFinish = true
+        } catch {
+            codexPillSealValidationLogger.error("Failed to finish Seal remote-host switch proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     func cancelIfUnfinished() {
         guard !didFinish else { return }
         run.cancelIfUnfinished()
@@ -362,6 +400,33 @@ final class CodexPillSealValidationRun {
         }
     }
 
+    private func recordRemoteHostSwitchEvent(
+        _ eventName: String,
+        step: String,
+        targetName: String,
+        hostName: String,
+        additionalPayload: JSONObject = [:]
+    ) {
+        guard !didFinish else { return }
+        var payload: JSONObject = [
+            "targetName": .string(targetName),
+            "hostName": .string(hostName)
+        ]
+        for (key, value) in additionalPayload {
+            payload[key] = value
+        }
+        do {
+            try run.recordEvent(
+                eventName,
+                step: step,
+                invariantIds: scenario.remoteHostSwitchInvariantIDs,
+                payload: payload
+            )
+        } catch {
+            codexPillSealValidationLogger.error("Failed to record Seal remote-host switch event proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     private static func feature(scenarios: [CodexPillSealScenario]) throws -> SealFeature {
         try SealFeature(
             id: scenarios.first?.featureID ?? FeatureID("accounts"),
@@ -386,6 +451,29 @@ final class CodexPillSealValidationRun {
                                     EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream)
                                 ],
                                 rule: scenario.hostValidationRule
+                            )
+                        ]
+                    )
+                ]
+            )
+        }
+
+        if let remoteHostSwitchID = scenario.remoteHostSwitchID,
+           let remoteHostSwitchExpectation = scenario.remoteHostSwitchExpectation {
+            return try SealScenario(
+                id: scenario.id,
+                scenarioType: .happyPath,
+                supportedExecutionModes: [.liveUI],
+                expectations: [
+                    try SealExpectation(
+                        text: remoteHostSwitchExpectation,
+                        invariants: [
+                            SealInvariantRef(
+                                id: remoteHostSwitchID,
+                                requiredEvidence: [
+                                    EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream)
+                                ],
+                                rule: scenario.remoteHostSwitchRule
                             )
                         ]
                     )
@@ -479,10 +567,12 @@ private struct CodexPillSealScenario {
     let cancelKeepsAccountStateID: InvariantID
     let switchChangesActiveAccountID: InvariantID?
     let hostValidationID: InvariantID?
+    let remoteHostSwitchID: InvariantID?
     let presentedAndCancelledExpectation: String
     let nonMutatingExpectation: String
     let switchExpectation: String?
     let hostExpectation: String?
+    let remoteHostSwitchExpectation: String?
 
     var switchInvariantIDs: [InvariantID] {
         switchChangesActiveAccountID.map { [$0] } ?? []
@@ -490,6 +580,10 @@ private struct CodexPillSealScenario {
 
     var hostInvariantIDs: [InvariantID] {
         hostValidationID.map { [$0] } ?? []
+    }
+
+    var remoteHostSwitchInvariantIDs: [InvariantID] {
+        remoteHostSwitchID.map { [$0] } ?? []
     }
 
     var nameDialogPresentedRule: SealRule {
@@ -585,6 +679,16 @@ private struct CodexPillSealScenario {
         ])
     }
 
+    var remoteHostSwitchRule: SealRule {
+        .eventSequence([
+            EventExpectation("menu_action_dispatched", payload: [
+                "action": .string("switchAccountOnHost")
+            ]),
+            EventExpectation("remote_host_switch_started"),
+            EventExpectation("remote_host_active_account_changed")
+        ])
+    }
+
     private init(
         featureID: FeatureID = FeatureID("accounts"),
         id: ScenarioID,
@@ -602,7 +706,9 @@ private struct CodexPillSealScenario {
         switchChangesActiveAccountID: InvariantID? = nil,
         switchExpectation: String? = nil,
         hostValidationID: InvariantID? = nil,
-        hostExpectation: String? = nil
+        hostExpectation: String? = nil,
+        remoteHostSwitchID: InvariantID? = nil,
+        remoteHostSwitchExpectation: String? = nil
     ) {
         self.featureID = featureID
         self.id = id
@@ -617,10 +723,12 @@ private struct CodexPillSealScenario {
         self.cancelKeepsAccountStateID = cancelKeepsAccountStateID
         self.switchChangesActiveAccountID = switchChangesActiveAccountID
         self.hostValidationID = hostValidationID
+        self.remoteHostSwitchID = remoteHostSwitchID
         self.presentedAndCancelledExpectation = presentedAndCancelledExpectation
         self.nonMutatingExpectation = nonMutatingExpectation
         self.switchExpectation = switchExpectation
         self.hostExpectation = hostExpectation
+        self.remoteHostSwitchExpectation = remoteHostSwitchExpectation
     }
 
     init?(legacyScenario: String) {
@@ -633,6 +741,8 @@ private struct CodexPillSealScenario {
             self = .switchAccountChangesActiveAccount
         case "live-add-host-destination-validation-failed", "live-add-host-prompt":
             self = .addHostDestinationValidationFailed
+        case "live-remote-host-switch":
+            self = .switchAccountOnHostChangesRemoteActiveAccount
         default:
             return nil
         }
@@ -701,6 +811,24 @@ private struct CodexPillSealScenario {
         nonMutatingExpectation: "Cancelling the Add Host setup dialog does not change host state",
         hostValidationID: InvariantID("hosts.add_host.destination_validation_failed"),
         hostExpectation: "Entering an invalid Add Host destination emits validation feedback"
+    )
+
+    static let switchAccountOnHostChangesRemoteActiveAccount = CodexPillSealScenario(
+        featureID: FeatureID("hosts"),
+        id: ScenarioID("switch-account-on-host-changes-remote-active-account"),
+        menuAction: "switchAccountOnHost",
+        dialogID: "remote_host_switch",
+        dialogTitle: "Switch Account on Host",
+        dialogStep: "remote_host_switch",
+        presentedEventName: "remote_host_switch_started",
+        cancelledEventName: "remote_host_switch_cancelled",
+        nameDialogPresentedID: InvariantID("hosts.switch_account_on_host.started"),
+        nameDialogCancelledID: InvariantID("hosts.switch_account_on_host.cancelled"),
+        cancelKeepsAccountStateID: InvariantID("hosts.switch_account_on_host.cancel_keeps_remote_account_state"),
+        presentedAndCancelledExpectation: "The remote-host switch workflow starts",
+        nonMutatingExpectation: "Cancelling the remote-host switch workflow does not change remote account state",
+        remoteHostSwitchID: InvariantID("hosts.switch_account_on_host.changes_remote_active_account"),
+        remoteHostSwitchExpectation: "Switching account through a host submenu changes that host's active remote account"
     )
 }
 
