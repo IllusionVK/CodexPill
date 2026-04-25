@@ -2506,6 +2506,7 @@ EOF
     "validation-events.jsonl",
     "seal-proof/manifest.json",
     "seal-proof/evidence/events.jsonl",
+    "seal-proof/evidence/host-validation-snapshot.json",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
     "logs/run-menubar.log"
@@ -2544,6 +2545,7 @@ EOF
     "validation-events.jsonl",
     "seal-proof/manifest.json",
     "seal-proof/evidence/events.jsonl",
+    "seal-proof/evidence/host-validation-snapshot.json",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
     "logs/run-menubar.log"

@@ -260,6 +260,15 @@ final class CodexPillSealValidationRun {
                     "message": .string(message)
                 ]
             )
+            try run.recordSnapshot(
+                id: EvidenceID("host_validation_snapshot"),
+                path: "evidence/host-validation-snapshot.json",
+                value: HostValidationSnapshot(
+                    hostName: hostName,
+                    validationResult: "failed",
+                    message: message
+                )
+            )
             try run.finish()
             didFinish = true
         } catch {
@@ -448,7 +457,8 @@ final class CodexPillSealValidationRun {
                             SealInvariantRef(
                                 id: hostValidationID,
                                 requiredEvidence: [
-                                    EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream)
+                                    EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
+                                    EvidenceRequirement(id: EvidenceID("host_validation_snapshot"), kind: .snapshot)
                                 ],
                                 rule: scenario.hostValidationRule
                             )
@@ -666,17 +676,26 @@ private struct CodexPillSealScenario {
     }
 
     var hostValidationRule: SealRule {
-        .eventSequence([
-            EventExpectation("menu_action_dispatched", payload: [
-                "action": .string("addHost")
+        .all([
+            .eventSequence([
+                EventExpectation("menu_action_dispatched", payload: [
+                    "action": .string("addHost")
+                ]),
+                EventExpectation("add_host_setup_presented"),
+                EventExpectation("add_host_validation_started", payload: [
+                    "hostName": .string(Self.addHostValidationDestination)
+                ]),
+                EventExpectation("add_host_validation_failed", payload: [
+                    "hostName": .string(Self.addHostValidationDestination)
+                ])
             ]),
-            EventExpectation("add_host_setup_presented"),
-            EventExpectation("add_host_validation_started", payload: [
-                "hostName": .string(Self.addHostValidationDestination)
-            ]),
-            EventExpectation("add_host_validation_failed", payload: [
-                "hostName": .string(Self.addHostValidationDestination)
-            ])
+            .snapshotEquals(
+                SnapshotEqualsRule(
+                    evidence: EvidenceID("host_validation_snapshot"),
+                    path: "validationResult",
+                    value: .string("failed")
+                )
+            )
         ])
     }
 
@@ -865,4 +884,10 @@ private struct NameDialogSnapshot: Encodable {
     let title: String
     let wasPresented: Bool
     let finalState: String
+}
+
+private struct HostValidationSnapshot: Encodable {
+    let hostName: String
+    let validationResult: String
+    let message: String
 }

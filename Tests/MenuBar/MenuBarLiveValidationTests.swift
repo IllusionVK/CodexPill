@@ -1089,8 +1089,32 @@ struct MenuBarLiveValidationTests {
         #expect(runMetadata?["scenario"] as? String == "add-host-destination-validation-failed")
         #expect(evidence?.compactMap { $0["path"] as? String } == [
             "evidence/events.jsonl",
+            "evidence/host-validation-snapshot.json",
         ])
         #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/events.jsonl").path))
+        #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/host-validation-snapshot.json").path))
+        let expectations = manifest?["targetedExpectations"] as? [[String: Any]]
+        let invariants = expectations?.first?["invariants"] as? [[String: Any]]
+        let invariant = invariants?.first
+        let rule = invariant?["rule"] as? [String: Any]
+        let rules = rule?["rules"] as? [[String: Any]]
+        let eventSequence = rules?.first { $0["type"] as? String == "event_sequence" }
+        let snapshotEquals = rules?.first { $0["type"] as? String == "snapshot_equals" }
+
+        #expect(invariant?["requiredEvidence"] as? [String] == [
+            "events",
+            "host_validation_snapshot",
+        ])
+        #expect(rule?["type"] as? String == "all")
+        #expect((eventSequence?["events"] as? [[String: Any]])?.compactMap { $0["name"] as? String } == [
+            "menu_action_dispatched",
+            "add_host_setup_presented",
+            "add_host_validation_started",
+            "add_host_validation_failed",
+        ])
+        #expect(snapshotEquals?["evidence"] as? String == "host_validation_snapshot")
+        #expect(snapshotEquals?["path"] as? String == "validationResult")
+        #expect(snapshotEquals?["value"] as? String == "failed")
     }
 
     @Test
