@@ -220,14 +220,16 @@ final class CodexPillSealValidationRun {
                             requiredEvidence: [
                                 EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
                                 EvidenceRequirement(id: EvidenceID("name_dialog_snapshot"), kind: .snapshot)
-                            ]
+                            ],
+                            rule: scenario.nameDialogPresentedRule
                         ),
                         SealInvariantRef(
                             id: scenario.nameDialogCancelledID,
                             requiredEvidence: [
                                 EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
                                 EvidenceRequirement(id: EvidenceID("name_dialog_snapshot"), kind: .snapshot)
-                            ]
+                            ],
+                            rule: scenario.nameDialogCancelledRule
                         )
                     ]
                 ),
@@ -240,7 +242,8 @@ final class CodexPillSealValidationRun {
                                 EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
                                 EvidenceRequirement(id: EvidenceID("account_before"), kind: .snapshot),
                                 EvidenceRequirement(id: EvidenceID("account_after"), kind: .snapshot)
-                            ]
+                            ],
+                            rule: scenario.cancelKeepsAccountStateRule
                         )
                     ]
                 )
@@ -262,6 +265,63 @@ private struct CodexPillSealScenario {
     let cancelKeepsAccountStateID: InvariantID
     let presentedAndCancelledExpectation: String
     let nonMutatingExpectation: String
+
+    var nameDialogPresentedRule: SealRule {
+        .all([
+            .eventSequence([
+                EventExpectation("menu_action_dispatched", payload: [
+                    "action": .string(menuAction)
+                ]),
+                EventExpectation(presentedEventName, payload: [
+                    "dialogId": .string(dialogID)
+                ])
+            ]),
+            .snapshotEquals(
+                SnapshotEqualsRule(
+                    evidence: EvidenceID("name_dialog_snapshot"),
+                    path: "wasPresented",
+                    value: .bool(true)
+                )
+            )
+        ])
+    }
+
+    var nameDialogCancelledRule: SealRule {
+        .all([
+            .eventSequence([
+                EventExpectation(presentedEventName, payload: [
+                    "dialogId": .string(dialogID)
+                ]),
+                EventExpectation(cancelledEventName, payload: [
+                    "dialogId": .string(dialogID)
+                ])
+            ]),
+            .snapshotEquals(
+                SnapshotEqualsRule(
+                    evidence: EvidenceID("name_dialog_snapshot"),
+                    path: "finalState",
+                    value: .string("cancelled")
+                )
+            )
+        ])
+    }
+
+    var cancelKeepsAccountStateRule: SealRule {
+        .all([
+            .eventExists(
+                EventExpectation(cancelledEventName, payload: [
+                    "dialogId": .string(dialogID)
+                ])
+            ),
+            .snapshotsEqual(
+                SnapshotsEqualRule(
+                    before: EvidenceID("account_before"),
+                    after: EvidenceID("account_after"),
+                    paths: ["activeAccountId", "savedAccounts"]
+                )
+            )
+        ])
+    }
 
     private init(
         id: ScenarioID,
