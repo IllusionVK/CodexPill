@@ -32,7 +32,7 @@ EOF
 
 if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
   case "${SCENARIO}" in
-    hosted-menu-busy|hosted-menu-empty|hosted-menu-with-host|hosted-menu-local-and-remote-same-account|hosted-menu-multiple-hosts|hosted-menu-disconnected-host|host-account-missing-on-host)
+    hosted-menu-busy|hosted-menu-empty|hosted-menu-with-host|hosted-menu-local-and-remote-same-account|hosted-menu-multiple-hosts|hosted-menu-disconnected-host|host-account-missing-on-host|hosted-pacing-prototypes)
       ;;
     live-menu-open|live-account-switch|live-remote-host-switch|live-add-host-destination-validation-failed|live-add-host-prompt|live-add-account-name-dialog-cancelled|live-add-account-prompt|live-scheduled-refresh)
       ARTIFACT_ROOT="${BUILD_ROOT}/verification/${AGENT_NAME}/${SCENARIO}" \
@@ -52,7 +52,7 @@ if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/verify_ui.sh",
   "gaps": [
     "Unknown scenario '${SCENARIO}'",
-    "Try SCENARIO=hosted-menu-default, hosted-menu-busy, hosted-menu-empty, hosted-menu-with-host, hosted-menu-local-and-remote-same-account, hosted-menu-multiple-hosts, hosted-menu-disconnected-host, host-account-missing-on-host, live-menu-open, live-account-switch, live-remote-host-switch, live-add-host-destination-validation-failed, live-add-account-name-dialog-cancelled, live-scheduled-refresh, or live-status-item-hover"
+    "Try SCENARIO=hosted-menu-default, hosted-menu-busy, hosted-menu-empty, hosted-menu-with-host, hosted-menu-local-and-remote-same-account, hosted-menu-multiple-hosts, hosted-menu-disconnected-host, host-account-missing-on-host, hosted-pacing-prototypes, live-menu-open, live-account-switch, live-remote-host-switch, live-add-host-destination-validation-failed, live-add-account-name-dialog-cancelled, live-scheduled-refresh, or live-status-item-hover"
   ],
   "scenario": "${SCENARIO}",
   "status": "failed"
@@ -138,6 +138,13 @@ case "${SCENARIO}" in
     ASSERTIONS_JSON='[
     "Missing remote snapshots change the action copy to install-and-switch",
     "Accounts still comes from the local catalog only"
+  ]'
+    ;;
+  hosted-pacing-prototypes)
+    ASSERTIONS_JSON='[
+    "Debug pacing prototype menu is visible only in the prototype scenario",
+    "Five materially different variants render with session and weekly sample rows",
+    "Prototype samples cover under, near, over, severe, and missing data states"
   ]'
     ;;
 esac

@@ -92,6 +92,7 @@ struct MenuBarMenuState {
     let notificationsWhenBlockedEnabled: Bool
     let notificationsWhenOutEnabled: Bool
     let notificationAuthorizationState: NotificationAuthorizationState
+    let showsPacingPrototypeMenu: Bool
 
     init(
         activeAccount: CodexAccount?,
@@ -110,7 +111,8 @@ struct MenuBarMenuState {
         statusMessage: String,
         notificationsWhenBlockedEnabled: Bool = false,
         notificationsWhenOutEnabled: Bool = false,
-        notificationAuthorizationState: NotificationAuthorizationState = .unknown
+        notificationAuthorizationState: NotificationAuthorizationState = .unknown,
+        showsPacingPrototypeMenu: Bool = false
     ) {
         self.activeAccount = activeAccount
         self.inactiveAccounts = inactiveAccounts
@@ -129,6 +131,7 @@ struct MenuBarMenuState {
         self.notificationsWhenBlockedEnabled = notificationsWhenBlockedEnabled
         self.notificationsWhenOutEnabled = notificationsWhenOutEnabled
         self.notificationAuthorizationState = notificationAuthorizationState
+        self.showsPacingPrototypeMenu = showsPacingPrototypeMenu
     }
 
     var canAddAccount: Bool {

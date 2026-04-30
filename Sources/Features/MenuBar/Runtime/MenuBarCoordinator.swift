@@ -764,7 +764,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             statusMessage: store.statusMessage,
             notificationsWhenBlockedEnabled: notificationStateStore.whenBlockedEnabled,
             notificationsWhenOutEnabled: notificationStateStore.whenOutEnabled,
-            notificationAuthorizationState: cachedNotificationAuthorizationState
+            notificationAuthorizationState: cachedNotificationAuthorizationState,
+            showsPacingPrototypeMenu: validationScenario == "live-pacing-prototypes"
         )
     }
 

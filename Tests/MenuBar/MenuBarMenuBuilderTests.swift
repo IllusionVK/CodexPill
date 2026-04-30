@@ -845,6 +845,37 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func pacingPrototypeMenuIsHiddenByDefault() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            target: coordinator
+        )
+
+        #expect(menu.items.contains(where: { $0.title == "Pacing Prototypes" }) == false)
+    }
+
+    @Test
+    func pacingPrototypeMenuShowsFiveDebugVariantsWhenEnabled() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                showsPacingPrototypeMenu: true
+            ),
+            target: coordinator
+        )
+
+        let prototypes = try #require(menu.items.first(where: { $0.title == "Pacing Prototypes" }))
+        let submenu = try #require(prototypes.submenu)
+
+        #expect(submenu.items.map(\.title) == PacingPrototypeVariant.allCases.map(\.title))
+        #expect(submenu.items.allSatisfy { $0.view != nil })
+    }
+
+    @Test
     func activeAccountHostedViewFitsWithinConfiguredMenuWidth() {
         let view = NSHostingView(
             rootView: ActiveAccountMenuContent(
@@ -1365,7 +1396,8 @@ struct MenuBarMenuBuilderTests {
         hasCustomProgressAccentColor: Bool = false,
         notificationsWhenBlockedEnabled: Bool = false,
         notificationsWhenOutEnabled: Bool = false,
-        notificationAuthorizationState: NotificationAuthorizationState = .unknown
+        notificationAuthorizationState: NotificationAuthorizationState = .unknown,
+        showsPacingPrototypeMenu: Bool = false
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
@@ -1384,7 +1416,8 @@ struct MenuBarMenuBuilderTests {
             statusMessage: "Ready",
             notificationsWhenBlockedEnabled: notificationsWhenBlockedEnabled,
             notificationsWhenOutEnabled: notificationsWhenOutEnabled,
-            notificationAuthorizationState: notificationAuthorizationState
+            notificationAuthorizationState: notificationAuthorizationState,
+            showsPacingPrototypeMenu: showsPacingPrototypeMenu
         )
     }
 

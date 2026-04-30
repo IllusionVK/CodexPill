@@ -106,6 +106,15 @@ enum MenuBarValidationSupport {
             ]
         ))
 
+        if state.showsPacingPrototypeMenu {
+            sections.append(.init(
+                title: "Pacing Prototypes",
+                items: PacingPrototypeVariant.allCases.map { variant in
+                    pacingPrototypeSummary(for: variant)
+                }
+            ))
+        }
+
         return MenuBarValidationSnapshot(
             sections: sections,
             statusMessage: state.shouldShowStatusMessage ? state.statusMessage : nil,
@@ -186,6 +195,18 @@ enum MenuBarValidationSupport {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            if state.showsPacingPrototypeMenu {
+                Divider()
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(PacingPrototypeVariant.allCases) { variant in
+                        PacingPrototypeMenuContent(
+                            variant: variant,
+                            accentColor: Color(nsColor: state.progressAccentColor)
+                        )
+                    }
+                }
+            }
         }
         .padding(18)
         .frame(width: 360, alignment: .leading)
@@ -250,6 +271,13 @@ enum MenuBarValidationSupport {
             return "\(title): \(percentText)"
         }
         return "\(title): \(percentText), \(resetStatus)"
+    }
+
+    private static func pacingPrototypeSummary(for variant: PacingPrototypeVariant) -> String {
+        let samples = PacingPrototypeMenuContent.samples.map { sample in
+            "\(sample.title) \(sample.kind.title) \(sample.usageText) \(sample.deltaText)"
+        }
+        return "\(variant.title): \(samples.joined(separator: " | "))"
     }
 
     private static func managementSectionItems(for state: MenuBarMenuState) -> [String] {

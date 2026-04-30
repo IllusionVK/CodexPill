@@ -73,6 +73,9 @@ struct MenuBarMenuBuilder {
         menu.addItem(notificationsMenuItem(state: state, target: target))
         menu.addItem(refreshIntervalMenuItem(state: state, target: target))
         menu.addItem(statusBarMenuItem(state: state, target: target))
+        if state.showsPacingPrototypeMenu {
+            menu.addItem(pacingPrototypeMenuItem(state: state))
+        }
         menu.addItem(actionItem(title: "About", systemImage: "info.circle", action: #selector(MenuBarCoordinator.showAbout), state: state, target: target))
 
         if state.shouldShowStatusMessage {
@@ -537,6 +540,27 @@ struct MenuBarMenuBuilder {
         submenu.addItem(.separator())
         submenu.addItem(progressAccentColorItem(state: state, target: target))
         submenu.addItem(resetProgressAccentColorItem(state: state, target: target))
+
+        item.submenu = submenu
+        return item
+    }
+
+    private func pacingPrototypeMenuItem(state: MenuBarMenuState) -> NSMenuItem {
+        let item = NSMenuItem(title: "Pacing Prototypes", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "gauge.with.dots.needle.33percent", accessibilityDescription: "Pacing Prototypes")
+
+        let submenu = configuredMenu(title: "Pacing Prototypes")
+        for variant in PacingPrototypeVariant.allCases {
+            let variantItem = NSMenuItem(title: variant.title, action: nil, keyEquivalent: "")
+            let view = NSHostingView(
+                rootView: PacingPrototypeMenuContent(
+                    variant: variant,
+                    accentColor: Color(nsColor: state.progressAccentColor)
+                )
+            )
+            variantItem.view = configuredHostedMenuView(view, width: minimumMenuContentWidth)
+            submenu.addItem(variantItem)
+        }
 
         item.submenu = submenu
         return item
