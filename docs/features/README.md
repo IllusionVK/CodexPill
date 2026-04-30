@@ -1,0 +1,15 @@
+# Features
+
+Feature docs are organized by product feature area. Each area can contain behavior contracts, UX contracts, and validation notes.
+
+## Feature Areas
+
+- [Menubar](menubar.md): whole menu composition, section ordering, and App Controls placement.
+- [Status Bar](status-bar.md): closed-state icon, label, hover behavior, and usage indicators.
+- [Accounts](accounts/00-accounts.md): saved accounts, current account, switching, adding, removing, renaming, and account refresh.
+- [Remote Hosts](remote-hosts.md): host setup, remote account install/switch, verification, and remote account presentation.
+- [Notifications](notifications.md): notification modes, permission recovery, delivery copy, actions, and dedupe behavior.
+
+## Ownership Rule
+
+Feature behavior belongs in the owning feature area. Shared surfaces, such as the menubar, should document composition and link to the owning feature for behavior.

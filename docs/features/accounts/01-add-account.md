@@ -14,7 +14,7 @@ As a CodexPill user, I want to add another Codex account without switching my cu
 
 ## Happy Path
 
-1. The user chooses `Add Account...`.
+1. The user chooses `Add Account…`.
 2. CodexPill asks for the account display name.
 3. CodexPill validates the display name before sign-in starts.
 4. CodexPill starts an isolated Codex sign-in session.

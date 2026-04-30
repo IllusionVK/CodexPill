@@ -34,7 +34,7 @@ Anything an agent can verify in this repo should be expressed as automated proof
 - Use `make verify-ui` for deterministic menu validation.
 - Use `make verify-ui-live` for live menubar smoke validation.
 - Add or extend live smoke scenarios when runtime behavior must be proven by an agent.
-- Keep manual-only checks in `docs/QA_HUMAN.md` for behaviors the agent cannot yet prove reliably.
+- Track manual-only gaps as explicit issues or feature-document open questions until they can be covered by automated proof.
 
 ## Automated coverage
 

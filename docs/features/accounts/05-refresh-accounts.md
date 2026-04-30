@@ -27,8 +27,9 @@ Sanitized manual probe:
 - Status source: `codex app-server` over stdio with `initialize`, `initialized`, `account/read`, and `account/rateLimits/read` requests.
 - Account identity read: yes.
 - Plan read: yes.
-- Session limit read: no.
-- Weekly limit read: no.
+- Session limit read: yes.
+- Weekly limit read: yes.
+- Complete limit source: `result.rateLimitsByLimitId["codex"]` when present and complete, with `result.rateLimits` as the legacy fallback.
 - Live local auth changed: no. The live `~/.codex/auth.json` hash, size, and modification time were unchanged before and after the isolated probe.
 - App-server process behavior: a child `codex app-server` process was launched by the probe and exited without probe termination. Existing app-server process count was unchanged before and after the probe.
 - Temporary state cleanup: the isolated root was removed after the probe.
@@ -36,8 +37,9 @@ Sanitized manual probe:
 
 Control probe:
 
-- Running the same app-server request sequence against the normal live Codex home also returned account identity and plan but did not return a rate-limit response.
-- That means the missing limit proof is not enough to reject isolated `CODEX_HOME`; it is a current status-source gap for this Codex executable and protocol surface.
+- The original probe produced `complete_response_ids: [1, 2]` and never received the `account/rateLimits/read` response id before the process exited after about 1.18 seconds.
+- The corrected probe kept stdin/session alive after sending `account/rateLimits/read`, then waited for the rate-limit response id or timeout.
+- Across the visible saved account catalog, isolated `CODEX_HOME` reads returned account metadata plus complete session and weekly windows.
 
 ### Refresh Semantics
 

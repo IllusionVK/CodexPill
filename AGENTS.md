@@ -3,13 +3,14 @@
 ## Read First
 
 1. Read this file first.
-2. Read `$HOME/Projects/CodexPill/docs/BOOTSTRAP.md` for current product truth.
-3. For shared standards, load `$HOME/agent-standards/AGENTS.md`.
+2. Read `$HOME/Projects/CodexPill/docs/PRODUCT.md` and `$HOME/Projects/CodexPill/docs/features/README.md` for current product truth.
+3. Read `$HOME/Projects/CodexPill/docs/DEVELOPMENT.md` when build, run, or validation commands are needed.
+4. For shared standards, load `$HOME/agent-standards/AGENTS.md`.
 
 ## Shared Standards
 
-- This repo is a prototype-first bootstrap.
-- Prefer the `bootstrap-orchestrator` path for day-zero changes and the `macos-menubar-tuist-app` skill for scaffold/build loop work.
+- This repo is a productizing macOS menubar app, no longer a day-zero bootstrap.
+- Prefer `macos-menubar-tuist-app` for scaffold/build loop work.
 - Load one shape doc and only the minimum matching capability docs from `$HOME/agent-standards`.
 
 ## Project Shape
