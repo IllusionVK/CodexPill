@@ -30,13 +30,14 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
         } else {
             remoteHostClient = SSHRemoteHostClient(snapshotLocator: repository)
         }
-        let store = MenuBarAccountsStore(
+        let accountsFeatureFactory = AccountsFeatureFactory(
             repository: repository,
             authService: authService,
             codexAppProcessClient: processClient,
             accountStatusClient: accountStatusClient,
             remoteHostClient: remoteHostClient
         )
+        let store = accountsFeatureFactory.makeMenuBarAccountsStore()
 
         statusItemRuntime = StatusItemRuntime()
         coordinator = MenuBarCoordinator(

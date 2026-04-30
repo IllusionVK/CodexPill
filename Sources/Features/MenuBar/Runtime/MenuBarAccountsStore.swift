@@ -6,20 +6,8 @@ import Observation
 final class MenuBarAccountsStore {
     private let controller: AccountsController
 
-    init(
-        repository: AccountRepository,
-        authService: CodexAuthSnapshotService,
-        codexAppProcessClient: CodexAppProcessClient,
-        accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient,
-        remoteHostClient: RemoteHostClient = UnavailableRemoteHostClient()
-    ) {
-        self.controller = AccountsController(
-            repository: repository,
-            authService: authService,
-            codexAppProcessClient: codexAppProcessClient,
-            accountStatusClient: accountStatusClient,
-            remoteHostClient: remoteHostClient
-        )
+    init(controller: AccountsController) {
+        self.controller = controller
     }
 
     var accounts: [CodexAccount] { controller.accounts }

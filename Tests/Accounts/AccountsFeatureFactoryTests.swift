@@ -1,0 +1,54 @@
+import Foundation
+import Testing
+
+@testable import CodexPill
+
+@MainActor
+struct AccountsFeatureFactoryTests {
+    @Test
+    func makeMenuBarAccountsStoreLoadsAccountsThroughFactoryBuiltController() throws {
+        let repository = try makeRepository()
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Business",
+            snapshotFileName: "\(UUID().uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "business@example.com",
+            planType: nil,
+            rateLimits: nil,
+            identity: .empty
+        )
+        try repository.bootstrapStorage()
+        try repository.saveAccounts([account])
+
+        let factory = AccountsFeatureFactory(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            codexAppProcessClient: FactoryCodexAppProcessProbe(),
+            accountStatusClient: DisabledAccountStatusClient(),
+            remoteHostClient: UnavailableRemoteHostClient()
+        )
+
+        let store = factory.makeMenuBarAccountsStore()
+        store.load()
+
+        #expect(store.accounts.count == 1)
+        #expect(store.accounts.first?.id == account.id)
+        #expect(store.accounts.first?.name == "Business")
+        #expect(store.statusMessage == "Loaded 1 account(s)")
+    }
+
+    private func makeRepository() throws -> AccountRepository {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("AccountsFeatureFactoryTests-\(UUID().uuidString)", isDirectory: true)
+        return try AccountRepository(
+            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: directory.path]
+        )
+    }
+}
+
+private struct FactoryCodexAppProcessProbe: CodexAppProcessClient {
+    func assertCodexAvailable() throws {}
+    func relaunchCodex() async throws {}
+}

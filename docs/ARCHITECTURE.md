@@ -73,6 +73,7 @@ Does not own:
 
 `Features/Accounts` owns:
 
+- `AccountsFeatureFactory`
 - `AccountsController`
 - `AccountCatalogState`
 - `AccountOperationState`
@@ -153,6 +154,8 @@ These types are shared between features and platform adapters. Models should rem
 ## State And Workflow Ownership
 
 `AccountsController` is the deeper account-session and catalog boundary. It owns the saved-account catalog, active-account resolution, mutation result application, and silent refresh policy. Stable sub-policies that do not need controller state should be extracted behind the boundary instead of staying inline.
+
+`AccountsFeatureFactory` is the production composition boundary for the account feature. App startup chooses platform adapters such as `AccountRepository`, `CodexAuthSnapshotService`, `CodexAppProcessClient`, `CodexAccountStatusClient`, and `RemoteHostClient`, then asks the factory for the account feature entry point. The factory assembles account use cases, workflows, identity resolution, inactive-account ranking, operation state, silent post-action refresh, remote-host account verification, and the injected `AccountsController` used by `MenuBarAccountsStore`.
 
 `AccountActionFlow` owns account action sequencing decisions that do not require AppKit access. It maps Add Account completion and failure outcomes into next UI steps, including retry prompts, duplicate-name recovery, duplicate captured identity messaging, live-auth mutation failures, catalog save failures, and the direct local switch step after a confirmed Add Account success.
 
@@ -242,6 +245,13 @@ These types are shared between features and platform adapters. Models should rem
 
 - menu-facing observation and delegation
 - no business logic beyond delegation
+- no production account dependency assembly
+
+`AccountsFeatureFactory` owns:
+
+- production account dependency assembly from app-selected platform adapters
+- creating `AccountsController`
+- creating `MenuBarAccountsStore` with an injected controller
 
 `StatusItemRuntime` owns:
 

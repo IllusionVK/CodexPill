@@ -56,63 +56,6 @@ final class AccountsController {
     private var isHydratingSavedAccountsMetadata = false
 
     init(
-        repository: AccountRepository,
-        authService: CodexAuthSnapshotService,
-        codexAppProcessClient: CodexAppProcessClient,
-        accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient,
-        remoteHostClient: RemoteHostClient = UnavailableRemoteHostClient()
-    ) {
-        self.identityResolver = SavedAccountIdentityResolver(
-            liveIdentitySource: authService,
-            storedAccountReconciler: authService
-        )
-        self.inactiveAccountAvailabilityRanking = InactiveAccountAvailabilityRanking()
-        self.operationState = AccountOperationState()
-        let loadAccountsUseCase = LoadAccountsUseCase(
-            repository: repository,
-            identityResolver: self.identityResolver
-        )
-        let refreshActiveAccountUseCase = RefreshActiveAccountUseCase(
-            accountStatusClient: accountStatusClient,
-            identityResolver: self.identityResolver,
-            repository: repository
-        )
-        self.loadAccountsUseCase = loadAccountsUseCase
-        self.refreshActiveAccountUseCase = refreshActiveAccountUseCase
-        self.silentPostActionRefresh = SilentPostActionRefresh(
-            refreshActiveAccountUseCase: refreshActiveAccountUseCase
-        )
-        self.hydrateSavedAccountsMetadataUseCase = HydrateSavedAccountsMetadataUseCase(
-            authService: authService,
-            accountStatusClient: accountStatusClient,
-            savedAccountStatusClient: accountStatusClient,
-            identityResolver: self.identityResolver,
-            repository: repository
-        )
-        self.deleteSavedAccountUseCase = DeleteSavedAccountUseCase(
-            repository: repository,
-            identityResolver: self.identityResolver
-        )
-        self.renameSavedAccountUseCase = RenameSavedAccountUseCase(repository: repository)
-        self.persistSavedAccountMetadataUseCase = PersistSavedAccountMetadataUseCase(repository: repository)
-        self.switchAccountWorkflow = SwitchAccountWorkflow(
-            authService: authService,
-            repository: repository,
-            codexAppProcessClient: codexAppProcessClient,
-            identityResolver: self.identityResolver
-        )
-        self.switchAccountOnHostWorkflow = SwitchAccountOnHostWorkflow(
-            remoteHostClient: remoteHostClient
-        )
-        self.remoteHostAccountVerifier = RemoteHostAccountVerifier()
-        self.addAccountWorkflow = AddAccountWorkflow(
-            authService: authService,
-            repository: repository,
-            identityResolver: self.identityResolver
-        )
-    }
-
-    init(
         identityResolver: SavedAccountIdentityResolver,
         inactiveAccountAvailabilityRanking: InactiveAccountAvailabilityRanking = InactiveAccountAvailabilityRanking(),
         operationState: AccountOperationState = AccountOperationState(),
