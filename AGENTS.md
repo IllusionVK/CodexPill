@@ -9,7 +9,6 @@
 
 ## Shared Standards
 
-- This repo is a productizing macOS menubar app, no longer a day-zero bootstrap.
 - Prefer `macos-menubar-tuist-app` for scaffold/build loop work.
 - Load one shape doc and only the minimum matching capability docs from `$HOME/agent-standards`.
 
