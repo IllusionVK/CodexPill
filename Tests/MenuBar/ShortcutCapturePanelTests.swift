@@ -7,7 +7,7 @@ struct ShortcutCapturePanelTests {
     func startsWithoutShortcutByOfferingDefaultShortcut() {
         let state = ShortcutCaptureState(currentShortcut: nil)
 
-        #expect(state.displayTitle == KeyboardShortcut.defaultRevealStatusItemTitle.displayTitle)
+        #expect(state.displayTitle == "⌃⌥⌘L")
         #expect(state.canSave)
         #expect(state.statusKind == .idle)
         #expect(state.saveResult() == .saved(.defaultRevealStatusItemTitle))
@@ -43,7 +43,7 @@ struct ShortcutCapturePanelTests {
 
         state.capture(KeyboardShortcut(keyCode: 11, modifiers: []))
 
-        #expect(state.displayTitle == KeyboardShortcut.defaultRevealStatusItemTitle.displayTitle)
+        #expect(state.displayTitle == "⌃⌥⌘L")
         #expect(!state.canSave)
         #expect(state.statusKind == .idle)
         #expect(state.saveResult() == nil)
@@ -55,7 +55,7 @@ struct ShortcutCapturePanelTests {
 
         state.capture(KeyboardShortcut(keyCode: 11, modifiers: []))
 
-        #expect(state.displayTitle == KeyboardShortcut.defaultRevealStatusItemTitle.displayTitle)
+        #expect(state.displayTitle == "⌃⌥⌘L")
         #expect(state.canSave)
         #expect(state.statusKind == .idle)
         #expect(state.saveResult() == .saved(.defaultRevealStatusItemTitle))

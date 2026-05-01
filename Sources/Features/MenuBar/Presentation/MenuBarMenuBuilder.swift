@@ -595,10 +595,12 @@ struct MenuBarMenuBuilder {
             keyEquivalent: ""
         )
         item.keyEquivalentModifierMask = []
-        if let shortcut = state.revealStatusItemTitleShortcut,
-           let keyEquivalent = shortcut.appKitKeyEquivalent {
-            item.keyEquivalent = keyEquivalent
-            item.keyEquivalentModifierMask = shortcut.appKitModifierFlags
+        if let shortcut = state.revealStatusItemTitleShortcut {
+            let presentation = KeyboardShortcutPresentation(shortcut: shortcut)
+            if let keyEquivalent = presentation.keyEquivalent {
+                item.keyEquivalent = keyEquivalent
+                item.keyEquivalentModifierMask = presentation.modifierFlags
+            }
         }
         item.target = target
         item.isEnabled = !state.isBusy

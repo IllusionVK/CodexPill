@@ -28,7 +28,9 @@ struct ShortcutCaptureState: Equatable {
     }
 
     var displayTitle: String {
-        capturedShortcut?.displayTitle ?? KeyboardShortcut.defaultRevealStatusItemTitle.displayTitle
+        KeyboardShortcutPresentation(
+            shortcut: capturedShortcut ?? .defaultRevealStatusItemTitle
+        ).displayTitle
     }
 
     var canSave: Bool {
@@ -200,7 +202,7 @@ final class ShortcutCapturePanelModel: ObservableObject {
     }
 
     func capture(event: NSEvent) {
-        state.capture(KeyboardShortcut(event: event))
+        state.capture(KeyboardShortcut(capturedFrom: event))
     }
 
     func capture(shortcut: KeyboardShortcut?) {
@@ -209,6 +211,25 @@ final class ShortcutCapturePanelModel: ObservableObject {
 
     func saveResult() -> ShortcutCapturePanelResult? {
         state.saveResult()
+    }
+}
+
+private extension KeyboardShortcut {
+    init?(capturedFrom event: NSEvent) {
+        let modifiers = Modifiers(eventModifierFlags: event.modifierFlags)
+        guard !modifiers.isEmpty else { return nil }
+        self.init(keyCode: event.keyCode, modifiers: modifiers)
+    }
+}
+
+private extension KeyboardShortcut.Modifiers {
+    init(eventModifierFlags: NSEvent.ModifierFlags) {
+        var modifiers: Self = []
+        if eventModifierFlags.contains(.control) { modifiers.insert(.control) }
+        if eventModifierFlags.contains(.option) { modifiers.insert(.option) }
+        if eventModifierFlags.contains(.command) { modifiers.insert(.command) }
+        if eventModifierFlags.contains(.shift) { modifiers.insert(.shift) }
+        self = modifiers
     }
 }
 

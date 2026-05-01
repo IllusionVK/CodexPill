@@ -1,3 +1,4 @@
+import Carbon
 import Testing
 
 @testable import CodexPill
@@ -55,6 +56,17 @@ struct GlobalShortcutRuntimeTests {
         runtime.triggerForTesting()
 
         #expect(triggerCount == 1)
+    }
+
+    @Test
+    func carbonRegistrationDescriptorUsesShortcutKeyCodeAndCarbonModifiers() {
+        let shortcut = KeyboardShortcut(keyCode: 11, modifiers: [.control, .shift])
+
+        let descriptor = CarbonShortcutRegistrationDescriptor(shortcut: shortcut)
+
+        #expect(descriptor.keyCode == 11)
+        #expect(descriptor.modifierFlags == UInt32(controlKey | shiftKey))
+        #expect(descriptor.options == 0)
     }
 }
 

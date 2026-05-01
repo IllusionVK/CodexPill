@@ -86,6 +86,8 @@ Key boundaries:
 - `AddHostPanel`
 - `CodexSignInPanel`
 - `StatusItemRuntime`
+- `GlobalShortcutRuntime`
+- `KeyboardShortcutPresentation`
 - `AccountAvailabilityNotificationRuntime`
 
 ### Platform
@@ -134,7 +136,7 @@ Core models should remain free of process control, storage policy, AppKit, Swift
 Settings persistence is split by feature boundary:
 
 - `MenuDisplaySettingsStore` owns menu refresh cadence and visible inactive-account count options.
-- `StatusItemSettingsStore` owns status-item indicator style, monochrome mode, display mode, pacing marker visibility, and progress accent color helpers.
+- `StatusItemSettingsStore` owns status-item indicator style, monochrome mode, display mode, pacing marker visibility, progress accent color helpers, and persisted reveal-shortcut values.
 - `RemoteHostSettingsStore` owns persisted remote-host state, configured-host compatibility helpers, and legacy remote-host key migration.
 - `NotificationPreferencesStore` owns notification workflow toggles and legacy notification-setting migration.
 - `NotificationStateStore` owns per-account notification delivery state and deterministic update ordering.
@@ -170,6 +172,8 @@ Settings persistence is split by feature boundary:
 `MenuBarNotificationWorkflow` is the menubar runtime boundary for account-availability notification orchestration. It owns previous availability snapshot tracking, authorization-state refresh interaction, policy evaluation, payload/action rendering, stale notification response resolution, dedupe state updates, and re-evaluation scheduling callbacks. It delegates local account switching, remote host switching, alert presentation, app activation, and refresh execution back to coordinator-owned runtime collaborators; it uses `AccountAvailabilityNotifications` for account-centric policy and `AccountAvailabilityNotificationRuntime` for macOS delivery mechanics.
 
 `StatusItemRuntime` owns the `NSStatusItem`, hover tracking, pointer-inside detection, title/icon transitions, tooltip rendering, and low-level status-item snapshot state.
+
+Reveal-shortcut capture, menu key-equivalent rendering, display formatting, and Carbon hot-key registration are menubar/status-item runtime and presentation concerns. Core owns only the persisted shortcut value: key code, modifier option set, default value, and validity semantics. Core shortcut types must not import AppKit or Carbon.
 
 `AccountAvailabilityNotificationRuntime` owns notification delivery mechanics and rendering primitives: copy/payload renderers, notification categories, `UserNotifications` requests, and macOS notification settings launch. It does not decide when to notify or how notification clicks map to account-switch actions.
 

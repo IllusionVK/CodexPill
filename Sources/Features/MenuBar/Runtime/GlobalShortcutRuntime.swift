@@ -105,13 +105,14 @@ final class CarbonGlobalShortcutClient: GlobalShortcutClient {
 
     func register(shortcut: KeyboardShortcut) throws {
         unregisterHotKeyOnly()
+        let descriptor = CarbonShortcutRegistrationDescriptor(shortcut: shortcut)
 
         let status = RegisterEventHotKey(
-            UInt32(shortcut.keyCode),
-            shortcut.carbonModifierFlags,
+            descriptor.keyCode,
+            descriptor.modifierFlags,
             hotKeyID,
             GetApplicationEventTarget(),
-            0,
+            descriptor.options,
             &eventHotKey
         )
         guard status == noErr else {
@@ -175,5 +176,26 @@ final class CarbonGlobalShortcutClient: GlobalShortcutClient {
 
     deinit {
         unregister()
+    }
+}
+
+struct CarbonShortcutRegistrationDescriptor: Equatable {
+    let keyCode: UInt32
+    let modifierFlags: UInt32
+    let options: UInt32
+
+    init(shortcut: KeyboardShortcut) {
+        self.keyCode = UInt32(shortcut.keyCode)
+        self.modifierFlags = Self.modifierFlags(for: shortcut.modifiers)
+        self.options = 0
+    }
+
+    private static func modifierFlags(for modifiers: KeyboardShortcut.Modifiers) -> UInt32 {
+        var flags: UInt32 = 0
+        if modifiers.contains(.control) { flags |= UInt32(controlKey) }
+        if modifiers.contains(.option) { flags |= UInt32(optionKey) }
+        if modifiers.contains(.command) { flags |= UInt32(cmdKey) }
+        if modifiers.contains(.shift) { flags |= UInt32(shiftKey) }
+        return flags
     }
 }

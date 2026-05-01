@@ -100,7 +100,6 @@ struct StatusItemSettingsStoreTests {
         let second = StatusItemSettingsStore(userDefaults: defaults)
 
         #expect(second.revealStatusItemTitleShortcut == shortcut)
-        #expect(second.revealStatusItemTitleShortcut?.displayTitle == "⌃⇧B")
     }
 
     @Test
