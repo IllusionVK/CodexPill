@@ -47,7 +47,7 @@ struct MenuBarLiveValidationTests {
                 verifiedAccount: account
             )
         ]
-        let alertPresenter = MenuBarAlertPresenterProbe()
+        let alertPresenter = AlertPresenterProbe()
         alertPresenter.confirmationResponse = true
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
@@ -169,7 +169,7 @@ struct MenuBarLiveValidationTests {
                 verifiedAccount: notifiedAccount
             )
         ]
-        let alertPresenter = MenuBarAlertPresenterProbe()
+        let alertPresenter = AlertPresenterProbe()
         alertPresenter.confirmationResponse = true
         let foregrounder = ApplicationActivatorProbe()
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -294,7 +294,7 @@ struct MenuBarLiveValidationTests {
                 verifiedAccount: outAccount
             )
         ]
-        let alertPresenter = MenuBarAlertPresenterProbe()
+        let alertPresenter = AlertPresenterProbe()
         alertPresenter.confirmationResponse = true
         let foregrounder = ApplicationActivatorProbe()
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -376,7 +376,7 @@ struct MenuBarLiveValidationTests {
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.notificationsWhenBlockedEnabled = true
-        let alertPresenter = MenuBarAlertPresenterProbe()
+        let alertPresenter = AlertPresenterProbe()
         alertPresenter.confirmationResponse = true
         let foregrounder = ApplicationActivatorProbe()
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -606,7 +606,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             notificationDelivery: AccountAvailabilityNotificationCenter(center: center),
             notificationSettingsLauncher: opener,
             allowsEmptyStatePrompt: false
@@ -648,7 +648,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             notificationDelivery: AccountAvailabilityNotificationCenter(center: center),
             notificationSettingsLauncher: opener,
             allowsEmptyStatePrompt: false
@@ -846,7 +846,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             notificationDelivery: delivery,
             allowsEmptyStatePrompt: false
         )
@@ -880,8 +880,8 @@ struct MenuBarLiveValidationTests {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
-        let alertPresenter = MenuBarAlertPresenterProbe()
-        let panelPresenter = MenuBarPanelPresenterProbe()
+        let alertPresenter = AlertPresenterProbe()
+        let panelPresenter = PanelPresenterProbe()
         panelPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         alertPresenter.confirmationResponse = false
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -927,8 +927,8 @@ struct MenuBarLiveValidationTests {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
-        let alertPresenter = MenuBarAlertPresenterProbe()
-        let panelPresenter = MenuBarPanelPresenterProbe()
+        let alertPresenter = AlertPresenterProbe()
+        let panelPresenter = PanelPresenterProbe()
         panelPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         alertPresenter.confirmationResponse = true
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -988,7 +988,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: runtime,
             store: store,
             settings: settings,
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-status-item-hover",
             allowsEmptyStatePrompt: false
@@ -1271,7 +1271,7 @@ struct MenuBarLiveValidationTests {
                     )
                 )
             ),
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1328,7 +1328,7 @@ struct MenuBarLiveValidationTests {
             remoteHostClient: RemoteHostStatusProbe(
                 readError: RemoteHostClientError.commandFailed("ssh: connection refused")
             ),
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1378,7 +1378,7 @@ struct MenuBarLiveValidationTests {
             store: store,
             settings: settings,
             remoteHostClient: RemoteHostStatusProbe(),
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1453,7 +1453,7 @@ struct MenuBarLiveValidationTests {
                     "user@debian-vm": CodexAccountStatus(email: "debian@example.com", planType: "team", rateLimits: nil)
                 ]
             ),
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1530,7 +1530,7 @@ struct MenuBarLiveValidationTests {
                     "user@debian-vm": RemoteHostClientError.commandFailed("ssh: connection refused")
                 ]
             ),
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1597,7 +1597,7 @@ struct MenuBarLiveValidationTests {
             remoteHostClient: RemoteHostStatusProbe(
                 status: CodexAccountStatus(email: "business-2@example.com", planType: "team", rateLimits: nil)
             ),
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1695,7 +1695,7 @@ struct MenuBarLiveValidationTests {
                     snapshotFingerprint: "snapshot-business-1"
                 )
             ),
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1766,7 +1766,7 @@ struct MenuBarLiveValidationTests {
                     rateLimits: nil
                 )
             ),
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1788,7 +1788,7 @@ struct MenuBarLiveValidationTests {
         let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         try repository.bootstrapStorage()
-        let alertPresenter = MenuBarAlertPresenterProbe()
+        let alertPresenter = AlertPresenterProbe()
         let account = CodexAccount(
             id: UUID(),
             name: "Business 2",
@@ -1905,7 +1905,7 @@ struct MenuBarLiveValidationTests {
             store: store,
             settings: settings,
             remoteHostClient: remoteHostClient,
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -2037,7 +2037,7 @@ struct MenuBarLiveValidationTests {
             store: store,
             settings: settings,
             remoteHostClient: remoteHostClient,
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -2128,7 +2128,7 @@ struct MenuBarLiveValidationTests {
             store: store,
             settings: settings,
             remoteHostClient: remoteHostClient,
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -2221,7 +2221,7 @@ struct MenuBarLiveValidationTests {
                     )
                 )
             ),
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -2357,7 +2357,7 @@ struct MenuBarLiveValidationTests {
                     )
                 )
             ),
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -2493,7 +2493,7 @@ struct MenuBarLiveValidationTests {
                     rateLimits: nil
                 )
             ),
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -2649,7 +2649,7 @@ struct MenuBarLiveValidationTests {
             store: store,
             settings: settings,
             remoteHostClient: remoteHostClient,
-            alertPresenter: MenuBarAlertPresenterProbe(),
+            alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false

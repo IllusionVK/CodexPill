@@ -21,8 +21,8 @@ final class MenuBarHostActionCoordinator {
     private let settings: CodexPillSettingsStore
     private let remoteHostClient: RemoteHostClient
     private let remoteHostRuntime: RemoteHostRuntime
-    private let alertPresenter: MenuBarAlertPresenter
-    private let panelPresenter: MenuBarPanelPresenter
+    private let alertPresenter: AlertPresenter
+    private let panelPresenter: PanelPresenter
     private let alertFactory: MenuBarAlertFactory
     private let sealValidationRun: CodexPillSealValidationRun?
     private let recordMenuAction: (String, [String: String]) -> Void
@@ -36,8 +36,8 @@ final class MenuBarHostActionCoordinator {
         settings: CodexPillSettingsStore,
         remoteHostClient: RemoteHostClient,
         remoteHostRuntime: RemoteHostRuntime,
-        alertPresenter: MenuBarAlertPresenter,
-        panelPresenter: MenuBarPanelPresenter,
+        alertPresenter: AlertPresenter,
+        panelPresenter: PanelPresenter,
         alertFactory: MenuBarAlertFactory,
         sealValidationRun: CodexPillSealValidationRun?,
         recordMenuAction: @escaping (String, [String: String]) -> Void,

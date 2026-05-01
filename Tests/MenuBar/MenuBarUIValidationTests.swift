@@ -969,7 +969,7 @@ struct MenuBarUIValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            alertPresenter: MenuBarAlertPresenterProbe()
+            alertPresenter: AlertPresenterProbe()
         )
     }
 

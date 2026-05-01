@@ -30,9 +30,9 @@ struct MenuBarHostActionCoordinatorTests {
     func addHostInstallsActiveAccountWhenUserAcceptsInstallPrompt() async throws {
         let account = makeAccount(name: "Business", email: "business@example.com")
         let host = RemoteHost(destination: "user@buildbox", displayName: "Buildbox")
-        let panelPresenter = MenuBarPanelPresenterProbe()
+        let panelPresenter = PanelPresenterProbe()
         panelPresenter.hostSetupResponse = host
-        let alertPresenter = MenuBarAlertPresenterProbe()
+        let alertPresenter = AlertPresenterProbe()
         alertPresenter.confirmationResponse = true
         let harness = makeHarness(
             accounts: [account],
@@ -57,7 +57,7 @@ struct MenuBarHostActionCoordinatorTests {
     @Test
     func removeHostConfirmsThenRemovesConfiguredHost() throws {
         let host = RemoteHost(destination: "user@buildbox", displayName: "Buildbox")
-        let alertPresenter = MenuBarAlertPresenterProbe()
+        let alertPresenter = AlertPresenterProbe()
         alertPresenter.confirmationResponse = true
         let harness = makeHarness(alertPresenter: alertPresenter)
         harness.settings.remoteHostStates = [PersistedRemoteHostState(host: host)]
@@ -133,15 +133,15 @@ struct MenuBarHostActionCoordinatorTests {
         accounts: [CodexAccount] = [],
         activeAccount: CodexAccount? = nil,
         remoteHostClient: RemoteHostClient = RemoteHostClientFixture(),
-        alertPresenter: MenuBarAlertPresenterProbe? = nil,
-        panelPresenter: MenuBarPanelPresenterProbe? = nil
+        alertPresenter: AlertPresenterProbe? = nil,
+        panelPresenter: PanelPresenterProbe? = nil
     ) -> MenuBarHostActionCoordinatorHarness {
         MenuBarHostActionCoordinatorHarness(
             accounts: accounts,
             activeAccount: activeAccount,
             remoteHostClient: remoteHostClient,
-            alertPresenter: alertPresenter ?? MenuBarAlertPresenterProbe(),
-            panelPresenter: panelPresenter ?? MenuBarPanelPresenterProbe()
+            alertPresenter: alertPresenter ?? AlertPresenterProbe(),
+            panelPresenter: panelPresenter ?? PanelPresenterProbe()
         )
     }
 
@@ -178,8 +178,8 @@ private final class MenuBarHostActionCoordinatorHarness {
         accounts: [CodexAccount],
         activeAccount: CodexAccount?,
         remoteHostClient: RemoteHostClient,
-        alertPresenter: MenuBarAlertPresenter,
-        panelPresenter: MenuBarPanelPresenter
+        alertPresenter: AlertPresenter,
+        panelPresenter: PanelPresenter
     ) {
         store = MenuBarHostActionStoreProbe(accounts: accounts, activeAccount: activeAccount)
         let defaults = UserDefaults(suiteName: suiteName)!

@@ -34,8 +34,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let statusItemSettings: StatusItemSettingsStore
     private let remoteHostClient: RemoteHostClient
     private let cliProcessInspector: CodexCLIProcessInspector
-    private let alertPresenter: MenuBarAlertPresenter
-    private let panelPresenter: MenuBarPanelPresenter
+    private let alertPresenter: AlertPresenter
+    private let panelPresenter: PanelPresenter
     private let alertFactory: MenuBarAlertFactory
     private let notificationStateStore: AccountAvailabilityNotificationStore
     private let notificationDelivery: AccountAvailabilityNotifier
@@ -105,8 +105,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         settings: CodexPillSettingsStore,
         remoteHostClient: RemoteHostClient = UnavailableRemoteHostClient(),
         cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
-        alertPresenter: MenuBarAlertPresenter,
-        panelPresenter: MenuBarPanelPresenter? = nil,
+        alertPresenter: AlertPresenter,
+        panelPresenter: PanelPresenter? = nil,
         alertFactory: MenuBarAlertFactory = MenuBarAlertFactory(),
         notificationDelivery: AccountAvailabilityNotifier = AccountAvailabilityNotificationCenter(),
         applicationActivator: ApplicationActivator = NSApplicationActivator(),
@@ -124,7 +124,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.remoteHostClient = remoteHostClient
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
-        self.panelPresenter = panelPresenter ?? SystemMenuBarPanelPresenter()
+        self.panelPresenter = panelPresenter ?? SystemPanelPresenter()
         self.alertFactory = alertFactory
         self.notificationStateStore = AccountAvailabilityNotificationStore(
             preferences: settings.notificationPreferences,

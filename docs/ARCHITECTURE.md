@@ -77,8 +77,13 @@ Key boundaries:
 - `MenuBarAccountCatalogProjection`
 - `MenuBarMenuBuilder`
 - `MenuBarAlertFactory`
-- `MenuBarAlertPresenter`
-- `MenuBarPanelPresenter`
+- `AlertPresenter`
+- `SystemAlertPresenter`
+- `PanelPresenter`
+- `SystemPanelPresenter`
+- `PanelWindowFactory`
+- `AddHostPanel`
+- `CodexSignInPanel`
 - `StatusItemRuntime`
 - `AccountAvailabilityNotificationRuntime`
 

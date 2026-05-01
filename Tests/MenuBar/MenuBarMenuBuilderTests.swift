@@ -6,7 +6,7 @@ import Testing
 @testable import CodexPill
 
 @MainActor
-final class MenuBarAlertPresenterProbe: MenuBarAlertPresenter {
+final class AlertPresenterProbe: AlertPresenter {
     private(set) var textInputRequests: [MenuBarTextInputAlertRequest] = []
     private(set) var confirmationRequests: [MenuBarConfirmationAlertRequest] = []
     private(set) var infoRequests: [MenuBarInfoAlertRequest] = []
@@ -30,7 +30,7 @@ final class MenuBarAlertPresenterProbe: MenuBarAlertPresenter {
 }
 
 @MainActor
-final class MenuBarPanelPresenterProbe: MenuBarPanelPresenter {
+final class PanelPresenterProbe: PanelPresenter {
     private(set) var hostSetupRequests: [MenuBarHostSetupPanelRequest] = []
     private(set) var addAccountSignInRequests: [MenuBarAddAccountSignInPanelRequest] = []
 
@@ -106,7 +106,7 @@ struct MenuBarMenuBuilderTests {
 
     @Test
     func realAlertPresenterSuppressesInfoAlertsDuringAutomatedTests() {
-        let presenter = SystemMenuBarAlertPresenter(
+        let presenter = SystemAlertPresenter(
             environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
         )
 
@@ -122,10 +122,10 @@ struct MenuBarMenuBuilderTests {
 
     @Test
     func realPresentersCancelInteractivePromptsDuringAutomatedTests() async {
-        let alertPresenter = SystemMenuBarAlertPresenter(
+        let alertPresenter = SystemAlertPresenter(
             environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
         )
-        let panelPresenter = SystemMenuBarPanelPresenter(
+        let panelPresenter = SystemPanelPresenter(
             environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
         )
 
@@ -1426,8 +1426,8 @@ struct MenuBarMenuBuilderTests {
             statusItemRuntime: statusItemRuntime,
             store: store,
             settings: settings,
-            alertPresenter: MenuBarAlertPresenterProbe(),
-            panelPresenter: MenuBarPanelPresenterProbe()
+            alertPresenter: AlertPresenterProbe(),
+            panelPresenter: PanelPresenterProbe()
         )
         return (coordinator, statusItem)
     }
