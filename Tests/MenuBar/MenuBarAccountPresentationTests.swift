@@ -299,6 +299,48 @@ struct MenuBarAccountPresentationTests {
     }
 
     @Test
+    func compactMenuRowUsageSummaryOmitsResetCountdownsForUnusedLimits() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "raphaelgrau@gmail.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: "codex",
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 0,
+                    resetsAt: now.addingTimeInterval((4 * 60 + 59) * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 91,
+                    resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            )
+        )
+
+        #expect(compactMenuRowUsageSummary(for: account, now: now) == "S 0%  W 91% (4d)")
+    }
+
+    @Test
+    func compactElapsedTimeUsesShortUnits() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+
+        #expect(compactElapsedTime(since: now.addingTimeInterval(-30), now: now) == "30sec")
+        #expect(compactElapsedTime(since: now.addingTimeInterval(-60), now: now) == "1min")
+        #expect(compactElapsedTime(since: now.addingTimeInterval(-3_600), now: now) == "1h")
+        #expect(compactElapsedTime(since: now.addingTimeInterval(-86_400), now: now) == "1d")
+    }
+
+    @Test
     func inactiveAccountTitleUsesTabAlignedColumns() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let account = CodexAccount(

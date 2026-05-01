@@ -468,11 +468,93 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
+    func activeRemoteHostsForRemovalIncludesActiveAccountEvenWhenDesiredMetadataIsStale() {
+        let local = makeAccount(name: "Business 4", withRateLimits: true)
+        let staleDesired = makeAccount(name: "Business 5", withRateLimits: true)
+        let state = makeState(
+            activeAccount: local,
+            inactiveAccounts: [staleDesired],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "debian-vm",
+                    destination: "debian-vm",
+                    connectionState: .connected,
+                    desiredAccount: staleDesired,
+                    activeAccount: local,
+                    verificationStatus: .verified,
+                    deployedAccountIDs: [local.id, staleDesired.id]
+                )
+            ]
+        )
+
+        #expect(state.activeRemoteHosts(for: local).map(\.name) == ["debian-vm"])
+    }
+
+    @Test
+    func sameVerifiedLocalAndRemoteAccountWithDifferentIDsCollapsesRemotePrimaryCard() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let local = makeAccount(name: "Personal", withRateLimits: true)
+        let remote = CodexAccount(
+            id: UUID(),
+            name: local.name,
+            snapshotFileName: "\(UUID().uuidString).json",
+            createdAt: local.createdAt,
+            updatedAt: local.updatedAt.addingTimeInterval(60),
+            email: local.email,
+            planType: local.planType,
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "pro",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 9,
+                    resetsAt: now.addingTimeInterval(3 * 60 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 11,
+                    resetsAt: now.addingTimeInterval(3 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now.addingTimeInterval(60)
+            ),
+            identity: CodexAccountIdentity(
+                snapshotFingerprint: UUID().uuidString,
+                remoteIdentity: local.identity.remoteIdentity
+            )
+        )
+        let state = makeState(
+            activeAccount: local,
+            inactiveAccounts: [],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "debian-vm",
+                    destination: "debian-vm",
+                    connectionState: .connected,
+                    desiredAccount: remote,
+                    activeAccount: remote,
+                    verificationStatus: .verified,
+                    deployedAccountIDs: [remote.id]
+                )
+            ]
+        )
+
+        #expect(state.connectedRemoteHosts.count == 1)
+        #expect(state.primaryRemoteAccountHosts.isEmpty)
+        #expect(state.activeAccountRemoteLocations == ["debian-vm"])
+        #expect(state.accountCatalogEntries.first?.placement == .localAndRemote)
+    }
+
+    @Test
     func sameVerifiedRemoteAccountWithDifferentInspectableDataKeepsRemotePrimaryCard() {
         let now = Date()
         let local = makeAccount(name: "Business 4", withRateLimits: true)
-        var remote = local
-        remote.applyRemoteMetadata(
+        let remote = CodexAccount(
+            id: UUID(),
+            name: local.name,
+            snapshotFileName: "\(UUID().uuidString).json",
+            createdAt: local.createdAt,
+            updatedAt: local.updatedAt.addingTimeInterval(60),
             email: "remote-business@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
@@ -490,6 +572,10 @@ struct MenuBarMenuStateTests {
                     windowDurationMinutes: 10_080
                 ),
                 fetchedAt: now
+            ),
+            identity: CodexAccountIdentity(
+                snapshotFingerprint: UUID().uuidString,
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "remote-business@example.com")
             )
         )
         let state = makeState(
@@ -510,7 +596,7 @@ struct MenuBarMenuStateTests {
 
         #expect(state.primaryRemoteAccountHosts.map(\.name) == ["debian-vm"])
         #expect(state.activeAccountRemoteLocations.isEmpty)
-        #expect(state.accountCatalogEntries.first?.placement == .localAndRemote)
+        #expect(state.accountCatalogEntries.first?.placement == .local)
     }
 
     @Test

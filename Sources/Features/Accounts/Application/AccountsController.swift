@@ -163,9 +163,13 @@ final class AccountsController {
         }
     }
 
-    func removeSavedAccount(_ account: CodexAccount) async {
+    func removeSavedAccount(_ account: CodexAccount, signOutLocalAccount: Bool = false) async {
         await perform("Removing \(account.name)...") {
-            let result = try deleteSavedAccountUseCase.run(account: account, accounts: accounts)
+            let result = try await deleteSavedAccountUseCase.run(
+                account: account,
+                accounts: accounts,
+                signOutLocalAccount: signOutLocalAccount
+            )
             catalogState.applyDeleted(result)
         }
     }

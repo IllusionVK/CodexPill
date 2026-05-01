@@ -34,8 +34,8 @@ final class MenuBarAccountsStore {
         await controller.testRemoteHostConnection(host)
     }
 
-    func removeSavedAccount(_ account: CodexAccount) async {
-        await controller.removeSavedAccount(account)
+    func removeSavedAccount(_ account: CodexAccount, signOutLocalAccount: Bool = false) async {
+        await controller.removeSavedAccount(account, signOutLocalAccount: signOutLocalAccount)
     }
 
     func renameSavedAccount(_ account: CodexAccount, to newName: String) async {

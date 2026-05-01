@@ -278,6 +278,7 @@ private final class RemoteHostClientProbe: RemoteHostClient {
         case installationState(UUID, String)
         case install(UUID, String)
         case switchAccount(UUID, String)
+        case signOut(String)
         case refreshRuntime(String)
         case readStatus(String)
     }
@@ -329,6 +330,10 @@ private final class RemoteHostClientProbe: RemoteHostClient {
         if let switchError {
             throw switchError
         }
+    }
+
+    func signOut(on host: RemoteHost) async throws {
+        events.append(.signOut(host.displayName))
     }
 
     func refreshCodexAppServer(on host: RemoteHost) async throws {

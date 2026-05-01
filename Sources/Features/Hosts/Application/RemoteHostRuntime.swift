@@ -110,6 +110,17 @@ final class RemoteHostRuntime {
         connectionStates.removeValue(forKey: hostState.host.destination)
     }
 
+    func applySignOut(on host: RemoteHost) {
+        settings.updateRemoteHostState(for: host) { state in
+            state.desiredAccountID = nil
+            state.verifiedAccount = nil
+            state.detectedAccountID = nil
+            state.verificationStatus = .unverified
+            state.lastVerificationError = nil
+        }
+        setConnectionState(.connected, for: host.destination)
+    }
+
     func beginReverification(hostState: PersistedRemoteHostState) -> CodexAccount? {
         guard hostState.verificationStatus != .verifying else { return nil }
         guard let baseAccount = baseAccountForRemoteRefresh(hostState: hostState) else { return nil }

@@ -80,6 +80,8 @@ The following behavior should be treated as automated first and should not live 
   - `SSHRemoteHostClientTests`
 - remote-host install-then-switch orchestration:
   - `SwitchAccountOnHostWorkflowTests`
+- remove-account active target sign-out before catalog deletion:
+  - `DeleteSavedAccountUseCaseTests`, `ValidationRemoteHostClientTests`, `SSHRemoteHostClientTests`, and `MenuBarLiveValidationTests`
 - persisted remote-host refresh fallback when a host is offline:
   - `MenuBarLiveValidationTests`
 - multiple connected remote hosts render distinct primary remote-account cards without changing the local accounts catalog:
@@ -200,6 +202,19 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `owner_layer`: `integration`
 - `proofs_required`: `["unit", "integration"]`
 - `scenarios`: `["isolated_add_account_cancel_cleanup", "isolated_add_account_duplicate_identity", "isolated_add_account_live_auth_changed", "isolated_add_account_catalog_save_failure", "stale_isolated_codex_home_cleanup"]`
+
+### `accounts.remove_account.signs_out_active_targets_before_delete`
+
+- `feature`: `accounts`
+- `rule`: Removing a saved account must not leave that account actively logged in on a target CodexPill controls. If the account is active on This Mac, CodexPill signs out local auth and relaunches Codex before deleting the saved snapshot. If the account is active on a connected verified remote host, CodexPill signs out that host before deleting the saved snapshot. If any required sign-out fails, the saved account remains in the catalog and the failure is surfaced.
+- `owner_layer`: `integration`
+- `proofs_required`: `["unit", "integration", "live_ui"]`
+- `scenarios`: `["remove_account_active_local_session_signs_out_before_delete", "remove_account_active_remote_session_signs_out_before_delete", "remove_account_signout_failure_keeps_saved_account", "remove_account_inactive_snapshot_delete"]`
+- `automated_proofs`:
+  - `remove_account_active_local_session_signs_out_before_delete`: `DeleteSavedAccountUseCaseTests.runSignsOutLocalAccountBeforeDeletingWhenRequested` and `MenuBarLiveValidationTests.removeAccountSignsOutLocalAndRemoteTargetsBeforeDeletingSavedAccount`
+  - `remove_account_active_remote_session_signs_out_before_delete`: `ValidationRemoteHostClientTests.signOutClearsActiveAccountButKeepsInstalledSnapshot`, `SSHRemoteHostClientTests.signOutRemovesRemoteAuthPath`, and `MenuBarLiveValidationTests.removeAccountSignsOutLocalAndRemoteTargetsBeforeDeletingSavedAccount`
+  - `remove_account_signout_failure_keeps_saved_account`: `DeleteSavedAccountUseCaseTests.runDoesNotDeleteSnapshotWhenLocalSignOutFails`
+  - `remove_account_inactive_snapshot_delete`: `DeleteSavedAccountUseCaseTests.runDeletesSnapshotPersistsFilteredAccountsAndRecomputesActiveAccount`
 
 ### `accounts.scheduled_refresh.requested_and_completed`
 

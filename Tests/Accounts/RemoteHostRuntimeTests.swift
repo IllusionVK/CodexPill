@@ -179,6 +179,7 @@ private struct RemoteHostClientFixture: RemoteHostClient {
     func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState { .installed }
     func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
     func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
+    func signOut(on host: RemoteHost) async throws {}
     func refreshCodexAppServer(on host: RemoteHost) async throws {}
 
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {

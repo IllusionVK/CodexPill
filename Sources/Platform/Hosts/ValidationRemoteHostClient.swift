@@ -41,6 +41,12 @@ actor ValidationRemoteHostClient: RemoteHostClient {
         hostsByDestination[host.destination] = state
     }
 
+    func signOut(on host: RemoteHost) async throws {
+        var state = ensureHostState(for: host)
+        state.activeAccount = nil
+        hostsByDestination[host.destination] = state
+    }
+
     func refreshCodexAppServer(on host: RemoteHost) async throws {
         _ = ensureHostState(for: host)
     }

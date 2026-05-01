@@ -8,6 +8,78 @@ import UserNotifications
 @MainActor
 struct MenuBarLiveValidationTests {
     @Test
+    func removeAccountSignsOutLocalAndRemoteTargetsBeforeDeletingSavedAccount() async throws {
+        let repository = try makeIsolatedRepository()
+        let account = try makeActiveAccount(
+            named: "Business 4",
+            email: "business-4@example.com",
+            in: repository
+        )
+        let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
+
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            codexAppProcessClient: NullCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient(),
+            remoteHostClient: ValidationRemoteHostClient(
+                seedStates: [
+                    PersistedRemoteHostState(
+                        host: host,
+                        installedAccountIDs: [account.id],
+                        desiredAccountID: account.id,
+                        verifiedAccount: account
+                    )
+                ]
+            )
+        )
+        store.load()
+
+        let suiteName = "MenuBarLiveValidationRemoveAccount-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: host,
+                installedAccountIDs: [account.id],
+                desiredAccountID: account.id,
+                verifiedAccount: account
+            )
+        ]
+        let alertPresenter = MenuBarAlertPresenterProbe()
+        alertPresenter.confirmationResponse = true
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: ValidationRemoteHostClient(seedStates: settings.remoteHostStates),
+            alertPresenter: alertPresenter,
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        try await Task.sleep(for: .milliseconds(120))
+        let item = NSMenuItem()
+        item.representedObject = account.id.uuidString
+        coordinator.removeAccount(item)
+        try await Task.sleep(for: .milliseconds(180))
+
+        #expect(alertPresenter.confirmationRequests.last?.messageText == "Business 4 is in use")
+        #expect(alertPresenter.confirmationRequests.last?.informativeText == "Sign out on This Mac and debian-vm before removing it?")
+        #expect(store.accounts.isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: repository.paths.codexAuthFile.path))
+        #expect(settings.remoteHostStates.first?.verifiedAccount == nil)
+        #expect(settings.remoteHostStates.first?.desiredAccountID == nil)
+    }
+
+    @Test
     func notificationResponseSubstitutesBetterRemoteAccountAndExplainsIt() async throws {
         let repository = try makeIsolatedRepository()
         let now = Date()
@@ -2695,6 +2767,7 @@ private struct RemoteHostStatusProbe: RemoteHostClient {
             throw switchError
         }
     }
+    func signOut(on host: RemoteHost) async throws {}
     func refreshCodexAppServer(on host: RemoteHost) async throws {}
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
         if let scopedError = readErrorsByDestination[host.destination] {
@@ -2725,6 +2798,7 @@ private actor RemoteHostSequenceProbe: RemoteHostClient {
     func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState { .installed }
     func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
     func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
+    func signOut(on host: RemoteHost) async throws {}
     func refreshCodexAppServer(on host: RemoteHost) async throws {}
 
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {

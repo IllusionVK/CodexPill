@@ -3,6 +3,7 @@ import SwiftUI
 struct ActiveAccountMenuContent: View {
     let account: CodexAccount
     let activeRemoteLocations: [String]
+    let hasSeparateRemoteAccountCards: Bool
     let progressAccentColor: Color
     let showsPacingMarkers: Bool
 
@@ -23,7 +24,7 @@ struct ActiveAccountMenuContent: View {
             }
 
             HStack(alignment: .firstTextBaseline) {
-                Text("Updated \(RelativeDateTimeFormatter().localizedString(for: account.lastRemoteRefreshAt, relativeTo: now))")
+                Text(activeAccountMetadataPrefix(now: now))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -33,14 +34,6 @@ struct ActiveAccountMenuContent: View {
                     .multilineTextAlignment(.trailing)
             }
             .padding(.top, -2)
-
-            if !activeRemoteLocations.isEmpty {
-                Text(activeLocationsLine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, -2)
-            }
 
             ActiveLimitRow(
                 title: "Session",
@@ -70,13 +63,15 @@ struct ActiveAccountMenuContent: View {
         return email
     }
 
-    private var activeLocationsLine: String {
-        switch activeRemoteLocations.count {
-        case 1:
-            return "Also active on \(activeRemoteLocations[0])"
-        default:
-            return "Also active on \(activeRemoteLocations.joined(separator: ", "))"
+    private func activeAccountMetadataPrefix(now: Date) -> String {
+        if activeRemoteLocations.isEmpty {
+            if hasSeparateRemoteAccountCards {
+                return "This Mac"
+            }
+            return "Updated \(compactElapsedTime(since: account.lastRemoteRefreshAt, now: now)) ago"
         }
+
+        return (["This Mac"] + activeRemoteLocations).joined(separator: " + ")
     }
 }
 
@@ -142,7 +137,7 @@ struct RemoteHostMenuContent: View {
             }
 
             HStack(alignment: .firstTextBaseline) {
-                Text("\(remoteHost.name) • \(remoteHost.connectionState.menuTitle)")
+                Text(remoteHostSubtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -217,6 +212,15 @@ struct RemoteHostMenuContent: View {
             return remoteHost.destination
         }
         return email
+    }
+
+    private var remoteHostSubtitle: String {
+        guard remoteHost.activeAccount != nil,
+              remoteHost.connectionState == .connected,
+              remoteHost.verificationStatus == .verified else {
+            return "\(remoteHost.name) • \(remoteHost.connectionState.menuTitle)"
+        }
+        return remoteHost.name
     }
 
     private var statusMessage: String? {

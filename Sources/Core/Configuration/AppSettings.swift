@@ -204,10 +204,14 @@ final class MenuPreferencesStore {
         let storedRefreshInterval = userDefaults.integer(forKey: Self.refreshIntervalKey)
         refreshIntervalMinutes = refreshIntervalOptions.contains(storedRefreshInterval) ? storedRefreshInterval : 5
 
-        let storedVisibleInactiveAccountCount = userDefaults.integer(forKey: Self.visibleInactiveAccountCountKey)
-        visibleInactiveAccountCount = visibleInactiveAccountCountOptions.contains(storedVisibleInactiveAccountCount)
-            ? storedVisibleInactiveAccountCount
-            : 2
+        let storedVisibleInactiveAccountCount = userDefaults.object(forKey: Self.visibleInactiveAccountCountKey) as? Int
+        let visibleAccountOptions = visibleInactiveAccountCountOptions
+        if let storedVisibleInactiveAccountCount,
+           visibleAccountOptions.contains(storedVisibleInactiveAccountCount) {
+            visibleInactiveAccountCount = storedVisibleInactiveAccountCount
+        } else {
+            visibleInactiveAccountCount = 5
+        }
     }
 }
 

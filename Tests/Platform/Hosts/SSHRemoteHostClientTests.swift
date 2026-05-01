@@ -69,6 +69,31 @@ struct SSHRemoteHostClientTests {
     }
 
     @Test
+    func signOutRemovesRemoteAuthPath() async throws {
+        let runner = CommandRunnerProbe(results: [
+            .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data()))
+        ])
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            commandRunner: runner,
+            sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
+        )
+
+        try await client.signOut(on: RemoteHost(destination: "user@buildbox"))
+
+        #expect(runner.calls.count == 1)
+        #expect(runner.calls[0].arguments == [
+            "-T",
+            "-o", "BatchMode=yes",
+            "-o", "ConnectTimeout=5",
+            "-o", "ConnectionAttempts=1",
+            "user@buildbox",
+            "rm -f '.codex/auth.json'"
+        ])
+    }
+
+    @Test
     func installationStateTreatsExitCodeOneAsMissing() async throws {
         let account = makeAccount()
         let runner = CommandRunnerProbe(results: [

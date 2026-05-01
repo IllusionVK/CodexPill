@@ -29,7 +29,7 @@ struct MenuBarUIValidationTests {
             now: now
         )
         let accountsSection = try #require(snapshot.sections.first(where: { $0.title == "Accounts" }))
-        let summary = try #require(accountsSection.items.first(where: { $0.contains(" • S ") && $0.contains(" • W ") }))
+        let summary = try #require(accountsSection.items.first(where: { $0.contains(" • S ") && $0.contains("  W ") }))
 
         #expect(!summary.contains("research@example.com"))
         #expect(!summary.contains("sandbox@example.com"))
@@ -470,7 +470,7 @@ struct MenuBarUIValidationTests {
                 "Manage Accounts",
                 "Preferences"
             ])
-            #expect(snapshot.sections[0].items.first?.contains("Also active on debian-vm") == true)
+            #expect(snapshot.sections[0].items.first?.contains("This Mac + debian-vm") == true)
             #expect(snapshot.sections.contains(where: { $0.title == "Remote Accounts" }) == false)
             #expect(snapshot.remoteHosts.map(\.name) == ["debian-vm"])
 

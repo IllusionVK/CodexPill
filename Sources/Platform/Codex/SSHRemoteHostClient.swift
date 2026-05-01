@@ -136,6 +136,20 @@ struct SSHRemoteHostClient: RemoteHostClient {
         }
     }
 
+    func signOut(on host: RemoteHost) async throws {
+        let result = try await commandRunner.run(
+            executableURL: sshExecutableURL,
+            arguments: sshArguments(
+                host: host,
+                command: "rm -f \(quoted(".codex/auth.json"))"
+            )
+        )
+
+        guard result.terminationStatus == 0 else {
+            throw remoteCommandFailure(result)
+        }
+    }
+
     func refreshCodexAppServer(on host: RemoteHost) async throws {
         let pids = try await appServerProcessIDs(on: host)
         if !pids.isEmpty {

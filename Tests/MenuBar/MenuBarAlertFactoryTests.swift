@@ -102,12 +102,23 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
-    func removeAccountWarningMentionsCurrentAccountConsequence() {
-        let request = factory.makeRemoveAccountRequest(accountName: "Work", isCurrent: true)
+    func removeAccountRequestUsesPlainRemoveWhenAccountIsInactive() {
+        let request = factory.makeRemoveAccountRequest(accountName: "Work")
 
         #expect(request.informativeText.contains("saved snapshot for Work"))
-        #expect(request.informativeText.contains("live Codex session will remain logged in"))
         #expect(request.confirmTitle == "Remove")
+    }
+
+    @Test
+    func removeAccountRequestRequiresSignOutWhenAccountIsActiveOnTargets() {
+        let request = factory.makeRemoveAccountRequest(
+            accountName: "Business 4",
+            activeTargets: ["This Mac", "debian-vm"]
+        )
+
+        #expect(request.messageText == "Business 4 is in use")
+        #expect(request.informativeText == "Sign out on This Mac and debian-vm before removing it?")
+        #expect(request.confirmTitle == "Sign Out & Remove")
     }
 
     @Test

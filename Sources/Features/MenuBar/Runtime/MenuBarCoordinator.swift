@@ -213,13 +213,25 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             return
         }
 
+        let state = menuState()
+        let shouldSignOutLocalAccount = state.isAccountActiveLocally(account)
+        let activeRemoteHosts = state.activeRemoteHosts(for: account)
         let request = alertFactory.makeRemoveAccountRequest(
             accountName: account.name,
-            isCurrent: account.id == store.activeAccountID
+            activeTargets: removeAccountActiveTargetNames(
+                signsOutLocalAccount: shouldSignOutLocalAccount,
+                remoteHosts: activeRemoteHosts
+            )
         )
 
         guard alertPresenter.presentConfirmation(request) else { return }
-        Task { await store.removeSavedAccount(account) }
+        Task { @MainActor [weak self] in
+            await self?.removeSavedAccount(
+                account,
+                signOutLocalAccount: shouldSignOutLocalAccount,
+                remoteHosts: activeRemoteHosts
+            )
+        }
     }
 
     @objc
@@ -1284,6 +1296,44 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             self.cachedNotificationAuthorizationState = state
             self.rebuildMenu()
         }
+    }
+
+    private func removeSavedAccount(
+        _ account: CodexAccount,
+        signOutLocalAccount: Bool,
+        remoteHosts: [RemoteHostMenuState]
+    ) async {
+        do {
+            try await signOutRemoteHosts(remoteHosts)
+            await store.removeSavedAccount(account, signOutLocalAccount: signOutLocalAccount)
+            presentPendingErrorIfNeeded()
+        } catch {
+            alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: error.localizedDescription))
+        }
+        rebuildMenu()
+    }
+
+    private func signOutRemoteHosts(_ remoteHosts: [RemoteHostMenuState]) async throws {
+        for remoteHostState in remoteHosts {
+            guard let remoteHost = settings.remoteHostState(for: remoteHostState.destination)?.host else {
+                throw RemoteHostClientError.commandFailed("Remote host \(remoteHostState.name) is no longer configured.")
+            }
+            try await remoteHostClient.signOut(on: remoteHost)
+            try await remoteHostClient.refreshCodexAppServer(on: remoteHost)
+            remoteHostRuntime.applySignOut(on: remoteHost)
+        }
+    }
+
+    private func removeAccountActiveTargetNames(
+        signsOutLocalAccount: Bool,
+        remoteHosts: [RemoteHostMenuState]
+    ) -> [String] {
+        var targets: [String] = []
+        if signsOutLocalAccount {
+            targets.append("This Mac")
+        }
+        targets.append(contentsOf: remoteHosts.map(\.name))
+        return targets
     }
 
     private func restorePersistedRemoteHostState() {

@@ -59,6 +59,13 @@ struct CodexAuthSnapshotService {
         try snapshot.write(to: repository.paths.codexAuthFile, options: .atomic)
     }
 
+    func signOut() throws {
+        authSnapshotLogger.log("Signing out current Codex auth")
+        let url = repository.paths.codexAuthFile
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        try FileManager.default.removeItem(at: url)
+    }
+
     func restoreCurrentAuthData(_ data: Data) throws {
         try data.write(to: repository.paths.codexAuthFile, options: .atomic)
     }

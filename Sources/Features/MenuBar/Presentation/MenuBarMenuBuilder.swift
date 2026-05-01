@@ -97,6 +97,7 @@ struct MenuBarMenuBuilder {
             rootView: ActiveAccountMenuContent(
                 account: account,
                 activeRemoteLocations: state.activeAccountRemoteLocations,
+                hasSeparateRemoteAccountCards: !state.primaryRemoteAccountHosts.isEmpty,
                 progressAccentColor: Color(nsColor: state.progressAccentColor),
                 showsPacingMarkers: state.pacingMarkersEnabled
             )

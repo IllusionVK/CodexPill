@@ -10,7 +10,7 @@ struct MenuPreferencesStoreTests {
         let store = MenuPreferencesStore(userDefaults: makeDefaults())
 
         #expect(store.refreshIntervalMinutes == 5)
-        #expect(store.visibleInactiveAccountCount == 0)
+        #expect(store.visibleInactiveAccountCount == 5)
         #expect(store.refreshIntervalOptions == [1, 2, 5, 10, 15, 30])
         #expect(store.visibleInactiveAccountCountOptions == [2, 3, 5, 0])
     }
@@ -37,7 +37,7 @@ struct MenuPreferencesStoreTests {
         let store = MenuPreferencesStore(userDefaults: defaults)
 
         #expect(store.refreshIntervalMinutes == 5)
-        #expect(store.visibleInactiveAccountCount == 2)
+        #expect(store.visibleInactiveAccountCount == 5)
     }
 }
 

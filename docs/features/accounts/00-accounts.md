@@ -87,7 +87,9 @@ Remote cards must prefer remote target values over local catalog values when the
 
 ### Duplicate Local And Remote Accounts
 
-If the same saved account is active locally and on a connected verified remote host, CodexPill collapses the duplicate primary remote account card into the `Current Account` section and labels the remote location, such as `Also active on debian-vm`. The `Current Account` card continues to show local current-account limits; remote host management and troubleshooting remain under `Hosts`.
+If the same saved account is active locally and on a connected verified remote host, CodexPill collapses the duplicate primary remote account card into the `Current Account` section and shows compact location context in the metadata line, such as `This Mac + debian-vm`. The `Current Account` card continues to show local current-account limits; remote host management and troubleshooting remain under `Hosts`.
+
+If only the local account is active, the metadata line shows freshness, such as `Updated 1min ago`. If local and remote accounts are different and therefore render as separate cards, the local card shows `This Mac` and each remote card shows its host context.
 
 The user must be able to answer:
 
@@ -132,7 +134,7 @@ This means the catalog should help the user find the most useful account first, 
 
 ### Overflow
 
-When the visible account limit hides saved accounts, the menubar shows `More Accounts…`.
+When the visible account limit hides saved accounts, the menubar shows `More Accounts…`. The default visible saved-account count is five.
 
 The overflow menu remains part of the same saved account catalog and should use the same row and submenu behavior.
 
@@ -188,7 +190,8 @@ Rename:
 Remove:
 
 - Uses a destructive confirmation alert.
-- If the removed account is current locally, the alert explains that the live Codex session remains logged in but no longer matches a saved account.
+- If the removed account is active locally or on a connected remote host, CodexPill signs out those active targets before deleting the saved snapshot.
+- If any required sign-out fails, CodexPill keeps the saved account so the user does not lose the main control surface for an active login.
 
 ### Visual Contract
 

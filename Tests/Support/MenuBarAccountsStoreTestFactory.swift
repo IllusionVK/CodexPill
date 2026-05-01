@@ -40,7 +40,11 @@ extension MenuBarAccountsStore {
                 ),
                 deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
                     repository: repository,
-                    identityResolver: identityResolver
+                    identityResolver: identityResolver,
+                    authSignerOut: CodexLocalAuthSignOut(
+                        authService: authService,
+                        codexAppProcessClient: codexAppProcessClient
+                    )
                 ),
                 renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
                 persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),

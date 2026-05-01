@@ -881,6 +881,7 @@ struct MenuBarMenuBuilderTests {
             rootView: ActiveAccountMenuContent(
                 account: makeAccount(name: "Business 2", withRateLimits: true),
                 activeRemoteLocations: [],
+                hasSeparateRemoteAccountCards: false,
                 progressAccentColor: .blue,
                 showsPacingMarkers: true
             )

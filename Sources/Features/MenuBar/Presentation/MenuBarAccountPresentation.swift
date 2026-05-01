@@ -99,19 +99,46 @@ func compactMenuRowDisplayName(for accountName: String, maxLength: Int = 20) -> 
 }
 
 func compactAccountUsageSummary(for account: CodexAccount, now: Date = .now) -> String {
-    let session = compactLimitDetail(prefix: "S", window: account.rateLimits?.primary, now: now)
-    let weekly = compactLimitDetail(prefix: "W", window: account.rateLimits?.secondary, now: now)
+    let session = compactLimitDetail(prefix: "S", window: account.rateLimits?.primary, now: now, hidesResetWhenUnused: false)
+    let weekly = compactLimitDetail(prefix: "W", window: account.rateLimits?.secondary, now: now, hidesResetWhenUnused: false)
     return "\(session) • \(weekly)"
 }
 
 func compactMenuRowUsageSummary(for account: CodexAccount, now: Date = .now) -> String {
-    let session = compactLimitDetail(prefix: "S", window: account.rateLimits?.primary, now: now)
-    let weekly = compactLimitDetail(prefix: "W", window: account.rateLimits?.secondary, now: now)
+    let session = compactLimitDetail(prefix: "S", window: account.rateLimits?.primary, now: now, hidesResetWhenUnused: true)
+    let weekly = compactLimitDetail(prefix: "W", window: account.rateLimits?.secondary, now: now, hidesResetWhenUnused: true)
     return "\(session)  \(weekly)"
 }
 
-private func compactLimitDetail(prefix: String, window: CodexRateLimitWindow?, now: Date) -> String {
+func compactElapsedTime(since date: Date, now: Date = .now) -> String {
+    let elapsedSeconds = max(0, Int(now.timeIntervalSince(date).rounded(.down)))
+    if elapsedSeconds < 60 {
+        return "\(elapsedSeconds)sec"
+    }
+
+    let elapsedMinutes = elapsedSeconds / 60
+    if elapsedMinutes < 60 {
+        return "\(elapsedMinutes)min"
+    }
+
+    let elapsedHours = elapsedMinutes / 60
+    if elapsedHours < 24 {
+        return "\(elapsedHours)h"
+    }
+
+    return "\(elapsedHours / 24)d"
+}
+
+private func compactLimitDetail(
+    prefix: String,
+    window: CodexRateLimitWindow?,
+    now: Date,
+    hidesResetWhenUnused: Bool
+) -> String {
     let usedText = window.map { "\($0.displayedUsedPercent(at: now))%" } ?? "--"
+    if hidesResetWhenUnused, window?.displayedUsedPercent(at: now) == 0 {
+        return "\(prefix) \(usedText)"
+    }
     guard let window, let resetText = compactResetText(for: window, now: now) else {
         return "\(prefix) \(usedText)"
     }

@@ -66,6 +66,33 @@ struct ValidationRemoteHostClientTests {
         }
     }
 
+    @Test
+    func signOutClearsActiveAccountButKeepsInstalledSnapshot() async throws {
+        let account = makeAccount(
+            name: "Business 3",
+            email: "business-3@example.com",
+            usedPercent: 44
+        )
+        let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
+        let client = ValidationRemoteHostClient(
+            seedStates: [
+                PersistedRemoteHostState(
+                    host: host,
+                    installedAccountIDs: [account.id],
+                    activeAccount: account
+                )
+            ]
+        )
+
+        try await client.signOut(on: host)
+
+        #expect(try await client.installationState(for: account, on: host) == .installed)
+        await #expect(throws: RemoteHostClientError.commandFailed("Validation host debian-vm has no active account.")) {
+            try await client.readCurrentAccountStatus(on: host)
+        }
+    }
+
+
     private func makeAccount(name: String, email: String, usedPercent: Int) -> CodexAccount {
         CodexAccount(
             id: UUID(),

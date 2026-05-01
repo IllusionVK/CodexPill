@@ -108,12 +108,20 @@ struct MenuBarAlertFactory {
         )
     }
 
-    func makeRemoveAccountRequest(accountName: String, isCurrent: Bool) -> MenuBarConfirmationAlertRequest {
-        let suffix = isCurrent ? " The live Codex session will remain logged in, but it will no longer match a saved account." : ""
+    func makeRemoveAccountRequest(accountName: String, activeTargets: [String] = []) -> MenuBarConfirmationAlertRequest {
+        guard !activeTargets.isEmpty else {
+            return MenuBarConfirmationAlertRequest(
+                messageText: "Remove saved account?",
+                informativeText: "This will remove the saved snapshot for \(accountName).\n\nThis action cannot be undone.",
+                confirmTitle: "Remove",
+                cancelTitle: "Cancel"
+            )
+        }
+
         return MenuBarConfirmationAlertRequest(
-            messageText: "Remove saved account?",
-            informativeText: "This will remove the saved snapshot for \(accountName).\n\nThis action cannot be undone.\(suffix)",
-            confirmTitle: "Remove",
+            messageText: "\(accountName) is in use",
+            informativeText: "Sign out on \(formattedTargetList(activeTargets)) before removing it?",
+            confirmTitle: "Sign Out & Remove",
             cancelTitle: "Cancel"
         )
     }
@@ -241,5 +249,19 @@ struct MenuBarAlertFactory {
         }
 
         return lines.joined(separator: " ")
+    }
+
+    private func formattedTargetList(_ targets: [String]) -> String {
+        switch targets.count {
+        case 0:
+            return ""
+        case 1:
+            return targets[0]
+        case 2:
+            return "\(targets[0]) and \(targets[1])"
+        default:
+            let leadingTargets = targets.dropLast().joined(separator: ", ")
+            return "\(leadingTargets), and \(targets[targets.count - 1])"
+        }
     }
 }

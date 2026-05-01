@@ -179,6 +179,24 @@ struct MenuBarMenuState {
             .map(\.name)
     }
 
+    func isAccountActiveLocally(_ account: CodexAccount) -> Bool {
+        guard let activeAccount else { return false }
+        return account.matchesSameAccount(as: activeAccount)
+    }
+
+    func activeRemoteHosts(for account: CodexAccount) -> [RemoteHostMenuState] {
+        resolvedRemoteHosts.filter { remoteHost in
+            guard remoteHost.connectionState == .connected,
+                  remoteHost.verificationStatus == .verified,
+                  remoteHost.lastVerificationError?.isEmpty ?? true,
+                  let activeAccount = remoteHost.activeAccount,
+                  activeAccount.matchesSameAccount(as: account) else {
+                return false
+            }
+            return true
+        }
+    }
+
     var remoteTargetAvailabilities: [String: AccountTargetAvailability] {
         accountCatalogProjection.remoteTargetAvailabilities
     }
@@ -249,30 +267,61 @@ struct MenuBarMenuState {
               remoteHost.connectionState == .connected,
               remoteHost.verificationStatus == .verified,
               remoteHost.lastVerificationError?.isEmpty ?? true,
-              remoteHost.activeAccount?.id == activeAccount.id else {
+              let remoteAccount = remoteHost.activeAccount,
+              remoteAccount.matchesSameAccount(as: activeAccount) else {
             return false
         }
 
         if let desiredAccount = remoteHost.desiredAccount,
-           desiredAccount.id != activeAccount.id {
+           !desiredAccount.matchesSameAccount(as: activeAccount) {
             return false
         }
         if let detectedAccount = remoteHost.detectedAccount,
-           detectedAccount.id != activeAccount.id {
+           !detectedAccount.matchesSameAccount(as: activeAccount) {
             return false
         }
-        guard let remoteAccount = remoteHost.activeAccount else {
-            return false
-        }
-        return remoteAccount.hasSameInspectableAccountData(as: activeAccount)
+        return true
     }
 }
 
 private extension CodexAccount {
-    func hasSameInspectableAccountData(as other: CodexAccount) -> Bool {
-        normalizedInspectableEmail == other.normalizedInspectableEmail
+    func matchesSameAccount(as other: CodexAccount) -> Bool {
+        id == other.id ||
+            hasSameStrongAccountIdentity(as: other) ||
+            hasSameDisplayAccountIdentity(as: other)
+    }
+
+    func hasSameStrongAccountIdentity(as other: CodexAccount) -> Bool {
+        if let stableAccountID = normalizedIdentityValue(identity.stableAccountID),
+           stableAccountID == normalizedIdentityValue(other.identity.stableAccountID) {
+            return true
+        }
+
+        if let snapshotFingerprint = normalizedIdentityValue(identity.snapshotFingerprint),
+           snapshotFingerprint == normalizedIdentityValue(other.identity.snapshotFingerprint) {
+            return true
+        }
+
+        if let authPrincipalIdentity = identity.authPrincipalIdentity,
+           authPrincipalIdentity.isMeaningful,
+           authPrincipalIdentity == other.identity.authPrincipalIdentity {
+            return true
+        }
+
+        if let workspaceIdentity = identity.workspaceIdentity,
+           workspaceIdentity.isMeaningful,
+           workspaceIdentity == other.identity.workspaceIdentity {
+            return true
+        }
+
+        return false
+    }
+
+    func hasSameDisplayAccountIdentity(as other: CodexAccount) -> Bool {
+        normalizedInspectableEmail != nil
+            && normalizedInspectableEmail == other.normalizedInspectableEmail
             && normalizedCodexPlanType(effectivePlanType) == normalizedCodexPlanType(other.effectivePlanType)
-            && rateLimits?.inspectableData == other.rateLimits?.inspectableData
+            && normalizedAccountName == other.normalizedAccountName
     }
 
     var normalizedInspectableEmail: String? {
@@ -280,20 +329,13 @@ private extension CodexAccount {
         let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return normalized.isEmpty ? nil : normalized
     }
-}
 
-private extension CodexRateLimitSnapshot {
-    var inspectableData: InspectableRateLimitData {
-        InspectableRateLimitData(
-            planType: normalizedCodexPlanType(planType),
-            primary: primary,
-            secondary: secondary
-        )
+    var normalizedAccountName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
-}
 
-private struct InspectableRateLimitData: Equatable {
-    let planType: String?
-    let primary: CodexRateLimitWindow?
-    let secondary: CodexRateLimitWindow?
+    func normalizedIdentityValue(_ value: String?) -> String? {
+        let normalized = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized?.isEmpty == false ? normalized : nil
+    }
 }

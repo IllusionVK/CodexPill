@@ -137,7 +137,7 @@ enum MenuBarValidationSupport {
                 title: "Current Account",
                 items: [accountSummary(
                     for: activeAccount,
-                    activeRemoteLocations: state.activeAccountRemoteLocations,
+                    location: currentAccountLocationLine(for: state, now: now),
                     now: now
                 )]
             ))
@@ -219,19 +219,18 @@ enum MenuBarValidationSupport {
 
     private static func accountSummary(
         for account: CodexAccount,
-        activeRemoteLocations: [String] = [],
+        location: String? = nil,
         now: Date
     ) -> String {
         let plan = menuPlanDisplayName(account.effectivePlanType)
         let email = account.email ?? "No email"
         let session = usageLine(title: "Session", window: account.rateLimits?.primary, now: now)
         let weekly = usageLine(title: "Weekly", window: account.rateLimits?.secondary, now: now)
-        let location = activeRemoteLocations.isEmpty ? nil : activeLocationsLine(for: activeRemoteLocations)
         return ([account.name, plan, email, location, session, weekly].compactMap { $0 }).joined(separator: " • ")
     }
 
     private static func inactiveAccountSummary(for entry: MenuBarAccountCatalogEntry, now: Date) -> String {
-        let detail = compactAccountUsageSummary(for: entry.account, now: now)
+        let detail = compactMenuRowUsageSummary(for: entry.account, now: now)
         guard let placement = entry.placement else {
             return "\(entry.account.name) • \(detail)"
         }
@@ -260,13 +259,17 @@ enum MenuBarValidationSupport {
         return components.joined(separator: " • ")
     }
 
-    private static func activeLocationsLine(for locations: [String]) -> String {
-        switch locations.count {
-        case 1:
-            return "Also active on \(locations[0])"
-        default:
-            return "Also active on \(locations.joined(separator: ", "))"
+    private static func currentAccountLocationLine(for state: MenuBarMenuState, now: Date) -> String {
+        if !state.activeAccountRemoteLocations.isEmpty {
+            return (["This Mac"] + state.activeAccountRemoteLocations).joined(separator: " + ")
         }
+        if !state.primaryRemoteAccountHosts.isEmpty {
+            return "This Mac"
+        }
+        guard let activeAccount = state.activeAccount else {
+            return "This Mac"
+        }
+        return "Updated \(compactElapsedTime(since: activeAccount.lastRemoteRefreshAt, now: now)) ago"
     }
 
     private static func usageLine(title: String, window: CodexRateLimitWindow?, now: Date) -> String {
