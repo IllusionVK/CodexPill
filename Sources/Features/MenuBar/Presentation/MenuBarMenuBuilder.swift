@@ -589,34 +589,20 @@ struct MenuBarMenuBuilder {
     }
 
     private func revealShortcutMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let title = "Reveal Shortcut…"
-        let shortcutTitle = state.revealStatusItemTitleShortcut?.displayTitle ?? "None"
         let item = NSMenuItem(
-            title: title,
+            title: "Reveal Shortcut…",
             action: #selector(MenuBarCoordinator.configureRevealStatusItemTitleShortcut(_:)),
             keyEquivalent: ""
         )
-        item.attributedTitle = shortcutDisplayTitle(title: title, shortcutTitle: shortcutTitle)
         item.keyEquivalentModifierMask = []
+        if let shortcut = state.revealStatusItemTitleShortcut,
+           let keyEquivalent = shortcut.appKitKeyEquivalent {
+            item.keyEquivalent = keyEquivalent
+            item.keyEquivalentModifierMask = shortcut.appKitModifierFlags
+        }
         item.target = target
         item.isEnabled = !state.isBusy
         return item
-    }
-
-    private func shortcutDisplayTitle(title: String, shortcutTitle: String) -> NSAttributedString {
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.tabStops = [
-            NSTextTab(textAlignment: .right, location: minimumMenuContentWidth - nativeMenuItemPaddingAllowance)
-        ]
-        paragraphStyle.defaultTabInterval = minimumMenuContentWidth - nativeMenuItemPaddingAllowance
-
-        return NSAttributedString(
-            string: "\(title)\t\(shortcutTitle)",
-            attributes: [
-                .font: NSFont.menuFont(ofSize: 0),
-                .paragraphStyle: paragraphStyle
-            ]
-        )
     }
 
     private func configuredMenu(title: String) -> NSMenu {

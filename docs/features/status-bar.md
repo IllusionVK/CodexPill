@@ -21,9 +21,9 @@ CodexPill ships with the global shortcut `⌃⌥⌘L` while the app is running.
 Pressing it temporarily reveals the same status item label that appears on hover
 for about three seconds without opening the menu and without changing the saved
 `Menu Bar Label` display mode. Pressing the shortcut again while the label is
-visible restarts the reveal timer.
+visible collapses it.
 
-Users can configure or clear the shortcut from:
+Users can configure the shortcut from:
 
 ```text
 Preferences

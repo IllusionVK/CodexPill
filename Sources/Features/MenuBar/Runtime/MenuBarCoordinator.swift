@@ -363,19 +363,21 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     @objc
     func configureRevealStatusItemTitleShortcut(_ sender: NSMenuItem) {
         recordMenuAction("configureRevealStatusItemTitleShortcut")
+        let previousShortcut = statusItemSettings.revealStatusItemTitleShortcut
+        try? shortcutRuntime.apply(shortcut: nil)
+
         switch shortcutCapturePanelPresenter.presentShortcutCapture(
             currentShortcut: statusItemSettings.revealStatusItemTitleShortcut
         ) {
         case .cancelled:
+            try? shortcutRuntime.apply(shortcut: previousShortcut)
             return
-        case .cleared:
-            try? shortcutRuntime.apply(shortcut: nil)
-            statusItemSettings.revealStatusItemTitleShortcut = nil
         case .saved(let shortcut):
             do {
                 try shortcutRuntime.apply(shortcut: shortcut)
                 statusItemSettings.revealStatusItemTitleShortcut = shortcut
             } catch {
+                try? shortcutRuntime.apply(shortcut: previousShortcut)
                 alertPresenter.presentInfo(
                     alertFactory.makeErrorRequest(
                         message: error.localizedDescription

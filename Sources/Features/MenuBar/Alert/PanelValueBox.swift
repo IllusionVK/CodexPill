@@ -4,6 +4,7 @@ struct PanelValueBox: View {
     let value: String
     var font: Font = .system(size: 24, weight: .semibold, design: .monospaced)
     var height: CGFloat = 64
+    var maxWidth: CGFloat?
     var textColor: Color = .primary
     var allowsTextSelection = true
 
@@ -21,7 +22,7 @@ struct PanelValueBox: View {
         Text(value)
             .font(font)
             .foregroundStyle(textColor)
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: maxWidth ?? .infinity)
             .frame(height: height)
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)

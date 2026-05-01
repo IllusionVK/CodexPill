@@ -4,12 +4,24 @@ import Testing
 
 struct ShortcutCapturePanelTests {
     @Test
-    func startsWithoutShortcutAsUnsavable() {
+    func startsWithoutShortcutByOfferingDefaultShortcut() {
         let state = ShortcutCaptureState(currentShortcut: nil)
 
-        #expect(state.displayTitle == "Waiting for shortcut")
+        #expect(state.displayTitle == KeyboardShortcut.defaultRevealStatusItemTitle.displayTitle)
+        #expect(state.canSave)
+        #expect(state.statusKind == .idle)
+        #expect(state.saveResult() == .saved(.defaultRevealStatusItemTitle))
+    }
+
+    @Test
+    func startsWithExistingShortcutAsUnchangedAndUnsavable() {
+        let shortcut = KeyboardShortcut(keyCode: 37, modifiers: [.control, .option, .command])
+        let state = ShortcutCaptureState(currentShortcut: shortcut)
+
+        #expect(state.displayTitle == "⌃⌥⌘L")
         #expect(!state.canSave)
         #expect(state.statusKind == .idle)
+        #expect(state.saveResult() == nil)
     }
 
     @Test
@@ -26,14 +38,42 @@ struct ShortcutCapturePanelTests {
     }
 
     @Test
-    func rejectsShortcutWithoutModifiers() {
+    func ignoresShortcutWithoutModifiers() {
         var state = ShortcutCaptureState(currentShortcut: .defaultRevealStatusItemTitle)
 
         state.capture(KeyboardShortcut(keyCode: 11, modifiers: []))
 
-        #expect(state.displayTitle == "Waiting for shortcut")
+        #expect(state.displayTitle == KeyboardShortcut.defaultRevealStatusItemTitle.displayTitle)
         #expect(!state.canSave)
-        #expect(state.statusKind == .invalid)
+        #expect(state.statusKind == .idle)
+        #expect(state.saveResult() == nil)
+    }
+
+    @Test
+    func invalidShortcutDoesNotDiscardDefaultCandidate() {
+        var state = ShortcutCaptureState(currentShortcut: nil)
+
+        state.capture(KeyboardShortcut(keyCode: 11, modifiers: []))
+
+        #expect(state.displayTitle == KeyboardShortcut.defaultRevealStatusItemTitle.displayTitle)
+        #expect(state.canSave)
+        #expect(state.statusKind == .idle)
+        #expect(state.saveResult() == .saved(.defaultRevealStatusItemTitle))
+    }
+
+    @Test
+    func recapturingOriginalShortcutIsAllowedButNotSaveable() {
+        let original = KeyboardShortcut(keyCode: 37, modifiers: [.control, .option, .command])
+        var state = ShortcutCaptureState(currentShortcut: original)
+
+        state.capture(KeyboardShortcut(keyCode: 0, modifiers: [.control, .option, .command]))
+        #expect(state.canSave)
+
+        state.capture(original)
+
+        #expect(state.displayTitle == "⌃⌥⌘L")
+        #expect(!state.canSave)
+        #expect(state.statusKind == .idle)
         #expect(state.saveResult() == nil)
     }
 }

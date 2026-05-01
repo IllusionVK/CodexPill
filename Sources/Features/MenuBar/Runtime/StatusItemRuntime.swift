@@ -164,12 +164,14 @@ final class StatusItemRuntime {
     }
 
     func revealTitleTemporarily(duration: TimeInterval = 3) {
-        shortcutRevealTimer?.invalidate()
-        let wasActive = isShortcutRevealActive
-        isShortcutRevealActive = true
-        if !wasActive {
-            onEvent?(.shortcutRevealStarted)
+        guard !isShortcutRevealActive else {
+            endShortcutReveal()
+            return
         }
+
+        shortcutRevealTimer?.invalidate()
+        isShortcutRevealActive = true
+        onEvent?(.shortcutRevealStarted)
         updateAppearance()
 
         shortcutRevealTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in

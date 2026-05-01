@@ -243,7 +243,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func revealShortcutRowDisplaysShortcutWithoutNativeKeyEquivalent() throws {
+    func revealShortcutRowDisplaysShortcutWithNativeKeyEquivalent() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let shortcut = KeyboardShortcut(keyCode: 11, modifiers: [.control, .shift])
@@ -258,9 +258,9 @@ struct MenuBarMenuBuilderTests {
         let contentMenu = try #require(statusItemContentMenu(in: menu))
         let revealShortcut = try #require(contentMenu.items.first(where: { $0.title.hasPrefix("Reveal Shortcut…") }))
 
-        #expect(revealShortcut.attributedTitle?.string == "Reveal Shortcut…\t⌃⇧B")
-        #expect(revealShortcut.keyEquivalent == "")
-        #expect(revealShortcut.keyEquivalentModifierMask.isEmpty)
+        #expect(revealShortcut.attributedTitle?.string.isEmpty ?? true)
+        #expect(revealShortcut.keyEquivalent == "b")
+        #expect(revealShortcut.keyEquivalentModifierMask == [.control, .shift])
         #expect(revealShortcut.action == #selector(MenuBarCoordinator.configureRevealStatusItemTitleShortcut(_:)))
     }
 
@@ -279,8 +279,8 @@ struct MenuBarMenuBuilderTests {
         let contentMenu = try #require(statusItemContentMenu(in: menu))
         let revealShortcut = try #require(contentMenu.items.first(where: { $0.title.hasPrefix("Reveal Shortcut…") }))
 
-        #expect(revealShortcut.attributedTitle?.string == "Reveal Shortcut…\tNone")
         #expect(revealShortcut.keyEquivalent == "")
+        #expect(revealShortcut.keyEquivalentModifierMask.isEmpty)
     }
 
     @Test

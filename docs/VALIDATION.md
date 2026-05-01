@@ -265,10 +265,10 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `status_bar.reveal_shortcut.temporarily_shows_label`
 
 - `feature`: `status-bar`
-- `rule`: The configured global shortcut reveals the status item label temporarily without opening the menu or changing the saved `Menu Bar Label` display mode. `Icon Only` and `Text on Hover` can reveal via shortcut, `Icon + Text` remains visible, repeated triggers restart the reveal timer, and failed registration keeps the previous working shortcut.
+- `rule`: The configured global shortcut reveals the status item label temporarily without opening the menu or changing the saved `Menu Bar Label` display mode. `Icon Only` and `Text on Hover` can reveal via shortcut, `Icon + Text` remains visible, pressing the shortcut again while the temporary reveal is active collapses the label, and failed registration keeps the previous working shortcut.
 - `owner_layer`: `unit`
 - `proofs_required`: `["unit", "deterministic_ui", "manual"]`
-- `scenarios`: `["shortcut_reveal_icon_only", "shortcut_reveal_text_on_hover", "shortcut_reveal_icon_and_text", "shortcut_registration_failure", "shortcut_clear"]`
+- `scenarios`: `["shortcut_reveal_icon_only", "shortcut_reveal_text_on_hover", "shortcut_reveal_icon_and_text", "shortcut_reveal_toggle_collapse", "shortcut_registration_failure", "shortcut_default_restore"]`
 - `automated_proofs`: `["MenuBarMenuStateTests", "StatusItemRuntimeTests", "StatusItemSettingsStoreTests", "GlobalShortcutRuntimeTests"]`
 - `manual_or_os_gaps`: `["trigger_default_shortcut_from_another_app", "confirm_local_shortcut_conflicts_on_real_machine"]`
 

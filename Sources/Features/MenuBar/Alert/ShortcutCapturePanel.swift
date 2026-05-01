@@ -3,11 +3,11 @@ import SwiftUI
 
 enum ShortcutCapturePanelResult: Equatable {
     case cancelled
-    case cleared
     case saved(KeyboardShortcut)
 }
 
 struct ShortcutCaptureState: Equatable {
+    private let originalShortcut: KeyboardShortcut?
     private(set) var capturedShortcut: KeyboardShortcut?
     private(set) var statusText: String
     private(set) var statusKind: StatusKind
@@ -19,36 +19,45 @@ struct ShortcutCaptureState: Equatable {
     }
 
     init(currentShortcut: KeyboardShortcut?) {
-        self.capturedShortcut = currentShortcut
+        self.originalShortcut = currentShortcut
+        self.capturedShortcut = currentShortcut ?? .defaultRevealStatusItemTitle
         self.statusText = currentShortcut == nil
-            ? "Press a shortcut with at least one modifier key."
+            ? "Save the default shortcut, or press a different one."
             : "Press a new shortcut, then save."
-        self.statusKind = currentShortcut == nil ? .idle : .valid
+        self.statusKind = .idle
     }
 
     var displayTitle: String {
-        capturedShortcut?.displayTitle ?? "Waiting for shortcut"
+        capturedShortcut?.displayTitle ?? KeyboardShortcut.defaultRevealStatusItemTitle.displayTitle
     }
 
     var canSave: Bool {
-        capturedShortcut?.isValid == true
+        hasChanges && statusKind != .invalid
+    }
+
+    private var hasChanges: Bool {
+        capturedShortcut != originalShortcut
     }
 
     mutating func capture(_ shortcut: KeyboardShortcut?) {
         guard let shortcut, shortcut.isValid else {
-            capturedShortcut = nil
-            statusText = "Shortcuts need at least one modifier key."
-            statusKind = .invalid
             return
         }
 
         capturedShortcut = shortcut
-        statusText = "Shortcut ready to save."
-        statusKind = .valid
+        if hasChanges {
+            statusText = "Shortcut ready to save."
+            statusKind = .valid
+        } else {
+            statusText = "Shortcut unchanged."
+            statusKind = .idle
+        }
     }
 
     func saveResult() -> ShortcutCapturePanelResult? {
-        guard let capturedShortcut, capturedShortcut.isValid else { return nil }
+        guard canSave else { return nil }
+        guard let capturedShortcut else { return nil }
+        guard capturedShortcut.isValid else { return nil }
         return .saved(capturedShortcut)
     }
 }
@@ -96,7 +105,7 @@ private final class ShortcutCapturePanelController: NSObject, NSWindowDelegate {
     private lazy var panel: NSPanel = {
         let panel = panelWindowFactory.makePanel(
             title: "Menu Bar Label Shortcut",
-            size: NSSize(width: 500, height: 236)
+            size: NSSize(width: 500, height: 194)
         )
         panel.delegate = self
         panel.contentView = NSHostingView(rootView: self.makeView())
@@ -128,7 +137,6 @@ private final class ShortcutCapturePanelController: NSObject, NSWindowDelegate {
         ShortcutCapturePanel(
             model: model,
             onCancel: { [weak self] in self?.finish(with: .cancelled) },
-            onClear: { [weak self] in self?.finish(with: .cleared) },
             onSave: { [weak self] in self?.save() }
         )
     }
@@ -207,8 +215,8 @@ final class ShortcutCapturePanelModel: ObservableObject {
 private struct ShortcutCapturePanel: View {
     @ObservedObject var model: ShortcutCapturePanelModel
     let onCancel: () -> Void
-    let onClear: () -> Void
     let onSave: () -> Void
+    var showsStatusLine = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -216,28 +224,35 @@ private struct ShortcutCapturePanel: View {
                 .font(.system(size: 15))
                 .foregroundStyle(.primary)
 
-            PanelValueBox(
-                value: model.displayTitle,
-                font: .system(size: 22, weight: .semibold, design: .monospaced),
-                textColor: valueColor,
-                allowsTextSelection: false
-            )
+            HStack {
+                Spacer(minLength: 0)
+                PanelValueBox(
+                    value: model.displayTitle,
+                    font: .system(size: 22, weight: .semibold, design: .monospaced),
+                    height: 52,
+                    maxWidth: 260,
+                    textColor: valueColor,
+                    allowsTextSelection: false
+                )
+                Spacer(minLength: 0)
+            }
 
-            HStack(spacing: 8) {
-                if let statusImageName {
-                    Image(systemName: statusImageName)
+            if showsStatusLine {
+                HStack(spacing: 8) {
+                    if let statusImageName {
+                        Image(systemName: statusImageName)
+                            .foregroundStyle(statusColor)
+                    }
+                    Text(model.statusText)
+                        .font(.system(size: 13))
                         .foregroundStyle(statusColor)
                 }
-                Text(model.statusText)
-                    .font(.system(size: 13))
-                    .foregroundStyle(statusColor)
             }
 
             HStack(spacing: 8) {
                 Spacer()
                 Button("Cancel", action: onCancel)
                     .keyboardShortcut(.cancelAction)
-                Button("Clear", action: onClear)
                 Button("Save", action: onSave)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!model.canSave)
