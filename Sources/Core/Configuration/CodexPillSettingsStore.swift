@@ -54,6 +54,11 @@ final class CodexPillSettingsStore {
         set { statusItemSettings.pacingMarkersEnabled = newValue }
     }
 
+    var revealStatusItemTitleShortcut: KeyboardShortcut? {
+        get { statusItemSettings.revealStatusItemTitleShortcut }
+        set { statusItemSettings.revealStatusItemTitleShortcut = newValue }
+    }
+
     var hasCustomProgressAccentColor: Bool {
         statusItemSettings.hasCustomProgressAccentColor
     }

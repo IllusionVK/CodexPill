@@ -56,6 +56,8 @@ The following behavior should be treated as automated first and should not live 
   - `CODEXPILL_ALLOW_LIVE_ACCOUNT_SWITCH_VALIDATION=1 SCENARIO=live-account-switch make verify-ui-live`
 - text-on-hover behavior:
   - unit plus `SCENARIO=live-status-item-hover make verify-ui-live`
+- menu bar label reveal shortcut:
+  - `StatusItemSettingsStoreTests`, `StatusItemRuntimeTests`, `GlobalShortcutRuntimeTests`, and deterministic UI validation
 - Add Account name-dialog presentation and cancellation:
   - `SCENARIO=live-add-account-name-dialog-cancelled make verify-ui-live`
 - scheduled refresh timer requests and completes a background refresh:
@@ -259,6 +261,16 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["unit", "live_ui"]`
 - `scenarios`: `["hover_enter", "hover_resize", "hover_exit"]`
 - `event_evidence`: `["status_item_hover_entered", "status_item_title_became_visible", "status_item_hover_exit_scheduled", "status_item_hover_exited", "status_item_title_hidden"]`
+
+### `status_bar.reveal_shortcut.temporarily_shows_label`
+
+- `feature`: `status-bar`
+- `rule`: The configured global shortcut reveals the status item label temporarily without opening the menu or changing the saved `Menu Bar Label` display mode. `Icon Only` and `Text on Hover` can reveal via shortcut, `Icon + Text` remains visible, repeated triggers restart the reveal timer, and failed registration keeps the previous working shortcut.
+- `owner_layer`: `unit`
+- `proofs_required`: `["unit", "deterministic_ui", "manual"]`
+- `scenarios`: `["shortcut_reveal_icon_only", "shortcut_reveal_text_on_hover", "shortcut_reveal_icon_and_text", "shortcut_registration_failure", "shortcut_clear"]`
+- `automated_proofs`: `["MenuBarMenuStateTests", "StatusItemRuntimeTests", "StatusItemSettingsStoreTests", "GlobalShortcutRuntimeTests"]`
+- `manual_or_os_gaps`: `["trigger_default_shortcut_from_another_app", "confirm_local_shortcut_conflicts_on_real_machine"]`
 
 ### `accounts.background_refresh_failure.logs_without_alert`
 

@@ -19,6 +19,7 @@ struct NSApplicationActivator: ApplicationActivator {
 final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private static let liveProofLayer = "live_ui"
     private static let hoverInvariantIDs = ["menubar.text_on_hover.stays_visible_inside_resized_bounds"]
+    private static let shortcutRevealInvariantIDs = ["status_bar.reveal_shortcut.temporarily_shows_label"]
     private static let switchInvariantIDs = ["accounts.switch_account.menu_action_changes_active_account"]
     private static let addAccountNameDialogInvariantIDs = [
         "accounts.add_account.name_dialog_presented",
@@ -28,6 +29,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private static let scheduledRefreshInvariantIDs = ["accounts.scheduled_refresh.requested_and_completed"]
 
     private let statusItemRuntime: StatusItemRuntime
+    private let shortcutRuntime: GlobalShortcutRuntime
     private let store: MenuBarAccountsStore
     private let settings: CodexPillSettingsStore
     private let menuDisplaySettings: MenuDisplaySettingsStore
@@ -36,6 +38,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let cliProcessInspector: CodexCLIProcessInspector
     private let alertPresenter: AlertPresenter
     private let panelPresenter: PanelPresenter
+    private let shortcutCapturePanelPresenter: ShortcutCapturePanelPresenter
     private let alertFactory: MenuBarAlertFactory
     private let notificationStateStore: AccountAvailabilityNotificationStore
     private let notificationDelivery: AccountAvailabilityNotifier
@@ -101,12 +104,14 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     init(
         statusItemRuntime: StatusItemRuntime,
+        shortcutRuntime: GlobalShortcutRuntime? = nil,
         store: MenuBarAccountsStore,
         settings: CodexPillSettingsStore,
         remoteHostClient: RemoteHostClient = UnavailableRemoteHostClient(),
         cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
         alertPresenter: AlertPresenter,
         panelPresenter: PanelPresenter? = nil,
+        shortcutCapturePanelPresenter: ShortcutCapturePanelPresenter? = nil,
         alertFactory: MenuBarAlertFactory = MenuBarAlertFactory(),
         notificationDelivery: AccountAvailabilityNotifier = AccountAvailabilityNotificationCenter(),
         applicationActivator: ApplicationActivator = NSApplicationActivator(),
@@ -117,6 +122,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         allowsEmptyStatePrompt: Bool = true
     ) {
         self.statusItemRuntime = statusItemRuntime
+        self.shortcutRuntime = shortcutRuntime ?? GlobalShortcutRuntime()
         self.store = store
         self.settings = settings
         self.menuDisplaySettings = settings.menuDisplaySettings
@@ -125,6 +131,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
         self.panelPresenter = panelPresenter ?? SystemPanelPresenter()
+        self.shortcutCapturePanelPresenter = shortcutCapturePanelPresenter ?? SystemShortcutCapturePanelPresenter()
         self.alertFactory = alertFactory
         self.notificationStateStore = AccountAvailabilityNotificationStore(
             preferences: settings.notificationPreferences,
@@ -152,6 +159,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         statusItemRuntime.onEvent = { [weak self] event in
             self?.handleStatusItemRuntimeEvent(event)
         }
+        shortcutRuntime.onShortcut = { [weak self] in
+            self?.statusItemRuntime.revealTitleTemporarily(duration: 3)
+        }
         restorePersistedRemoteHostState()
         statusItemRuntime.start(presentation: statusItemPresentation(for: menuState()))
         lastObservedActiveAccountID = store.activeAccountID
@@ -164,6 +174,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         syncBackgroundState()
         refreshNotificationAuthorizationState()
         refreshRemoteHostStateIfNeeded()
+        registerRevealShortcutFromSettings()
     }
 
     func invalidate() {
@@ -172,6 +183,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         notificationWaitTask?.cancel()
         cancelActiveIsolatedAddAccountSession()
         sealValidationRun?.cancelIfUnfinished()
+        shortcutRuntime.invalidate()
         statusItemRuntime.invalidate()
     }
 
@@ -346,6 +358,32 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     func togglePacingMarkers(_ sender: NSMenuItem) {
         recordMenuAction("togglePacingMarkers")
         statusItemSettings.pacingMarkersEnabled.toggle()
+    }
+
+    @objc
+    func configureRevealStatusItemTitleShortcut(_ sender: NSMenuItem) {
+        recordMenuAction("configureRevealStatusItemTitleShortcut")
+        switch shortcutCapturePanelPresenter.presentShortcutCapture(
+            currentShortcut: statusItemSettings.revealStatusItemTitleShortcut
+        ) {
+        case .cancelled:
+            return
+        case .cleared:
+            try? shortcutRuntime.apply(shortcut: nil)
+            statusItemSettings.revealStatusItemTitleShortcut = nil
+        case .saved(let shortcut):
+            do {
+                try shortcutRuntime.apply(shortcut: shortcut)
+                statusItemSettings.revealStatusItemTitleShortcut = shortcut
+            } catch {
+                alertPresenter.presentInfo(
+                    alertFactory.makeErrorRequest(
+                        message: error.localizedDescription
+                    )
+                )
+            }
+        }
+        rebuildMenu()
     }
 
     @objc
@@ -538,6 +576,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             statusBarMonochrome: statusItemSettings.statusBarMonochrome,
             statusBarIndicatorStyle: statusItemSettings.statusBarIndicatorStyle,
             statusBarDisplayMode: statusItemSettings.statusBarDisplayMode,
+            revealStatusItemTitleShortcut: statusItemSettings.revealStatusItemTitleShortcut,
             progressAccentColor: statusItemSettings.progressAccentColor,
             pacingMarkersEnabled: statusItemSettings.pacingMarkersEnabled,
             hasCustomProgressAccentColor: settings.hasCustomProgressAccentColor,
@@ -548,6 +587,18 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             notificationAuthorizationState: cachedNotificationAuthorizationState,
             showsPacingPrototypeMenu: validationScenario == "live-pacing-prototypes"
         )
+    }
+
+    private func registerRevealShortcutFromSettings() {
+        do {
+            try shortcutRuntime.apply(shortcut: statusItemSettings.revealStatusItemTitleShortcut)
+        } catch {
+            alertPresenter.presentInfo(
+                alertFactory.makeErrorRequest(
+                    message: error.localizedDescription
+                )
+            )
+        }
     }
 
     private func requestSwitch(to account: CodexAccount) {
@@ -1224,6 +1275,18 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 "status_item_hover_exited",
                 step: "hover_exit",
                 invariantIds: Self.hoverInvariantIDs
+            )
+        case .shortcutRevealStarted:
+            recordValidationEvent(
+                "status_item_shortcut_reveal_started",
+                step: "shortcut_reveal_start",
+                invariantIds: Self.shortcutRevealInvariantIDs
+            )
+        case .shortcutRevealEnded:
+            recordValidationEvent(
+                "status_item_shortcut_reveal_ended",
+                step: "shortcut_reveal_end",
+                invariantIds: Self.shortcutRevealInvariantIDs
             )
         case .titleBecameVisible(let displayedTitle):
             recordValidationEvent(

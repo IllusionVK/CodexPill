@@ -50,6 +50,8 @@ final class StatusItemRuntime {
         case hoverEntered
         case hoverExitScheduled
         case hoverExited
+        case shortcutRevealStarted
+        case shortcutRevealEnded
         case titleBecameVisible(displayedTitle: String?)
         case titleHidden
     }
@@ -71,9 +73,11 @@ final class StatusItemRuntime {
     private var hoverActivationTimer: Timer?
     private var hoverExitValidationTimer: Timer?
     private var hoverPollingTimer: Timer?
+    private var shortcutRevealTimer: Timer?
     private var hoverTracker: StatusItemHoverTracker?
     private var isMenuOpen = false
     private var isStatusItemHovered = false
+    private var isShortcutRevealActive = false
     private var isPointerInsideStatusItem = false
     private var keepsStatusTitleWhileMenuOpen = false
     private var lastRenderedStatusTitleVisible: Bool?
@@ -112,6 +116,7 @@ final class StatusItemRuntime {
         hoverActivationTimer?.invalidate()
         hoverExitValidationTimer?.invalidate()
         hoverPollingTimer?.invalidate()
+        shortcutRevealTimer?.invalidate()
         hoverTracker?.invalidate()
     }
 
@@ -158,6 +163,22 @@ final class StatusItemRuntime {
         }
     }
 
+    func revealTitleTemporarily(duration: TimeInterval = 3) {
+        shortcutRevealTimer?.invalidate()
+        let wasActive = isShortcutRevealActive
+        isShortcutRevealActive = true
+        if !wasActive {
+            onEvent?(.shortcutRevealStarted)
+        }
+        updateAppearance()
+
+        shortcutRevealTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.endShortcutReveal()
+            }
+        }
+    }
+
     private func updateAppearance() {
         guard let button = statusItem.button else { return }
         let primary = presentation.activeAccount?.rateLimits?.primary?.displayedUsedPercent()
@@ -201,9 +222,19 @@ final class StatusItemRuntime {
         StatusItemTitleVisibilityPolicy(
             displayMode: presentation.displayMode,
             isStatusItemHovered: isStatusItemHovered,
+            isShortcutRevealActive: isShortcutRevealActive,
             isMenuOpen: isMenuOpen,
             keepsStatusTitleWhileMenuOpen: keepsStatusTitleWhileMenuOpen
         ).shouldShowTitle
+    }
+
+    private func endShortcutReveal() {
+        shortcutRevealTimer?.invalidate()
+        shortcutRevealTimer = nil
+        guard isShortcutRevealActive else { return }
+        isShortcutRevealActive = false
+        onEvent?(.shortcutRevealEnded)
+        updateAppearance()
     }
 
     private func configureStatusItemButton() {

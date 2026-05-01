@@ -51,6 +51,7 @@ struct StatusItemSettingsStoreTests {
         #expect(store.statusBarMonochrome)
         #expect(store.statusBarDisplayMode == .textOnHover)
         #expect(store.pacingMarkersEnabled)
+        #expect(store.revealStatusItemTitleShortcut == .defaultRevealStatusItemTitle)
         #expect(colorsEqual(store.progressAccentColor, StatusBarProgressColorDefaults.accent))
     }
 
@@ -86,6 +87,31 @@ struct StatusItemSettingsStoreTests {
         let reset = StatusItemSettingsStore(userDefaults: defaults)
         #expect(colorsEqual(reset.progressAccentColor, StatusBarProgressColorDefaults.accent))
         #expect(!reset.hasCustomProgressAccentColor)
+    }
+
+    @Test
+    func revealShortcutPersistsAcrossInstances() {
+        let defaults = makeDefaults()
+        let shortcut = KeyboardShortcut(keyCode: 11, modifiers: [.control, .shift])
+
+        let first = StatusItemSettingsStore(userDefaults: defaults)
+        first.revealStatusItemTitleShortcut = shortcut
+
+        let second = StatusItemSettingsStore(userDefaults: defaults)
+
+        #expect(second.revealStatusItemTitleShortcut == shortcut)
+        #expect(second.revealStatusItemTitleShortcut?.displayTitle == "⌃⇧B")
+    }
+
+    @Test
+    func revealShortcutCanBeCleared() {
+        let defaults = makeDefaults()
+        let first = StatusItemSettingsStore(userDefaults: defaults)
+        first.revealStatusItemTitleShortcut = nil
+
+        let second = StatusItemSettingsStore(userDefaults: defaults)
+
+        #expect(second.revealStatusItemTitleShortcut == nil)
     }
 }
 

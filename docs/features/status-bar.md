@@ -10,10 +10,29 @@ The status bar gives the user a lightweight answer before opening the menu: whic
 
 - App icon or monochrome menubar icon.
 - Optional label text.
-- Hover-expanded text behavior.
+- Hover-expanded and shortcut-revealed text behavior.
 - Compact session/weekly indicators.
-- The `Preferences` submenu exposes `Menu Bar Label`, `Icon Style`, and `Usage Bars` controls for label mode, icon style, pacing marker visibility, and accent color.
+- The `Preferences` submenu exposes `Menu Bar Label`, `Icon Style`, and `Usage Bars` controls for label mode, the reveal shortcut, icon style, pacing marker visibility, and accent color.
 - Tooltip text.
+
+## Menu Bar Label Reveal Shortcut
+
+CodexPill ships with the global shortcut `⌃⌥⌘L` while the app is running.
+Pressing it temporarily reveals the same status item label that appears on hover
+for about three seconds without opening the menu and without changing the saved
+`Menu Bar Label` display mode. Pressing the shortcut again while the label is
+visible restarts the reveal timer.
+
+Users can configure or clear the shortcut from:
+
+```text
+Preferences
+  Menu Bar Label
+    Reveal Shortcut…    ⌃⌥⌘L
+```
+
+If a configured shortcut cannot be registered, CodexPill keeps the previous
+working shortcut and shows an error.
 
 ## Relationship To Accounts
 

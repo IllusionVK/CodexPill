@@ -758,18 +758,28 @@ struct MenuBarMenuStateTests {
         let hovered = StatusItemTitleVisibilityPolicy(
             displayMode: .iconOnly,
             isStatusItemHovered: true,
+            isShortcutRevealActive: false,
             isMenuOpen: false,
             keepsStatusTitleWhileMenuOpen: false
         )
         let pinnedMenu = StatusItemTitleVisibilityPolicy(
             displayMode: .iconOnly,
             isStatusItemHovered: false,
+            isShortcutRevealActive: false,
             isMenuOpen: true,
             keepsStatusTitleWhileMenuOpen: true
+        )
+        let shortcutReveal = StatusItemTitleVisibilityPolicy(
+            displayMode: .iconOnly,
+            isStatusItemHovered: false,
+            isShortcutRevealActive: true,
+            isMenuOpen: false,
+            keepsStatusTitleWhileMenuOpen: false
         )
 
         #expect(!hovered.shouldShowTitle)
         #expect(!pinnedMenu.shouldShowTitle)
+        #expect(shortcutReveal.shouldShowTitle)
     }
 
     @Test
@@ -777,18 +787,28 @@ struct MenuBarMenuStateTests {
         let idle = StatusItemTitleVisibilityPolicy(
             displayMode: .iconAndText,
             isStatusItemHovered: false,
+            isShortcutRevealActive: false,
             isMenuOpen: false,
             keepsStatusTitleWhileMenuOpen: false
         )
         let menuOpen = StatusItemTitleVisibilityPolicy(
             displayMode: .iconAndText,
             isStatusItemHovered: false,
+            isShortcutRevealActive: false,
             isMenuOpen: true,
+            keepsStatusTitleWhileMenuOpen: false
+        )
+        let shortcutReveal = StatusItemTitleVisibilityPolicy(
+            displayMode: .iconAndText,
+            isStatusItemHovered: false,
+            isShortcutRevealActive: true,
+            isMenuOpen: false,
             keepsStatusTitleWhileMenuOpen: false
         )
 
         #expect(idle.shouldShowTitle)
         #expect(menuOpen.shouldShowTitle)
+        #expect(shortcutReveal.shouldShowTitle)
     }
 
     @Test
@@ -796,24 +816,35 @@ struct MenuBarMenuStateTests {
         let hovered = StatusItemTitleVisibilityPolicy(
             displayMode: .textOnHover,
             isStatusItemHovered: true,
+            isShortcutRevealActive: false,
             isMenuOpen: false,
             keepsStatusTitleWhileMenuOpen: false
         )
         let pinnedMenu = StatusItemTitleVisibilityPolicy(
             displayMode: .textOnHover,
             isStatusItemHovered: false,
+            isShortcutRevealActive: false,
             isMenuOpen: true,
             keepsStatusTitleWhileMenuOpen: true
         )
         let idle = StatusItemTitleVisibilityPolicy(
             displayMode: .textOnHover,
             isStatusItemHovered: false,
+            isShortcutRevealActive: false,
+            isMenuOpen: false,
+            keepsStatusTitleWhileMenuOpen: false
+        )
+        let shortcutReveal = StatusItemTitleVisibilityPolicy(
+            displayMode: .textOnHover,
+            isStatusItemHovered: false,
+            isShortcutRevealActive: true,
             isMenuOpen: false,
             keepsStatusTitleWhileMenuOpen: false
         )
 
         #expect(hovered.shouldShowTitle)
         #expect(pinnedMenu.shouldShowTitle)
+        #expect(shortcutReveal.shouldShowTitle)
         #expect(!idle.shouldShowTitle)
     }
 

@@ -65,6 +65,35 @@ struct StatusItemRuntimeTests {
         #expect(events.contains(.titleHidden))
     }
 
+    @Test
+    func shortcutRevealShowsIconOnlyTitleWithoutChangingDisplayMode() {
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer { NSStatusBar.system.removeStatusItem(statusItem) }
+
+        let runtime = StatusItemRuntime(
+            statusItem: statusItem,
+            hoverActivationDelay: 0,
+            hoverExitDelay: 0,
+            hoverPollingInterval: 60
+        )
+        runtime.start(
+            presentation: .init(
+                activeAccount: makeAccount(),
+                indicatorStyle: .dualArcBadge,
+                monochrome: false,
+                displayMode: .iconOnly
+            )
+        )
+
+        #expect(try! #require(runtime.snapshotState()).isTitleVisible == false)
+
+        runtime.revealTitleTemporarily(duration: 60)
+
+        let snapshot = try! #require(runtime.snapshotState())
+        #expect(snapshot.isTitleVisible)
+        #expect(snapshot.displayedTitle == "S 42% W 68%")
+    }
+
     private func makeAccount() -> CodexAccount {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         return CodexAccount(

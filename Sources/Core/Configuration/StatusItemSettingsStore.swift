@@ -42,6 +42,12 @@ final class StatusItemSettingsStore {
         }
     }
 
+    var revealStatusItemTitleShortcut: KeyboardShortcut? {
+        didSet {
+            persistShortcut(revealStatusItemTitleShortcut, key: Self.revealStatusItemTitleShortcutKey)
+        }
+    }
+
     private let userDefaults: UserDefaults
 
     private static let statusBarIndicatorStyleKey = "statusBarIndicatorStyle"
@@ -49,6 +55,8 @@ final class StatusItemSettingsStore {
     private static let statusBarDisplayModeKey = "statusBarDisplayMode"
     private static let progressAccentColorKey = "progressAccentColor"
     private static let pacingMarkersEnabledKey = "pacingMarkersEnabled"
+    private static let revealStatusItemTitleShortcutKey = "revealStatusItemTitleShortcut"
+    private static let revealStatusItemTitleShortcutEnabledKey = "revealStatusItemTitleShortcutEnabled"
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -71,6 +79,7 @@ final class StatusItemSettingsStore {
             defaultColor: StatusBarProgressColorDefaults.accent
         )
         pacingMarkersEnabled = userDefaults.object(forKey: Self.pacingMarkersEnabledKey) as? Bool ?? true
+        revealStatusItemTitleShortcut = Self.loadRevealShortcut(from: userDefaults)
     }
 
     var hasCustomProgressAccentColor: Bool {
@@ -98,6 +107,40 @@ final class StatusItemSettingsStore {
         if let data = try? JSONEncoder().encode(components) {
             userDefaults.set(data, forKey: key)
         }
+    }
+
+    private func persistShortcut(_ shortcut: KeyboardShortcut?, key: String) {
+        guard let shortcut else {
+            userDefaults.removeObject(forKey: key)
+            userDefaults.set(false, forKey: Self.revealStatusItemTitleShortcutEnabledKey)
+            return
+        }
+
+        if let data = try? JSONEncoder().encode(shortcut) {
+            userDefaults.set(data, forKey: key)
+            userDefaults.set(true, forKey: Self.revealStatusItemTitleShortcutEnabledKey)
+        }
+    }
+
+    private static func loadRevealShortcut(from userDefaults: UserDefaults) -> KeyboardShortcut? {
+        if let enabled = userDefaults.object(forKey: revealStatusItemTitleShortcutEnabledKey) as? Bool,
+           !enabled {
+            return nil
+        }
+
+        return loadShortcut(
+            from: userDefaults,
+            key: revealStatusItemTitleShortcutKey
+        ) ?? .defaultRevealStatusItemTitle
+    }
+
+    private static func loadShortcut(from userDefaults: UserDefaults, key: String) -> KeyboardShortcut? {
+        guard let data = userDefaults.data(forKey: key),
+              let shortcut = try? JSONDecoder().decode(KeyboardShortcut.self, from: data)
+        else {
+            return nil
+        }
+        return shortcut.isValid ? shortcut : nil
     }
 
     private static func loadColor(from userDefaults: UserDefaults, key: String, defaultColor: NSColor) -> NSColor {

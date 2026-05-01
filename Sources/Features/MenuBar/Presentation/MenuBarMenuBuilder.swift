@@ -581,8 +581,23 @@ struct MenuBarMenuBuilder {
             option.state = state.effectiveStatusBarDisplayMode == mode ? .on : .off
             submenu.addItem(option)
         }
+        submenu.addItem(.separator())
+        submenu.addItem(revealShortcutMenuItem(state: state, target: target))
 
         item.submenu = submenu
+        return item
+    }
+
+    private func revealShortcutMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let title = "Reveal Shortcut…"
+        let shortcutTitle = state.revealStatusItemTitleShortcut?.displayTitle ?? "None"
+        let item = NSMenuItem(
+            title: "\(title)\t\(shortcutTitle)",
+            action: #selector(MenuBarCoordinator.configureRevealStatusItemTitleShortcut(_:)),
+            keyEquivalent: ""
+        )
+        item.target = target
+        item.isEnabled = !state.isBusy
         return item
     }
 
