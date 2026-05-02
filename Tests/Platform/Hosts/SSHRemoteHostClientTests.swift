@@ -137,6 +137,52 @@ struct SSHRemoteHostClientTests {
     }
 
     @Test
+    func testConnectionPassesExplicitUserAtHostDestinationWithBatchMode() async throws {
+        let runner = CommandRunnerProbe(results: [
+            .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data()))
+        ])
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            commandRunner: runner,
+            sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
+        )
+
+        try await client.testConnection(to: RemoteHost(destination: "deploy@buildbox.example.com"))
+
+        #expect(runner.calls.count == 1)
+        #expect(runner.calls[0].arguments == [
+            "-T",
+            "-o", "BatchMode=yes",
+            "-o", "ConnectTimeout=5",
+            "-o", "ConnectionAttempts=1",
+            "deploy@buildbox.example.com",
+            "command -v codex >/dev/null 2>&1 && codex app-server --help >/dev/null 2>&1 && mkdir -p .codexpill/snapshots .codex"
+        ])
+    }
+
+    @Test
+    func testConnectionClassifiesPasswordRequiredSSHFailureAsSetupRequired() async {
+        let runner = CommandRunnerProbe(results: [
+            .success(.init(
+                terminationStatus: 255,
+                standardOutput: Data(),
+                standardError: Data("user@buildbox: Permission denied (publickey,password).".utf8)
+            ))
+        ])
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            commandRunner: runner,
+            sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
+        )
+
+        await #expect(throws: RemoteHostClientError.nonInteractiveSSHSetupRequired) {
+            try await client.testConnection(to: RemoteHost(destination: "user@buildbox"))
+        }
+    }
+
+    @Test
     func testConnectionSurfacesRemoteCommandFailures() async {
         let runner = CommandRunnerProbe(results: [
             .success(.init(
@@ -153,6 +199,27 @@ struct SSHRemoteHostClientTests {
         )
 
         await #expect(throws: RemoteHostClientError.commandFailed("codex: command not found")) {
+            try await client.testConnection(to: RemoteHost(destination: "user@buildbox"))
+        }
+    }
+
+    @Test
+    func testConnectionDoesNotClassifyRemoteCommandPermissionFailureAsSSHSetupRequired() async {
+        let runner = CommandRunnerProbe(results: [
+            .success(.init(
+                terminationStatus: 1,
+                standardOutput: Data(),
+                standardError: Data("mkdir: .codexpill: Permission denied".utf8)
+            ))
+        ])
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            commandRunner: runner,
+            sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
+        )
+
+        await #expect(throws: RemoteHostClientError.commandFailed("mkdir: .codexpill: Permission denied")) {
             try await client.testConnection(to: RemoteHost(destination: "user@buildbox"))
         }
     }

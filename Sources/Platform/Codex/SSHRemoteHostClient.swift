@@ -303,7 +303,33 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
     private func remoteCommandFailure(_ result: CommandResult) -> RemoteHostClientError {
         let message = String(decoding: result.standardError, as: UTF8.self)
             .trimmingCharacters(in: .whitespacesAndNewlines)
+        if Self.isNonInteractiveSSHSetupFailure(message, terminationStatus: result.terminationStatus) {
+            return .nonInteractiveSSHSetupRequired
+        }
         return .commandFailed(message.isEmpty ? "Remote command exited with code \(result.terminationStatus)." : message)
+    }
+
+    private static func isNonInteractiveSSHSetupFailure(_ message: String, terminationStatus: Int32) -> Bool {
+        guard terminationStatus == 255 else { return false }
+        let lowercased = message.lowercased()
+        return [
+            "permission denied",
+            "host key verification failed",
+            "could not resolve hostname",
+            "operation timed out",
+            "connection timed out",
+            "connection refused",
+            "no route to host",
+            "connection closed",
+            "connection reset",
+            "too many authentication failures",
+            "number of password prompts exceeded",
+            "read_passphrase",
+            "passphrase",
+            "password",
+            "keyboard-interactive",
+            "verification code"
+        ].contains { lowercased.contains($0) }
     }
 
     private func readAccountStatus(on host: RemoteHost, refreshToken: Bool) async throws -> CodexAccountStatus {

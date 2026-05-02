@@ -71,6 +71,22 @@ struct MenuBarHostSetupFormStateTests {
     }
 
     @Test
+    func nonInteractiveSSHSetupFailureShowsActionableMessage() {
+        var state = MenuBarHostSetupFormState(
+            destination: "user@devbox",
+            idleStatusText: "CodexPill checks the connection automatically."
+        )
+
+        state.beginTesting()
+        state.finishTesting(with: .failure(RemoteHostClientError.nonInteractiveSSHSetupRequired))
+
+        #expect(state.isTesting == false)
+        #expect(!state.canSubmit)
+        #expect(state.statusMessage == "SSH is not ready for non-interactive use. Configure keys, host trust, passphrases, 2FA, or SSH config outside CodexPill, then try again.")
+        #expect(state.statusKind == .failure)
+    }
+
+    @Test
     func beginTestingSetsTestingStatusKind() {
         var state = MenuBarHostSetupFormState(
             destination: "user@devbox",

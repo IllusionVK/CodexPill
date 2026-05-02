@@ -59,6 +59,7 @@ typealias RemoteHostSwitchWorkflowOperations =
 enum RemoteHostClientError: LocalizedError, Equatable {
     case unavailable
     case commandFailed(String)
+    case nonInteractiveSSHSetupRequired
     case authReadFailed(String)
 
     var errorDescription: String? {
@@ -67,6 +68,8 @@ enum RemoteHostClientError: LocalizedError, Equatable {
             return "Remote host switching is not configured yet."
         case .commandFailed(let message):
             return message
+        case .nonInteractiveSSHSetupRequired:
+            return "SSH is not ready for non-interactive use. Configure keys, host trust, passphrases, 2FA, or SSH config outside CodexPill, then try again."
         case .authReadFailed(let message):
             return message
         }

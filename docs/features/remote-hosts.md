@@ -38,15 +38,26 @@ Copy:
 - Success status: `Connection successful.`
 - Actions: `Cancel`, `Add Host`
 
+## SSH Destination Contract
+
+CodexPill accepts the same destination strings OpenSSH accepts for a normal host target, including SSH config aliases such as `buildbox` and explicit destinations such as `user@host`.
+
+The destination is valid only when it already works from the user's environment with non-interactive SSH. CodexPill runs SSH with `BatchMode=yes` and does not collect, store, or prompt for SSH passwords, key passphrases, host-key trust prompts, 2FA, or SSH configuration.
+
+Users own custom ports and advanced SSH options through `~/.ssh/config`. CodexPill does not parse raw SSH flags in the destination field.
+
 ## Validation Feedback
 
 The destination field starts neutral. After the user pauses typing, CodexPill may show validation feedback:
 
 - Neutral/checking while validation is pending.
 - Error styling for invalid or unreachable destinations.
+- SSH setup failures such as missing credentials, host-key prompts, 2FA, password prompts, passphrase prompts, or connectivity failures explain that SSH must be configured outside CodexPill for non-interactive use.
 - Success styling when the host is reachable.
 
 `Add Host` unlocks only when the destination is valid.
+
+Validation still checks remote Codex readiness after SSH connects; a host must have Codex available and writable CodexPill/Codex directories, not merely SSH reachability.
 
 ## Install And Switch Follow-Up
 
