@@ -1270,19 +1270,19 @@ struct MenuBarLiveValidationTests {
             "evidence/events.jsonl",
             "evidence/account-before.json",
             "evidence/account-after.json",
-            "evidence/menu-after.json",
+            "evidence/ui-after-refresh.json",
         ])
         #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/events.jsonl").path))
         #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/account-before.json").path))
         #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/account-after.json").path))
-        #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/menu-after.json").path))
+        #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/ui-after-refresh.json").path))
 
         let expectations = manifest?["targetedExpectations"] as? [[String: Any]]
         let invariants = expectations?.first?["invariants"] as? [[String: Any]]
         #expect(invariants?.compactMap { $0["id"] as? String } == [
             "accounts.scheduled_refresh.requested_and_completed",
             "accounts.scheduled_refresh.preserves_account_catalog",
-            "accounts.scheduled_refresh.no_blocking_alert",
+            "accounts.scheduled_refresh.no_blocking_alert_visible",
         ])
 
         let eventsURL = proofDirectory.appendingPathComponent("evidence/events.jsonl")
@@ -1294,20 +1294,27 @@ struct MenuBarLiveValidationTests {
             "scheduled_refresh_completed",
         ])
 
-        let menuAfterURL = proofDirectory.appendingPathComponent("evidence/menu-after.json")
-        let menuAfter = try JSONSerialization.jsonObject(with: Data(contentsOf: menuAfterURL)) as? [String: Any]
-        #expect(menuAfter?["noBlockingAlert"] as? Bool == true)
-        #expect(menuAfter?["lastConfirmationRequest"] == nil || menuAfter?["lastConfirmationRequest"] is NSNull)
+        let uiAfterRefreshURL = proofDirectory.appendingPathComponent("evidence/ui-after-refresh.json")
+        let uiAfterRefresh = try JSONSerialization.jsonObject(with: Data(contentsOf: uiAfterRefreshURL)) as? [String: Any]
+        #expect(uiAfterRefresh?["hasBlockingAlert"] as? Bool == false)
+        #expect(uiAfterRefresh?["lastConfirmationRequest"] == nil || uiAfterRefresh?["lastConfirmationRequest"] is NSNull)
+
+        let accountBeforeURL = proofDirectory.appendingPathComponent("evidence/account-before.json")
+        let accountBefore = try JSONSerialization.jsonObject(with: Data(contentsOf: accountBeforeURL)) as? [String: Any]
+        #expect(accountBefore?["activeAccountId"] as? String == account.id.uuidString)
+        #expect(accountBefore?["savedAccountIds"] as? [String] == [account.id.uuidString])
+        #expect(accountBefore?["savedAccountNames"] as? [String] == [account.name])
+        #expect(accountBefore?["savedAccountCount"] as? Int == 1)
 
         let noBlockingAlertRule = invariants?
-            .first { $0["id"] as? String == "accounts.scheduled_refresh.no_blocking_alert" }?["rule"] as? [String: Any]
+            .first { $0["id"] as? String == "accounts.scheduled_refresh.no_blocking_alert_visible" }?["rule"] as? [String: Any]
         let childRules = noBlockingAlertRule?["rules"] as? [[String: Any]]
         #expect(noBlockingAlertRule?["type"] as? String == "all")
         #expect(childRules?.contains { rule in
             rule["type"] as? String == "snapshot_equals"
-                && rule["evidence"] as? String == "menu_after"
-                && rule["path"] as? String == "noBlockingAlert"
-                && rule["value"] as? Bool == true
+                && rule["evidence"] as? String == "ui_after_refresh"
+                && rule["path"] as? String == "hasBlockingAlert"
+                && rule["value"] as? Bool == false
         } == true)
     }
 

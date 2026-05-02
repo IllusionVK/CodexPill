@@ -231,9 +231,9 @@ final class CodexPillSealValidationRun {
                 value: AccountStateSnapshot(activeAccount: activeAccount, savedAccounts: savedAccounts)
             )
             try run.recordSnapshot(
-                id: EvidenceID("menu_after"),
-                path: "evidence/menu-after.json",
-                value: ScheduledRefreshMenuEvidence(snapshot: menuSnapshot)
+                id: EvidenceID("ui_after_refresh"),
+                path: "evidence/ui-after-refresh.json",
+                value: ScheduledRefreshUIEvidence(snapshot: menuSnapshot)
             )
             try run.finish()
             didFinish = true
@@ -498,7 +498,7 @@ final class CodexPillSealValidationRun {
                                 id: scenario.scheduledRefreshNoBlockingAlertID,
                                 requiredEvidence: [
                                     EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
-                                    EvidenceRequirement(id: EvidenceID("menu_after"), kind: .snapshot)
+                                    EvidenceRequirement(id: EvidenceID("ui_after_refresh"), kind: .snapshot)
                                 ],
                                 rule: scenario.scheduledRefreshNoBlockingAlertRule
                             )
@@ -668,7 +668,7 @@ private struct CodexPillSealScenario {
     }
 
     var scheduledRefreshNoBlockingAlertID: InvariantID {
-        InvariantID("accounts.scheduled_refresh.no_blocking_alert")
+        InvariantID("accounts.scheduled_refresh.no_blocking_alert_visible")
     }
 
     var scheduledRefreshInvariantIDs: [InvariantID] {
@@ -809,7 +809,12 @@ private struct CodexPillSealScenario {
             SnapshotsEqualRule(
                 before: EvidenceID("account_before"),
                 after: EvidenceID("account_after"),
-                paths: ["savedAccounts"]
+                paths: [
+                    "activeAccountId",
+                    "savedAccountIds",
+                    "savedAccountNames",
+                    "savedAccountCount"
+                ]
             )
         )
     }
@@ -819,9 +824,9 @@ private struct CodexPillSealScenario {
             .eventExists(EventExpectation("scheduled_refresh_completed")),
             .snapshotEquals(
                 SnapshotEqualsRule(
-                    evidence: EvidenceID("menu_after"),
-                    path: "noBlockingAlert",
-                    value: .bool(true)
+                    evidence: EvidenceID("ui_after_refresh"),
+                    path: "hasBlockingAlert",
+                    value: .bool(false)
                 )
             )
         ])
@@ -978,10 +983,16 @@ private struct CodexPillSealScenario {
 
 private struct AccountStateSnapshot: Encodable {
     let activeAccountId: String?
+    let savedAccountIds: [String]
+    let savedAccountNames: [String]
+    let savedAccountCount: Int
     let savedAccounts: [SavedAccountSnapshot]
 
     init(activeAccount: CodexAccount?, savedAccounts: [CodexAccount]) {
         self.activeAccountId = activeAccount?.id.uuidString
+        self.savedAccountIds = savedAccounts.map { $0.id.uuidString }
+        self.savedAccountNames = savedAccounts.map(\.name)
+        self.savedAccountCount = savedAccounts.count
         self.savedAccounts = savedAccounts.map(SavedAccountSnapshot.init(account:))
     }
 }
@@ -998,19 +1009,19 @@ private struct SavedAccountSnapshot: Encodable {
     }
 }
 
-private struct ScheduledRefreshMenuEvidence: Encodable {
+private struct ScheduledRefreshUIEvidence: Encodable {
     let statusMessage: String?
     let menuItemCount: Int
     let lastMenuAction: String?
     let lastConfirmationRequest: String?
-    let noBlockingAlert: Bool
+    let hasBlockingAlert: Bool
 
     init(snapshot: MenuBarValidationSnapshot) {
         self.statusMessage = snapshot.statusMessage
         self.menuItemCount = snapshot.menuItems.count
         self.lastMenuAction = snapshot.actionTrace?.lastMenuAction
         self.lastConfirmationRequest = snapshot.actionTrace?.lastConfirmationRequest
-        self.noBlockingAlert = snapshot.actionTrace?.lastConfirmationRequest == nil
+        self.hasBlockingAlert = snapshot.actionTrace?.lastConfirmationRequest != nil
     }
 }
 

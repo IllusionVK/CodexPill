@@ -226,6 +226,17 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["integration", "live_ui"]`
 - `scenarios`: `["scheduled_refresh"]`
 - `event_evidence`: `["scheduled_refresh_requested", "scheduled_refresh_completed", "scheduled_refresh_failed"]`
+- `snapshot_evidence`: `account_before`, `account_after`, and `ui_after_refresh` at `evidence/ui-after-refresh.json`
+- `identity_fields`: `activeAccountId`, `savedAccountIds`, `savedAccountNames`, `savedAccountCount`
+
+### `accounts.scheduled_refresh.no_blocking_alert_visible`
+
+- `feature`: `accounts`
+- `rule`: Completed scheduled refresh proof must assert `hasBlockingAlert == false` from the `ui_after_refresh` snapshot evidence.
+- `owner_layer`: `live_ui`
+- `proofs_required`: `["live_ui"]`
+- `scenarios`: `["scheduled_refresh"]`
+- `snapshot_evidence`: `ui_after_refresh`
 
 ### `accounts.app_server.rate_limit_refresh_errors_are_retryable_and_diagnosable`
 
