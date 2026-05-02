@@ -6,20 +6,20 @@ struct AccountsFeatureFactory {
     private let authService: CodexAuthSnapshotService
     private let codexAppProcessClient: CodexAppProcessClient
     private let accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient
-    private let remoteHostClient: RemoteHostClient
+    private let remoteHostSwitchOperations: RemoteHostSwitchWorkflowOperations
 
     init(
         repository: AccountRepository,
         authService: CodexAuthSnapshotService,
         codexAppProcessClient: CodexAppProcessClient,
         accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient,
-        remoteHostClient: RemoteHostClient = UnavailableRemoteHostClient()
+        remoteHostSwitchOperations: RemoteHostSwitchWorkflowOperations = UnavailableRemoteHostClient()
     ) {
         self.repository = repository
         self.authService = authService
         self.codexAppProcessClient = codexAppProcessClient
         self.accountStatusClient = accountStatusClient
-        self.remoteHostClient = remoteHostClient
+        self.remoteHostSwitchOperations = remoteHostSwitchOperations
     }
 
     func makeMenuBarAccountsStore() -> MenuBarAccountsStore {
@@ -73,7 +73,7 @@ struct AccountsFeatureFactory {
                 identityResolver: identityResolver
             ),
             switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
-                remoteHostClient: remoteHostClient
+                remoteHostSwitchOperations: remoteHostSwitchOperations
             ),
             remoteHostAccountVerifier: RemoteHostAccountVerifier(),
             addAccountWorkflow: AddAccountWorkflow(

@@ -68,7 +68,7 @@ final class AccountsController {
         persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase,
         switchAccountWorkflow: SwitchAccountWorkflow,
         switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow = SwitchAccountOnHostWorkflow(
-            remoteHostClient: UnavailableRemoteHostClient()
+            remoteHostSwitchOperations: UnavailableRemoteHostClient()
         ),
         remoteHostAccountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
         addAccountWorkflow: AddAccountWorkflow

@@ -12,7 +12,7 @@ struct SwitchAccountOnHostWorkflowTests {
             installationState: .missing,
             status: CodexAccountStatus(email: account.email, planType: account.planType, rateLimits: nil)
         )
-        let workflow = SwitchAccountOnHostWorkflow(remoteHostClient: client)
+        let workflow = SwitchAccountOnHostWorkflow(remoteHostSwitchOperations: client)
 
         let result = try await workflow.run(account: account, on: host, among: [account])
 
@@ -34,7 +34,7 @@ struct SwitchAccountOnHostWorkflowTests {
             installationState: .installed,
             status: CodexAccountStatus(email: account.email, planType: account.planType, rateLimits: nil)
         )
-        let workflow = SwitchAccountOnHostWorkflow(remoteHostClient: client)
+        let workflow = SwitchAccountOnHostWorkflow(remoteHostSwitchOperations: client)
 
         let result = try await workflow.run(account: account, on: host, among: [account])
 
@@ -55,7 +55,7 @@ struct SwitchAccountOnHostWorkflowTests {
             installationState: .missing,
             installError: RemoteHostClientError.commandFailed("scp: Permission denied")
         )
-        let workflow = SwitchAccountOnHostWorkflow(remoteHostClient: client)
+        let workflow = SwitchAccountOnHostWorkflow(remoteHostSwitchOperations: client)
 
         await #expect(throws: RemoteHostClientError.commandFailed("scp: Permission denied")) {
             _ = try await workflow.run(account: account, on: host, among: [account])
@@ -75,7 +75,7 @@ struct SwitchAccountOnHostWorkflowTests {
             installationState: .missing,
             switchError: RemoteHostClientError.commandFailed("cp: auth.json: Permission denied")
         )
-        let workflow = SwitchAccountOnHostWorkflow(remoteHostClient: client)
+        let workflow = SwitchAccountOnHostWorkflow(remoteHostSwitchOperations: client)
 
         await #expect(throws: RemoteHostClientError.commandFailed("cp: auth.json: Permission denied")) {
             _ = try await workflow.run(account: account, on: host, among: [account])
@@ -92,7 +92,7 @@ struct SwitchAccountOnHostWorkflowTests {
     func testConnectionDelegatesToRemoteClient() async throws {
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         let client = RemoteHostClientProbe(installationState: .installed)
-        let workflow = SwitchAccountOnHostWorkflow(remoteHostClient: client)
+        let workflow = SwitchAccountOnHostWorkflow(remoteHostSwitchOperations: client)
 
         try await workflow.testConnection(to: host)
 
@@ -109,7 +109,7 @@ struct SwitchAccountOnHostWorkflowTests {
             status: CodexAccountStatus(email: other.email, planType: other.planType, rateLimits: nil)
         )
         let workflow = SwitchAccountOnHostWorkflow(
-            remoteHostClient: client,
+            remoteHostSwitchOperations: client,
             verificationProbeDelays: [.zero, .zero]
         )
 
@@ -135,7 +135,7 @@ struct SwitchAccountOnHostWorkflowTests {
             status: CodexAccountStatus(email: "shared@example.com", planType: target.planType, rateLimits: nil)
         )
         let workflow = SwitchAccountOnHostWorkflow(
-            remoteHostClient: client,
+            remoteHostSwitchOperations: client,
             verificationProbeDelays: [.zero, .zero]
         )
 
@@ -166,7 +166,7 @@ struct SwitchAccountOnHostWorkflowTests {
                 snapshotFingerprint: "target-fingerprint"
             )
         )
-        let workflow = SwitchAccountOnHostWorkflow(remoteHostClient: client)
+        let workflow = SwitchAccountOnHostWorkflow(remoteHostSwitchOperations: client)
 
         let result = try await workflow.run(account: target, on: host, among: [target, duplicate])
 
@@ -191,7 +191,7 @@ struct SwitchAccountOnHostWorkflowTests {
             ]
         )
         let workflow = SwitchAccountOnHostWorkflow(
-            remoteHostClient: client,
+            remoteHostSwitchOperations: client,
             verificationProbeDelays: [.zero, .zero]
         )
 
@@ -215,7 +215,7 @@ struct SwitchAccountOnHostWorkflowTests {
             installationState: .installed,
             refreshError: RemoteHostClientError.commandFailed("Remote Codex app-server failed to restart")
         )
-        let workflow = SwitchAccountOnHostWorkflow(remoteHostClient: client)
+        let workflow = SwitchAccountOnHostWorkflow(remoteHostSwitchOperations: client)
 
         await #expect(throws: RemoteHostClientError.commandFailed("Remote Codex app-server failed to restart")) {
             _ = try await workflow.run(account: account, on: host, among: [account])
@@ -236,7 +236,7 @@ struct SwitchAccountOnHostWorkflowTests {
             installationState: .installed,
             statusError: RemoteHostClientError.commandFailed("Remote app-server unavailable")
         )
-        let workflow = SwitchAccountOnHostWorkflow(remoteHostClient: client)
+        let workflow = SwitchAccountOnHostWorkflow(remoteHostSwitchOperations: client)
 
         await #expect(throws: RemoteHostClientError.commandFailed("Remote app-server unavailable")) {
             _ = try await workflow.run(account: account, on: host, among: [account])
@@ -272,7 +272,7 @@ struct SwitchAccountOnHostWorkflowTests {
     }
 }
 
-private final class RemoteHostClientProbe: RemoteHostClient {
+private final class RemoteHostClientProbe: RemoteHostSwitchWorkflowOperations {
     enum Event: Equatable {
         case testConnection(String)
         case installationState(UUID, String)

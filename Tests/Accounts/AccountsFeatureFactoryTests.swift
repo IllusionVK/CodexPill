@@ -27,7 +27,7 @@ struct AccountsFeatureFactoryTests {
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: FactoryCodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient(),
-            remoteHostClient: UnavailableRemoteHostClient()
+            remoteHostSwitchOperations: UnavailableRemoteHostClient()
         )
 
         let store = factory.makeMenuBarAccountsStore()

@@ -22,7 +22,7 @@ struct MenuBarLiveValidationTests {
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
-            remoteHostClient: ValidationRemoteHostClient(
+            remoteHostSwitchOperations: ValidationRemoteHostClient(
                 seedStates: [
                     PersistedRemoteHostState(
                         host: host,
@@ -59,7 +59,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: ValidationRemoteHostClient(seedStates: settings.remoteHostStates),
+            remoteHostMenuOperations: ValidationRemoteHostClient(seedStates: settings.remoteHostStates),
             alertPresenter: alertPresenter,
             allowsEmptyStatePrompt: false
         )
@@ -143,7 +143,7 @@ struct MenuBarLiveValidationTests {
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
-            remoteHostClient: ValidationRemoteHostClient(
+            remoteHostSwitchOperations: ValidationRemoteHostClient(
                 seedStates: [
                     PersistedRemoteHostState(
                         host: RemoteHost(destination: "user@debian-vm", displayName: "debian-vm"),
@@ -182,7 +182,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: ValidationRemoteHostClient(seedStates: settings.remoteHostStates),
+            remoteHostMenuOperations: ValidationRemoteHostClient(seedStates: settings.remoteHostStates),
             alertPresenter: alertPresenter,
             applicationActivator: foregrounder,
             allowsEmptyStatePrompt: false
@@ -277,7 +277,7 @@ struct MenuBarLiveValidationTests {
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
-            remoteHostClient: failingHostClient
+            remoteHostSwitchOperations: failingHostClient
         )
         store.load()
 
@@ -307,7 +307,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: failingHostClient,
+            remoteHostMenuOperations: failingHostClient,
             alertPresenter: alertPresenter,
             applicationActivator: foregrounder,
             allowsEmptyStatePrompt: false
@@ -870,7 +870,7 @@ struct MenuBarLiveValidationTests {
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
-            remoteHostClient: RemoteHostStatusProbe(
+            remoteHostSwitchOperations: RemoteHostStatusProbe(
                 status: CodexAccountStatus(email: activeAccount.email, planType: activeAccount.planType, rateLimits: nil)
             )
         )
@@ -894,7 +894,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostStatusProbe(),
+            remoteHostMenuOperations: RemoteHostStatusProbe(),
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
             allowsEmptyStatePrompt: false
@@ -919,7 +919,7 @@ struct MenuBarLiveValidationTests {
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
-            remoteHostClient: remoteHostClient
+            remoteHostSwitchOperations: remoteHostClient
         )
         store.load()
 
@@ -941,7 +941,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: remoteHostClient,
+            remoteHostMenuOperations: remoteHostClient,
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
             allowsEmptyStatePrompt: false
@@ -1408,7 +1408,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostStatusProbe(
+            remoteHostMenuOperations: RemoteHostStatusProbe(
                 status: CodexAccountStatus(
                     email: "remote@example.com",
                     planType: "team",
@@ -1480,7 +1480,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostStatusProbe(
+            remoteHostMenuOperations: RemoteHostStatusProbe(
                 readError: RemoteHostClientError.commandFailed("ssh: connection refused")
             ),
             alertPresenter: AlertPresenterProbe(),
@@ -1532,7 +1532,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostStatusProbe(),
+            remoteHostMenuOperations: RemoteHostStatusProbe(),
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
@@ -1602,7 +1602,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostStatusProbe(
+            remoteHostMenuOperations: RemoteHostStatusProbe(
                 statusesByDestination: [
                     "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", rateLimits: nil),
                     "user@debian-vm": CodexAccountStatus(email: "debian@example.com", planType: "team", rateLimits: nil)
@@ -1677,7 +1677,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostStatusProbe(
+            remoteHostMenuOperations: RemoteHostStatusProbe(
                 statusesByDestination: [
                     "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", rateLimits: nil)
                 ],
@@ -1749,7 +1749,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostStatusProbe(
+            remoteHostMenuOperations: RemoteHostStatusProbe(
                 status: CodexAccountStatus(email: "business-2@example.com", planType: "team", rateLimits: nil)
             ),
             alertPresenter: AlertPresenterProbe(),
@@ -1841,7 +1841,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostStatusProbe(
+            remoteHostMenuOperations: RemoteHostStatusProbe(
                 status: CodexAccountStatus(
                     email: "business-1@example.com",
                     planType: "team",
@@ -1914,7 +1914,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostStatusProbe(
+            remoteHostMenuOperations: RemoteHostStatusProbe(
                 status: CodexAccountStatus(
                     email: "different@example.com",
                     planType: "team",
@@ -1987,7 +1987,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostStatusProbe(
+            remoteHostMenuOperations: RemoteHostStatusProbe(
                 readError: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied")
             ),
             alertPresenter: alertPresenter,
@@ -2051,7 +2051,7 @@ struct MenuBarLiveValidationTests {
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
-            remoteHostClient: remoteHostClient
+            remoteHostSwitchOperations: remoteHostClient
         )
         store.load()
 
@@ -2059,7 +2059,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: remoteHostClient,
+            remoteHostMenuOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
@@ -2183,7 +2183,7 @@ struct MenuBarLiveValidationTests {
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
-            remoteHostClient: remoteHostClient
+            remoteHostSwitchOperations: remoteHostClient
         )
         store.load()
 
@@ -2191,7 +2191,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: remoteHostClient,
+            remoteHostMenuOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
@@ -2274,7 +2274,7 @@ struct MenuBarLiveValidationTests {
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
-            remoteHostClient: remoteHostClient
+            remoteHostSwitchOperations: remoteHostClient
         )
         store.load()
 
@@ -2282,7 +2282,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: remoteHostClient,
+            remoteHostMenuOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
@@ -2354,7 +2354,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostStatusProbe(
+            remoteHostMenuOperations: RemoteHostStatusProbe(
                 status: CodexAccountStatus(
                     email: "remote@example.com",
                     planType: "team",
@@ -2490,7 +2490,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostStatusProbe(
+            remoteHostMenuOperations: RemoteHostStatusProbe(
                 status: CodexAccountStatus(
                     email: "raphaelgrau@gmail.com",
                     planType: "team",
@@ -2641,7 +2641,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostStatusProbe(
+            remoteHostMenuOperations: RemoteHostStatusProbe(
                 status: CodexAccountStatus(
                     email: "raphaelgrau@gmail.com",
                     planType: "team",
@@ -2803,7 +2803,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: remoteHostClient,
+            remoteHostMenuOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
@@ -2906,7 +2906,7 @@ private struct NullCodexAppProcessClient: CodexAppProcessClient {
     func relaunchCodex() async throws {}
 }
 
-private struct RemoteHostStatusProbe: RemoteHostClient {
+private struct RemoteHostStatusProbe: RemoteHostSwitchWorkflowOperations, RemoteHostAccountSigningOut {
     var status: CodexAccountStatus?
     var statusesByDestination: [String: CodexAccountStatus] = [:]
     var readError: Error?
@@ -2940,7 +2940,12 @@ private struct RemoteHostStatusProbe: RemoteHostClient {
     }
 }
 
-private actor RemoteHostSequenceProbe: RemoteHostClient {
+private actor RemoteHostSequenceProbe:
+    RemoteHostConnectionChecking,
+    RemoteHostAccountStatusReading,
+    RemoteHostAccountSigningOut,
+    RemoteHostCodexAppServerRefreshing
+{
     private var statusesByDestination: [String: [CodexAccountStatus]]
     private var readCounts: [String: Int] = [:]
 
@@ -2949,9 +2954,6 @@ private actor RemoteHostSequenceProbe: RemoteHostClient {
     }
 
     func testConnection(to host: RemoteHost) async throws {}
-    func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState { .installed }
-    func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
-    func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
     func signOut(on host: RemoteHost) async throws {}
     func refreshCodexAppServer(on host: RemoteHost) async throws {}
 

@@ -15,7 +15,7 @@ extension MenuBarAccountsStore: MenuBarHostActionAccountsStore {}
 final class MenuBarHostActionCoordinator {
     private let store: MenuBarHostActionAccountsStore
     private let settings: CodexPillSettingsStore
-    private let remoteHostClient: RemoteHostClient
+    private let connectionChecker: RemoteHostConnectionChecking
     private let remoteHostRuntime: RemoteHostRuntime
     private let alertPresenter: AlertPresenter
     private let panelPresenter: PanelPresenter
@@ -28,7 +28,7 @@ final class MenuBarHostActionCoordinator {
     init(
         store: MenuBarHostActionAccountsStore,
         settings: CodexPillSettingsStore,
-        remoteHostClient: RemoteHostClient,
+        connectionChecker: RemoteHostConnectionChecking,
         remoteHostRuntime: RemoteHostRuntime,
         alertPresenter: AlertPresenter,
         panelPresenter: PanelPresenter,
@@ -40,7 +40,7 @@ final class MenuBarHostActionCoordinator {
     ) {
         self.store = store
         self.settings = settings
-        self.remoteHostClient = remoteHostClient
+        self.connectionChecker = connectionChecker
         self.remoteHostRuntime = remoteHostRuntime
         self.alertPresenter = alertPresenter
         self.panelPresenter = panelPresenter
@@ -90,7 +90,7 @@ final class MenuBarHostActionCoordinator {
                         return .failure(RemoteHostClientError.unavailable)
                     }
                     do {
-                        try await self.remoteHostClient.testConnection(to: host)
+                        try await self.connectionChecker.testConnection(to: host)
                         return .success(())
                     } catch {
                         return .failure(error)

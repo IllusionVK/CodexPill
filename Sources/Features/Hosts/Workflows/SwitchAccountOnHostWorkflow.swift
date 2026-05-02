@@ -1,22 +1,50 @@
 import Foundation
 
 struct SwitchAccountOnHostWorkflow {
-    private let remoteHostClient: RemoteHostClient
+    private let connectionChecker: RemoteHostConnectionChecking
+    private let accountInstaller: RemoteHostAccountInstalling
+    private let accountSwitcher: RemoteHostAccountSwitching
+    private let appServerRefresher: RemoteHostCodexAppServerRefreshing
+    private let accountStatusReader: RemoteHostAccountStatusReading
     private let accountVerifier: RemoteHostAccountVerifier
     private let verificationProbeDelays: [Duration]
 
     init(
-        remoteHostClient: RemoteHostClient,
+        connectionChecker: RemoteHostConnectionChecking,
+        accountInstaller: RemoteHostAccountInstalling,
+        accountSwitcher: RemoteHostAccountSwitching,
+        appServerRefresher: RemoteHostCodexAppServerRefreshing,
+        accountStatusReader: RemoteHostAccountStatusReading,
         accountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
         verificationProbeDelays: [Duration] = [.zero, .seconds(1), .seconds(2)]
     ) {
-        self.remoteHostClient = remoteHostClient
+        self.connectionChecker = connectionChecker
+        self.accountInstaller = accountInstaller
+        self.accountSwitcher = accountSwitcher
+        self.appServerRefresher = appServerRefresher
+        self.accountStatusReader = accountStatusReader
         self.accountVerifier = accountVerifier
         self.verificationProbeDelays = verificationProbeDelays
     }
 
+    init(
+        remoteHostSwitchOperations: RemoteHostSwitchWorkflowOperations,
+        accountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
+        verificationProbeDelays: [Duration] = [.zero, .seconds(1), .seconds(2)]
+    ) {
+        self.init(
+            connectionChecker: remoteHostSwitchOperations,
+            accountInstaller: remoteHostSwitchOperations,
+            accountSwitcher: remoteHostSwitchOperations,
+            appServerRefresher: remoteHostSwitchOperations,
+            accountStatusReader: remoteHostSwitchOperations,
+            accountVerifier: accountVerifier,
+            verificationProbeDelays: verificationProbeDelays
+        )
+    }
+
     func testConnection(to host: RemoteHost) async throws {
-        try await remoteHostClient.testConnection(to: host)
+        try await connectionChecker.testConnection(to: host)
     }
 
     func run(
@@ -24,12 +52,12 @@ struct SwitchAccountOnHostWorkflow {
         on host: RemoteHost,
         among accounts: [CodexAccount]
     ) async throws -> RemoteHostSwitchVerificationResult {
-        let installationState = try await remoteHostClient.installationState(for: account, on: host)
+        let installationState = try await accountInstaller.installationState(for: account, on: host)
         if installationState == .missing {
-            try await remoteHostClient.installAccount(account, on: host)
+            try await accountInstaller.installAccount(account, on: host)
         }
-        try await remoteHostClient.switchToAccount(account, on: host)
-        try await remoteHostClient.refreshCodexAppServer(on: host)
+        try await accountSwitcher.switchToAccount(account, on: host)
+        try await appServerRefresher.refreshCodexAppServer(on: host)
 
         var latestVerificationResult: RemoteHostSwitchVerificationResult?
 
@@ -38,7 +66,7 @@ struct SwitchAccountOnHostWorkflow {
                 try? await Task.sleep(for: delay)
             }
 
-            let status = try await remoteHostClient.readCurrentAccountStatus(on: host)
+            let status = try await accountStatusReader.readCurrentAccountStatus(on: host)
             let verificationResult = accountVerifier.verify(
                 status: status,
                 expectedAccount: account,

@@ -24,15 +24,37 @@ enum RemoteHostAccountInstallationState: String, Codable, Equatable {
     case missing
 }
 
-protocol RemoteHostClient {
+protocol RemoteHostConnectionChecking {
     func testConnection(to host: RemoteHost) async throws
+}
+
+protocol RemoteHostAccountInstalling {
     func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState
     func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws
+}
+
+protocol RemoteHostAccountSwitching {
     func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws
+}
+
+protocol RemoteHostAccountSigningOut {
     func signOut(on host: RemoteHost) async throws
+}
+
+protocol RemoteHostCodexAppServerRefreshing {
     func refreshCodexAppServer(on host: RemoteHost) async throws
+}
+
+protocol RemoteHostAccountStatusReading {
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus
 }
+
+typealias RemoteHostSwitchWorkflowOperations =
+    RemoteHostConnectionChecking
+    & RemoteHostAccountInstalling
+    & RemoteHostAccountSwitching
+    & RemoteHostCodexAppServerRefreshing
+    & RemoteHostAccountStatusReading
 
 enum RemoteHostClientError: LocalizedError, Equatable {
     case unavailable
@@ -51,7 +73,14 @@ enum RemoteHostClientError: LocalizedError, Equatable {
     }
 }
 
-struct UnavailableRemoteHostClient: RemoteHostClient {
+struct UnavailableRemoteHostClient:
+    RemoteHostConnectionChecking,
+    RemoteHostAccountInstalling,
+    RemoteHostAccountSwitching,
+    RemoteHostAccountSigningOut,
+    RemoteHostCodexAppServerRefreshing,
+    RemoteHostAccountStatusReading
+{
     func testConnection(to host: RemoteHost) async throws {
         throw RemoteHostClientError.unavailable
     }

@@ -63,7 +63,7 @@ struct RemoteHostRuntimeTests {
         var persistedAccounts: [CodexAccount] = []
         let runtime = makeRuntime(
             settings: settings,
-            remoteHostClient: RemoteHostClientFixture(readStatusResult: .failure(RemoteHostClientError.unavailable)),
+            accountStatusReader: RemoteHostClientFixture(readStatusResult: .failure(RemoteHostClientError.unavailable)),
             accounts: [account],
             persistAccountMetadata: { persistedAccounts.append($0) }
         )
@@ -101,7 +101,7 @@ struct RemoteHostRuntimeTests {
         )
         let runtime = makeRuntime(
             settings: settings,
-            remoteHostClient: client,
+            accountStatusReader: client,
             accounts: [slowAccount, fastAccount]
         )
         var refreshedCount = 0
@@ -127,14 +127,14 @@ struct RemoteHostRuntimeTests {
 
     private func makeRuntime(
         settings: CodexPillSettingsStore,
-        remoteHostClient: RemoteHostClient = RemoteHostClientFixture(),
+        accountStatusReader: RemoteHostAccountStatusReading = RemoteHostClientFixture(),
         accounts: [CodexAccount],
         persistAccountMetadata: @escaping (CodexAccount) -> Void = { _ in },
         markAccountActivated: @escaping (UUID) -> Void = { _ in }
     ) -> RemoteHostRuntime {
         RemoteHostRuntime(
             settings: settings.remoteHostSettings,
-            remoteHostClient: remoteHostClient,
+            accountStatusReader: accountStatusReader,
             accounts: { accounts },
             persistAccountMetadata: persistAccountMetadata,
             markAccountActivated: markAccountActivated
@@ -168,19 +168,12 @@ struct RemoteHostRuntimeTests {
     }
 }
 
-private struct RemoteHostClientFixture: RemoteHostClient {
+private struct RemoteHostClientFixture: RemoteHostAccountStatusReading {
     var readStatusResult: Result<CodexAccountStatus, Error> = .success(
         CodexAccountStatus(email: "business@example.com", planType: "team", rateLimits: nil)
     )
     var statuses: [String: CodexAccountStatus] = [:]
     var delayedDestinations: Set<String> = []
-
-    func testConnection(to host: RemoteHost) async throws {}
-    func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState { .installed }
-    func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
-    func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
-    func signOut(on host: RemoteHost) async throws {}
-    func refreshCodexAppServer(on host: RemoteHost) async throws {}
 
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
         if delayedDestinations.contains(host.destination) {

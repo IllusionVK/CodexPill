@@ -131,7 +131,7 @@ struct MenuBarHostActionCoordinatorTests {
     private func makeHarness(
         accounts: [CodexAccount] = [],
         activeAccount: CodexAccount? = nil,
-        remoteHostClient: RemoteHostClient = RemoteHostClientFixture(),
+        remoteHostClient: RemoteHostConnectionChecking & RemoteHostAccountStatusReading = RemoteHostClientFixture(),
         alertPresenter: AlertPresenterProbe? = nil,
         panelPresenter: PanelPresenterProbe? = nil
     ) -> MenuBarHostActionCoordinatorHarness {
@@ -175,7 +175,7 @@ private final class MenuBarHostActionCoordinatorHarness {
     init(
         accounts: [CodexAccount],
         activeAccount: CodexAccount?,
-        remoteHostClient: RemoteHostClient,
+        remoteHostClient: RemoteHostConnectionChecking & RemoteHostAccountStatusReading,
         alertPresenter: AlertPresenter,
         panelPresenter: PanelPresenter
     ) {
@@ -185,7 +185,7 @@ private final class MenuBarHostActionCoordinatorHarness {
         settings = CodexPillSettingsStore(userDefaults: defaults)
         let remoteHostRuntime = RemoteHostRuntime(
             settings: settings.remoteHostSettings,
-            remoteHostClient: remoteHostClient,
+            accountStatusReader: remoteHostClient,
             accounts: { [self] in store.accounts },
             persistAccountMetadata: { [self] in store.persistedAccounts.append($0) },
             markAccountActivated: { [self] in store.activatedAccountIDs.append($0) }
@@ -193,7 +193,7 @@ private final class MenuBarHostActionCoordinatorHarness {
         coordinator = MenuBarHostActionCoordinator(
             store: store,
             settings: settings,
-            remoteHostClient: remoteHostClient,
+            connectionChecker: remoteHostClient,
             remoteHostRuntime: remoteHostRuntime,
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
@@ -259,17 +259,10 @@ private struct MenuActionRecord: Equatable {
     let payload: [String: String]
 }
 
-private struct RemoteHostClientFixture: RemoteHostClient {
+private struct RemoteHostClientFixture: RemoteHostConnectionChecking, RemoteHostAccountStatusReading {
     var status = CodexAccountStatus(email: "business@example.com", planType: "team")
 
     func testConnection(to host: RemoteHost) async throws {}
-    func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState {
-        .installed
-    }
-    func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
-    func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
-    func signOut(on host: RemoteHost) async throws {}
-    func refreshCodexAppServer(on host: RemoteHost) async throws {}
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
         status
     }

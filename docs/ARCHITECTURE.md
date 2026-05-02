@@ -145,7 +145,7 @@ Settings persistence is split by feature boundary:
 
 ## Boundary Notes
 
-`AccountsFeatureFactory` is the production composition boundary for the account feature. App startup chooses platform adapters such as `AccountRepository`, `CodexAuthSnapshotService`, `CodexAppProcessClient`, `CodexAccountStatusClient`, and `RemoteHostClient`, then asks the factory for the account feature entry point.
+`AccountsFeatureFactory` is the production composition boundary for the account feature. App startup chooses platform adapters such as `AccountRepository`, `CodexAuthSnapshotService`, `CodexAppProcessClient`, `CodexAccountStatusClient`, and the remote host operation capabilities implemented by `SSHRemoteHostClient`, then asks the factory for the account feature entry point.
 
 `AccountsController` is the account-session and catalog boundary. It coordinates feature-level state transitions, saved-account catalog updates, active-account resolution, mutation result application, and silent refresh policy.
 
@@ -157,7 +157,7 @@ Settings persistence is split by feature boundary:
 
 `InactiveAccountAvailabilityRanking` owns ordering and best-account comparison only.
 
-`RemoteHostRuntime` is the remote-host feature boundary. It owns configured-host connection state, host verification refresh, detected-account adoption state, and preservation of verified remote metadata.
+`RemoteHostRuntime` is the remote-host feature boundary. It owns configured-host connection state, host verification refresh, detected-account adoption state, and preservation of verified remote metadata. It depends on remote account status reading, not the full remote host operation set.
 
 `RemoteRateLimitResolution` owns remote rate-limit fallback semantics.
 

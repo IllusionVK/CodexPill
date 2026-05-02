@@ -24,7 +24,8 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             ? ValidationCodexAppProcessClient()
             : SystemCodexAppProcessClient()
         let accountStatusClient = CodexAppServerClient()
-        let remoteHostClient: RemoteHostClient
+        let remoteHostClient: RemoteHostSwitchWorkflowOperations
+            & RemoteHostAccountSigningOut
         if AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(environment: environment) {
             remoteHostClient = ValidationRemoteHostClient(seedStates: settings.remoteHostStates)
         } else {
@@ -35,7 +36,7 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             authService: authService,
             codexAppProcessClient: processClient,
             accountStatusClient: accountStatusClient,
-            remoteHostClient: remoteHostClient
+            remoteHostSwitchOperations: remoteHostClient
         )
         let store = accountsFeatureFactory.makeMenuBarAccountsStore()
 
@@ -44,7 +45,10 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             statusItemRuntime: statusItemRuntime,
             store: store,
             settings: settings,
-            remoteHostClient: remoteHostClient,
+            remoteHostConnectionChecker: remoteHostClient,
+            remoteHostAccountStatusReader: remoteHostClient,
+            remoteHostAccountSignerOut: remoteHostClient,
+            remoteHostAppServerRefresher: remoteHostClient,
             alertPresenter: SystemAlertPresenter(),
             validationSink: MenuBarValidationConfiguration.makeSink(),
             allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt()

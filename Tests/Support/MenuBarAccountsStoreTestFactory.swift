@@ -9,7 +9,7 @@ extension MenuBarAccountsStore {
         authService: CodexAuthSnapshotService,
         codexAppProcessClient: CodexAppProcessClient,
         accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient,
-        remoteHostClient: RemoteHostClient = UnavailableRemoteHostClient()
+        remoteHostSwitchOperations: RemoteHostSwitchWorkflowOperations = UnavailableRemoteHostClient()
     ) {
         let identityResolver = SavedAccountIdentityResolver(
             liveIdentitySource: authService,
@@ -55,7 +55,7 @@ extension MenuBarAccountsStore {
                     identityResolver: identityResolver
                 ),
                 switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
-                    remoteHostClient: remoteHostClient
+                    remoteHostSwitchOperations: remoteHostSwitchOperations
                 ),
                 remoteHostAccountVerifier: RemoteHostAccountVerifier(),
                 addAccountWorkflow: AddAccountWorkflow(

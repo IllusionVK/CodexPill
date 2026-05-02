@@ -3,7 +3,7 @@ import Foundation
 @MainActor
 final class RemoteHostRuntime {
     private let settings: RemoteHostSettingsStore
-    private let remoteHostClient: RemoteHostClient
+    private let accountStatusReader: RemoteHostAccountStatusReading
     private let remoteHostAccountVerifier: RemoteHostAccountVerifier
     private let savedAccountRelinker: SavedAccountRelinker
     private let accounts: () -> [CodexAccount]
@@ -14,7 +14,7 @@ final class RemoteHostRuntime {
 
     init(
         settings: RemoteHostSettingsStore,
-        remoteHostClient: RemoteHostClient,
+        accountStatusReader: RemoteHostAccountStatusReading,
         remoteHostAccountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
         savedAccountRelinker: SavedAccountRelinker = SavedAccountRelinker(),
         accounts: @escaping () -> [CodexAccount],
@@ -22,7 +22,7 @@ final class RemoteHostRuntime {
         markAccountActivated: @escaping (UUID) -> Void
     ) {
         self.settings = settings
-        self.remoteHostClient = remoteHostClient
+        self.accountStatusReader = accountStatusReader
         self.remoteHostAccountVerifier = remoteHostAccountVerifier
         self.savedAccountRelinker = savedAccountRelinker
         self.accounts = accounts
@@ -172,7 +172,7 @@ final class RemoteHostRuntime {
         fallbackConnectionState: RemoteHostConnectionState
     ) async {
         do {
-            let status = try await remoteHostClient.readCurrentAccountStatus(on: host)
+            let status = try await accountStatusReader.readCurrentAccountStatus(on: host)
             switch remoteHostAccountVerifier.verify(
                 status: status,
                 expectedAccount: baseAccount,

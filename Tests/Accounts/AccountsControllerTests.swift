@@ -158,7 +158,7 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
-                remoteHostClient: RemoteHostStatusFixture(
+                remoteHostSwitchOperations: RemoteHostStatusFixture(
                     status: CodexAccountStatus(
                         email: other.email,
                         planType: other.planType,
@@ -222,7 +222,7 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
-                remoteHostClient: RemoteHostErrorCase(error: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied"))
+                remoteHostSwitchOperations: RemoteHostErrorCase(error: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied"))
             ),
             addAccountWorkflow: makeAddAccountWorkflow(
                 repository: repository,
@@ -528,7 +528,7 @@ private final class IsolatedAddAccountLoginSessionProbe: IsolatedCodexLoginSessi
     }
 }
 
-private struct RemoteHostStatusFixture: RemoteHostClient {
+private struct RemoteHostStatusFixture: RemoteHostSwitchWorkflowOperations {
     let status: CodexAccountStatus
 
     func testConnection(to host: RemoteHost) async throws {}
@@ -540,7 +540,7 @@ private struct RemoteHostStatusFixture: RemoteHostClient {
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus { status }
 }
 
-private struct RemoteHostErrorCase: RemoteHostClient {
+private struct RemoteHostErrorCase: RemoteHostSwitchWorkflowOperations {
     let error: Error
 
     func testConnection(to host: RemoteHost) async throws {}

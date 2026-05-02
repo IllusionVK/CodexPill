@@ -22,7 +22,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let settings: CodexPillSettingsStore
     private let menuDisplaySettings: MenuDisplaySettingsStore
     private let statusItemSettings: StatusItemSettingsStore
-    private let remoteHostClient: RemoteHostClient
+    private let remoteHostConnectionChecker: RemoteHostConnectionChecking
+    private let remoteHostAccountSignerOut: RemoteHostAccountSigningOut
+    private let remoteHostAppServerRefresher: RemoteHostCodexAppServerRefreshing
     private let cliProcessInspector: CodexCLIProcessInspector
     private let alertPresenter: AlertPresenter
     private let panelPresenter: PanelPresenter
@@ -70,7 +72,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private lazy var hostActionCoordinator = MenuBarHostActionCoordinator(
         store: store,
         settings: settings,
-        remoteHostClient: remoteHostClient,
+        connectionChecker: remoteHostConnectionChecker,
         remoteHostRuntime: remoteHostRuntime,
         alertPresenter: alertPresenter,
         panelPresenter: panelPresenter,
@@ -92,7 +94,16 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         shortcutRuntime: GlobalShortcutRuntime? = nil,
         store: MenuBarAccountsStore,
         settings: CodexPillSettingsStore,
-        remoteHostClient: RemoteHostClient = UnavailableRemoteHostClient(),
+        remoteHostMenuOperations: (
+            RemoteHostConnectionChecking
+            & RemoteHostAccountStatusReading
+            & RemoteHostAccountSigningOut
+            & RemoteHostCodexAppServerRefreshing
+        )? = nil,
+        remoteHostConnectionChecker: RemoteHostConnectionChecking = UnavailableRemoteHostClient(),
+        remoteHostAccountStatusReader: RemoteHostAccountStatusReading = UnavailableRemoteHostClient(),
+        remoteHostAccountSignerOut: RemoteHostAccountSigningOut = UnavailableRemoteHostClient(),
+        remoteHostAppServerRefresher: RemoteHostCodexAppServerRefreshing = UnavailableRemoteHostClient(),
         cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
         alertPresenter: AlertPresenter,
         panelPresenter: PanelPresenter? = nil,
@@ -113,7 +124,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.settings = settings
         self.menuDisplaySettings = settings.menuDisplaySettings
         self.statusItemSettings = settings.statusItemSettings
-        self.remoteHostClient = remoteHostClient
+        self.remoteHostConnectionChecker = remoteHostMenuOperations ?? remoteHostConnectionChecker
+        let remoteHostAccountStatusReader = remoteHostMenuOperations ?? remoteHostAccountStatusReader
+        self.remoteHostAccountSignerOut = remoteHostMenuOperations ?? remoteHostAccountSignerOut
+        self.remoteHostAppServerRefresher = remoteHostMenuOperations ?? remoteHostAppServerRefresher
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
         self.panelPresenter = panelPresenter ?? SystemPanelPresenter()
@@ -134,7 +148,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
         self.remoteHostRuntime = RemoteHostRuntime(
             settings: settings.remoteHostSettings,
-            remoteHostClient: remoteHostClient,
+            accountStatusReader: remoteHostAccountStatusReader,
             accounts: { store.accounts },
             persistAccountMetadata: { store.persistAccountMetadata($0) },
             markAccountActivated: { [notificationStateStore] accountID in
@@ -897,8 +911,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             guard let remoteHost = settings.remoteHostState(for: remoteHostState.destination)?.host else {
                 throw RemoteHostClientError.commandFailed("Remote host \(remoteHostState.name) is no longer configured.")
             }
-            try await remoteHostClient.signOut(on: remoteHost)
-            try await remoteHostClient.refreshCodexAppServer(on: remoteHost)
+            try await remoteHostAccountSignerOut.signOut(on: remoteHost)
+            try await remoteHostAppServerRefresher.refreshCodexAppServer(on: remoteHost)
             remoteHostRuntime.applySignOut(on: remoteHost)
         }
     }

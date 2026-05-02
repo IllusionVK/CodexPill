@@ -46,7 +46,7 @@ protocol AccountSnapshotLocator {
 
 extension AccountRepository: AccountSnapshotLocator {}
 
-struct SSHRemoteHostClient: RemoteHostClient {
+struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccountSigningOut {
     private static let responseTimeout: Duration = .seconds(10)
     private static let missingRemoteAuthExitCode: Int32 = 17
     private static let appServerListenAddress = "ws://127.0.0.1:9234"
