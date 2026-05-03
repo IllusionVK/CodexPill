@@ -39,6 +39,7 @@ Anything an agent can verify in this repo should be expressed as automated proof
 - Use `make verify-ui-live` for live menubar smoke validation.
 - Add or extend live smoke scenarios when runtime behavior must be proven by an agent.
 - Track manual-only gaps as explicit issues or feature-document open questions until they can be covered by automated proof.
+- Use [feature-to-seal-scenario-coverage.md](feature-to-seal-scenario-coverage.md) as the CodexPill-owned map from feature claims to Seal migration candidates. Seal docs may link to that map for adoption pressure or release-readiness context, but CodexPill remains the owner of the product semantics.
 
 ## Automated coverage
 
