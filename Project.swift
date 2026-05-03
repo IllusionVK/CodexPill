@@ -43,6 +43,22 @@ let project = Project(
             ])
         ),
         .target(
+            name: "CodexPillProofEmitter",
+            destinations: .macOS,
+            product: .commandLineTool,
+            bundleId: "com.raphhgg.codexpill.proof-emitter",
+            deploymentTargets: .macOS("14.0"),
+            infoPlist: .default,
+            sources: ["Tools/InternalValidation/**"],
+            dependencies: [
+                .package(product: "SealRecorder"),
+            ],
+            settings: .settings(base: [
+                "CODE_SIGN_INJECT_BASE_ENTITLEMENTS": "NO",
+                "ENABLE_DEBUG_DYLIB": "NO",
+            ])
+        ),
+        .target(
             name: "CodexPillTests",
             destinations: .macOS,
             product: .unitTests,

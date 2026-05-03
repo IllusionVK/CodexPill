@@ -4,10 +4,12 @@ AGENT_NAME ?= local
 BUILD_ROOT := build
 DERIVED_DATA := $(BUILD_ROOT)/DerivedData/$(AGENT_NAME)
 RESULT_BUNDLE := $(BUILD_ROOT)/results/$(AGENT_NAME)/$(APP_NAME).xcresult
+PROOF_EMITTER_RESULT_BUNDLE := $(BUILD_ROOT)/results/$(AGENT_NAME)/CodexPillProofEmitter.xcresult
+PROOF_EMITTER_BINARY := $(DERIVED_DATA)/Build/Products/Debug/CodexPillProofEmitter
 DEV_BUNDLE_ID ?= com.raphhgg.codexpill.dev
 STAGING_BUNDLE_ID ?= com.raphhgg.codexpill.staging
 
-.PHONY: diagnose generate prepare-result-bundle build test run verify-ui verify-ui-live clean
+.PHONY: diagnose generate prepare-result-bundle build test build-proof-emitter emit-account-switch-proof run verify-ui verify-ui-live clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -31,6 +33,24 @@ build: generate prepare-result-bundle
 		-derivedDataPath "$(DERIVED_DATA)" \
 		-resultBundlePath "$(RESULT_BUNDLE)" \
 		PRODUCT_BUNDLE_IDENTIFIER="$(DEV_BUNDLE_ID)"
+
+build-proof-emitter: generate
+	mkdir -p $(dir $(PROOF_EMITTER_RESULT_BUNDLE))
+	rm -rf "$(PROOF_EMITTER_RESULT_BUNDLE)"
+	xcodebuild build \
+		-project $(PROJECT_PATH) \
+		-scheme CodexPillProofEmitter \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(PROOF_EMITTER_RESULT_BUNDLE)"
+
+emit-account-switch-proof: build-proof-emitter
+	@if [ -z "$${OUTPUT_DIR:-}" ]; then \
+		echo "Set OUTPUT_DIR to the proof output directory."; \
+		exit 64; \
+	fi
+	"$(PROOF_EMITTER_BINARY)" emit-account-switch-proof --output-dir "$${OUTPUT_DIR}"
 
 test: generate prepare-result-bundle
 	xcodebuild test \

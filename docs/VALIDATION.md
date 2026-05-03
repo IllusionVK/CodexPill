@@ -58,6 +58,9 @@ The following behavior should be treated as automated first and should not live 
   - `SCENARIO=live-menu-open make verify-ui-live`
 - end-to-end switch-account transition proof when explicitly opting into live auth mutation:
   - `CODEXPILL_ALLOW_LIVE_ACCOUNT_SWITCH_VALIDATION=1 SCENARIO=live-account-switch make verify-ui-live`
+- Seal V1 boundary validation for account switching without live UI or real auth mutation:
+  - `OUTPUT_DIR=build/validation-proof/account-switch make emit-account-switch-proof`
+  - `swift run --package-path ../Seal seal-verifier --verbose build/validation-proof/account-switch`
 - text-on-hover behavior:
   - unit plus `SCENARIO=live-status-item-hover make verify-ui-live`
 - menu bar label reveal shortcut:
@@ -267,6 +270,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `scenarios`: `["live-account-switch", "switch-account-changes-active-account"]`
 - `event_evidence`: `["menu_action_dispatched", "switch_confirmation_presented", "switch_confirmation_accepted", "switch_workflow_started", "active_account_changed"]`
 - `snapshot_evidence`: `["account_before", "account_after"]`
+- `seal_v1_boundary_validation`: `make emit-account-switch-proof` emits a deterministic `.integration` Seal proof for this invariant from fixture-owned account state only. This is an internal V1 boundary validation slice for CodexPill-owned proof emission plus Seal-owned verification; it is not the future Seal-owned one-command runner.
 
 ### `menubar.text_on_hover.stays_visible_inside_resized_bounds`
 
