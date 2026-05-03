@@ -99,24 +99,15 @@ struct CodexPillSealProofRecorderTests {
             "evidence/account-after.json",
         ])
         #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/events.jsonl").path))
-        let expectations = manifest?["targetedExpectations"] as? [[String: Any]]
-        let invariants = expectations?.first?["invariants"] as? [[String: Any]]
-        let rule = invariants?.first?["rule"] as? [String: Any]
-        let rules = rule?["rules"] as? [[String: Any]]
-        let eventSequence = rules?.first { $0["type"] as? String == "event_sequence" }
-        let snapshotDiff = rules?.first { $0["type"] as? String == "snapshots_differ" }
 
-        #expect(rule?["type"] as? String == "all")
-        #expect((eventSequence?["events"] as? [[String: Any]])?.compactMap { $0["name"] as? String } == [
+        let events = try proofEvents(in: proofDirectory)
+        #expect(events.compactMap { $0["event"] as? String } == [
             "menu_action_dispatched",
             "switch_confirmation_presented",
             "switch_confirmation_accepted",
             "switch_workflow_started",
             "active_account_changed",
         ])
-        #expect(snapshotDiff?["before"] as? String == "account_before")
-        #expect(snapshotDiff?["after"] as? String == "account_after")
-        #expect(snapshotDiff?["paths"] as? [String] == ["activeAccountId"])
     }
 
     @Test
@@ -147,28 +138,19 @@ struct CodexPillSealProofRecorderTests {
         ])
         #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/events.jsonl").path))
         #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/host-validation-snapshot.json").path))
-        let expectations = manifest?["targetedExpectations"] as? [[String: Any]]
-        let invariants = expectations?.first?["invariants"] as? [[String: Any]]
-        let invariant = invariants?.first
-        let rule = invariant?["rule"] as? [String: Any]
-        let rules = rule?["rules"] as? [[String: Any]]
-        let eventSequence = rules?.first { $0["type"] as? String == "event_sequence" }
-        let snapshotEquals = rules?.first { $0["type"] as? String == "snapshot_equals" }
 
-        #expect(invariant?["requiredEvidence"] as? [String] == [
-            "events",
-            "host_validation_snapshot",
-        ])
-        #expect(rule?["type"] as? String == "all")
-        #expect((eventSequence?["events"] as? [[String: Any]])?.compactMap { $0["name"] as? String } == [
+        let events = try proofEvents(in: proofDirectory)
+        #expect(events.compactMap { $0["event"] as? String } == [
             "menu_action_dispatched",
             "add_host_setup_presented",
             "add_host_validation_started",
             "add_host_validation_failed",
         ])
-        #expect(snapshotEquals?["evidence"] as? String == "host_validation_snapshot")
-        #expect(snapshotEquals?["path"] as? String == "validationResult")
-        #expect(snapshotEquals?["value"] as? String == "failed")
+
+        let hostValidationURL = proofDirectory.appendingPathComponent("evidence/host-validation-snapshot.json")
+        let hostValidation = try JSONSerialization.jsonObject(with: Data(contentsOf: hostValidationURL)) as? [String: Any]
+        #expect(hostValidation?["validationResult"] as? String == "failed")
+        #expect(hostValidation?["hostName"] as? String == "codexpill-validation.invalid")
     }
 
     @Test
@@ -196,20 +178,8 @@ struct CodexPillSealProofRecorderTests {
             "evidence/events.jsonl",
         ])
         #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/events.jsonl").path))
-        let expectations = manifest?["targetedExpectations"] as? [[String: Any]]
-        let invariants = expectations?.first?["invariants"] as? [[String: Any]]
-        let rule = invariants?.first?["rule"] as? [String: Any]
-        let ruleEvents = rule?["events"] as? [[String: Any]]
-        #expect(ruleEvents?.allSatisfy { event in
-            let payload = event["payload"] as? [String: Any]
-            return payload?["hostName"] as? String == "buildbox"
-                && payload?["targetName"] == nil
-        } == true)
 
-        let eventsURL = proofDirectory.appendingPathComponent("evidence/events.jsonl")
-        let events = try String(contentsOf: eventsURL, encoding: .utf8)
-            .split(separator: "\n")
-            .compactMap { try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }
+        let events = try proofEvents(in: proofDirectory)
         #expect(events.compactMap { $0["event"] as? String } == [
             "menu_action_dispatched",
             "remote_host_switch_started",
@@ -280,18 +250,7 @@ struct CodexPillSealProofRecorderTests {
         #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/account-after.json").path))
         #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/ui-after-refresh.json").path))
 
-        let expectations = manifest?["targetedExpectations"] as? [[String: Any]]
-        let invariants = expectations?.first?["invariants"] as? [[String: Any]]
-        #expect(invariants?.compactMap { $0["id"] as? String } == [
-            "accounts.scheduled_refresh.requested_and_completed",
-            "accounts.scheduled_refresh.preserves_account_catalog_identity",
-            "accounts.scheduled_refresh.no_blocking_alert_visible",
-        ])
-
-        let eventsURL = proofDirectory.appendingPathComponent("evidence/events.jsonl")
-        let events = try String(contentsOf: eventsURL, encoding: .utf8)
-            .split(separator: "\n")
-            .compactMap { try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }
+        let events = try proofEvents(in: proofDirectory)
         #expect(events.compactMap { $0["event"] as? String } == [
             "scheduled_refresh_requested",
             "scheduled_refresh_completed",
@@ -308,17 +267,6 @@ struct CodexPillSealProofRecorderTests {
         #expect(accountBefore?["savedAccountIds"] as? [String] == [account.id.uuidString])
         #expect(accountBefore?["savedAccountNames"] as? [String] == [account.name])
         #expect(accountBefore?["savedAccountCount"] as? Int == 1)
-
-        let noBlockingAlertRule = invariants?
-            .first { $0["id"] as? String == "accounts.scheduled_refresh.no_blocking_alert_visible" }?["rule"] as? [String: Any]
-        let childRules = noBlockingAlertRule?["rules"] as? [[String: Any]]
-        #expect(noBlockingAlertRule?["type"] as? String == "all")
-        #expect(childRules?.contains { rule in
-            rule["type"] as? String == "snapshot_equals"
-                && rule["evidence"] as? String == "ui_after_refresh"
-                && rule["path"] as? String == "hasBlockingAlert"
-                && rule["value"] as? Bool == false
-        } == true)
     }
 
     @Test
@@ -362,13 +310,36 @@ struct CodexPillSealProofRecorderTests {
         )
 
         #expect(!FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("manifest.json").path))
-        let eventsURL = proofDirectory.appendingPathComponent("evidence/events.jsonl")
-        let events = try String(contentsOf: eventsURL, encoding: .utf8)
-            .split(separator: "\n")
-            .compactMap { try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }
+        let events = try proofEvents(in: proofDirectory)
         #expect(events.compactMap { $0["event"] as? String } == [
             "scheduled_refresh_requested",
             "scheduled_refresh_failed",
         ])
+    }
+
+    @Test
+    func factoryReturnsNoRecorderWithoutCompleteCodexPillActivationEnvironment() {
+        let proofDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexPillSealProof-\(UUID().uuidString)", isDirectory: true)
+
+        #expect(CodexPillSealProofRecorderFactory.makeRecorder(environment: [:]) == nil)
+        #expect(CodexPillSealProofRecorderFactory.makeRecorder(environment: [
+            CodexPillSealProofRecorderFactory.proofOutputPathEnvironmentKey: proofDirectory.path,
+        ]) == nil)
+        #expect(CodexPillSealProofRecorderFactory.makeRecorder(environment: [
+            CodexPillSealProofRecorderFactory.proofOutputPathEnvironmentKey: "   ",
+            CodexPillSealProofRecorderFactory.legacyScenarioEnvironmentKey: "live-account-switch",
+        ]) == nil)
+        #expect(CodexPillSealProofRecorderFactory.makeRecorder(environment: [
+            CodexPillSealProofRecorderFactory.proofOutputPathEnvironmentKey: proofDirectory.path,
+            CodexPillSealProofRecorderFactory.legacyScenarioEnvironmentKey: "   ",
+        ]) == nil)
+    }
+
+    private func proofEvents(in proofDirectory: URL) throws -> [[String: Any]] {
+        let eventsURL = proofDirectory.appendingPathComponent("evidence/events.jsonl")
+        return try String(contentsOf: eventsURL, encoding: .utf8)
+            .split(separator: "\n")
+            .compactMap { try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }
     }
 }

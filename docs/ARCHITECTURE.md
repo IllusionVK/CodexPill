@@ -188,7 +188,7 @@ Settings persistence is split by feature boundary:
 
 `CodexPillSealProofRecorder` is the small product validation composition container injected into menubar instrumentation. It does not own scenario definitions or feature event APIs; it exposes the active feature-owned recorder selected by the factory.
 
-`CodexPillSealProofSession` is the local Seal runtime adapter. It owns Seal feature registration, run start, event/snapshot recording, finish, and cancellation for CodexPill. If this shape proves reusable across another Apple client, it should be promoted into Seal or a Seal-owned Apple adapter rather than expanded as CodexPill product code.
+`CodexPillSealProofSession` is the local Seal runtime adapter. It owns Seal feature registration, run start, event/snapshot recording, finish, and cancellation for CodexPill. If this shape proves reusable across another Apple client, it should be promoted into Seal or a Seal-owned Apple adapter rather than expanded as CodexPill product code. The current keep/simplify/promote decisions for shared validation adapter plumbing are recorded in [validation-adapter-classification-RGR-197.md](validation-adapter-classification-RGR-197.md).
 
 `AccountValidationRecorder` and `HostValidationRecorder` are the feature validation tracking-plan APIs. They list the semantic events a feature exposes for live proof, in feature language. `AccountSealScenarioCatalog` and `HostSealScenarioCatalog` own feature-specific Seal scenario IDs, invariant IDs, rules, and expectations. `AccountSealProofRecorder` and `HostSealProofRecorder` implement the feature APIs by capturing evidence and writing Seal proof events. Validation evidence DTOs must stay independent from AppKit, SwiftUI, and MenuBar snapshot types.
 
