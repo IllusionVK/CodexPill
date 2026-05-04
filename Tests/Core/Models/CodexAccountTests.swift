@@ -25,7 +25,7 @@ struct CodexAccountTests {
             identity: .empty
         )
 
-        #expect(account.effectivePlanType == "pro")
+        #expect(account.effectivePlanType == "prolite")
     }
 
     @Test
@@ -55,8 +55,8 @@ struct CodexAccountTests {
             )
         )
 
-        #expect(account.planType == "pro")
-        #expect(account.effectivePlanType == "pro")
+        #expect(account.planType == "prolite")
+        #expect(account.effectivePlanType == "prolite")
     }
 
     @Test

@@ -57,7 +57,7 @@ struct RefreshActiveAccountUseCaseTests {
 
         #expect(result.refreshedAccountID == account.id)
         #expect(result.accounts.first?.email == "new@example.com")
-        #expect(result.accounts.first?.planType == "pro")
+        #expect(result.accounts.first?.planType == "prolite")
         #expect(result.accounts.first?.rateLimits == refreshedRateLimits)
         #expect(repository.savedAccounts == result.accounts)
         #expect(result.accounts.first?.updatedAt != .distantPast)

@@ -15,9 +15,9 @@ struct MenuBarUIValidationTests {
             now: now
         )
 
-        let summary = try! #require(snapshot.sections.first(where: { $0.title == "Active Account" })?.items.first(where: { $0.contains("Primary • Pro") }))
-        #expect(summary.contains("Primary • Pro"))
-        #expect(summary.contains("primary@example.com"))
+        let summary = try! #require(snapshot.sections.first(where: { $0.title == "Active Account" })?.items.first(where: { $0.contains("Primary • Pro x20") }))
+        #expect(summary.contains("Primary • Pro x20"))
+        #expect(!summary.contains("primary@example.com"))
         #expect(summary.contains("Session: 42% used"))
     }
 

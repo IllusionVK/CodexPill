@@ -13,8 +13,8 @@ func effectiveCodexPlanType(accountPlanType: String?, rateLimitPlanType: String?
     let accountPlan = knownCodexPlanType(accountPlanType)
     let rateLimitPlan = knownCodexPlanType(rateLimitPlanType)
 
-    if accountPlan == "plus", rateLimitPlan == "pro" {
-        return "pro"
+    if accountPlan == "plus", rateLimitPlan == "prolite" || rateLimitPlan == "pro" {
+        return rateLimitPlan
     }
 
     return accountPlan ?? rateLimitPlan
@@ -29,7 +29,7 @@ func normalizedCodexPlanType(_ planType: String?) -> String? {
 
     switch normalized {
     case "prolite":
-        return "pro"
+        return "prolite"
     case "self_serve_business_usage_based":
         return "business"
     case "enterprise_cbp_usage_based":
@@ -48,7 +48,9 @@ func displayNameForCodexPlanType(_ planType: String?) -> String {
     case "plus":
         return "Plus"
     case "pro":
-        return "Pro"
+        return "Pro x20"
+    case "prolite":
+        return "Pro x5"
     case "team":
         return "Team"
     case "business":

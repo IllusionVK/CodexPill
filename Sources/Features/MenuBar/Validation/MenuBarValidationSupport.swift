@@ -219,10 +219,9 @@ enum MenuBarValidationSupport {
         now: Date
     ) -> String {
         let plan = menuPlanDisplayName(account.effectivePlanType)
-        let email = account.email ?? "No email"
         let session = usageLine(title: "Session", window: account.rateLimits?.primary, now: now)
         let weekly = usageLine(title: "Weekly", window: account.rateLimits?.secondary, now: now)
-        return ([account.name, plan, email, location, session, weekly].compactMap { $0 }).joined(separator: " • ")
+        return ([account.name, plan, location, session, weekly].compactMap { $0 }).joined(separator: " • ")
     }
 
     private static func inactiveAccountSummary(for entry: MenuBarAccountCatalogEntry, now: Date) -> String {

@@ -260,13 +260,13 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["integration"]`
 - `scenarios`: `["app_server_json_rpc_error", "app_server_transient_rate_limit_retry", "preserve_stale_rate_limits_without_marking_fresh"]`
 
-### `accounts.effective_plan.normalizes_observed_plus_to_pro_upgrade`
+### `accounts.effective_plan.maps_app_server_plan_codes`
 
 - `feature`: `accounts`
-- `rule`: CodexPill maps all known App Server plan codes to user-facing display names. When refreshed account metadata still says Plus but fresh rate-limit metadata reports Codex `prolite`, CodexPill displays and persists the account as Pro. `unknown` is treated as missing when choosing an effective plan. Other account plan disagreements must keep the account metadata plan until the backend plan taxonomy is understood.
+- `rule`: CodexPill maps all known App Server plan codes to user-facing display names. `prolite` displays and persists as Pro x5, `pro` displays and persists as Pro x20, business aliases display as Business, and `team` displays as Team. When refreshed account metadata still says Plus but fresh rate-limit metadata reports an upgraded Pro-family Codex plan, CodexPill keeps that fresh rate-limit plan. `unknown` is treated as missing when choosing an effective plan. Other account plan disagreements must keep the account metadata plan until the backend plan taxonomy is understood.
 - `owner_layer`: `unit`
 - `proofs_required`: `["unit"]`
-- `scenarios`: `["known_app_server_plan_display_names", "plus_prolite_displays_as_pro", "unknown_falls_back_to_known_plan", "team_prolite_does_not_downgrade"]`
+- `scenarios`: `["known_app_server_plan_display_names", "plus_prolite_displays_as_pro_x5", "unknown_falls_back_to_known_plan", "team_prolite_does_not_downgrade"]`
 
 ### `accounts.switch_account.menu_action_changes_active_account`
 

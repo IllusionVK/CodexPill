@@ -62,8 +62,8 @@ The local current account appears first when CodexPill can match the live local 
 The card should show:
 
 - Display name.
-- Plan.
-- Email when it fits the current visual design.
+- Plan as a compact pill.
+- Location or freshness metadata, such as `This Mac`, `debian-vm`, `This Mac + debian-vm`, or `Updated 1min ago`.
 - Session usage and reset timing.
 - Weekly usage and reset timing.
 - A neutral expected-pace marker inside each usage bar when reset-window duration is available and `Preferences > Usage Bars > Show Pace Markers` is enabled. This marker is visual only; it must not add pacing text to the card.
@@ -78,7 +78,7 @@ The card should show:
 
 - Saved account display name.
 - Remote host name or destination.
-- Plan and email when available.
+- Plan as a compact pill.
 - Session and weekly usage values from the remote target.
 - The same neutral expected-pace marker as the local current account when reset-window duration is available and `Preferences > Usage Bars > Show Pace Markers` is enabled.
 

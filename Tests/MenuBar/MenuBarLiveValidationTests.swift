@@ -463,7 +463,7 @@ struct MenuBarLiveValidationTests {
         let eventsOutputURL = temporaryDirectory.appendingPathComponent("validation-events.jsonl")
         let snapshot = MenuBarValidationSnapshot(
             sections: [
-                .init(title: "Active Account", items: ["Primary • Pro • primary@example.com"])
+                .init(title: "Active Account", items: ["Primary • Pro x20"])
             ],
             statusMessage: "Refreshing account data...",
             currentAccount: .init(

@@ -6,16 +6,16 @@ import Testing
 
 struct MenuBarAccountPresentationTests {
     @Test
-    func menuPlanDisplayNameNormalizesProliteAsPro() {
-        #expect(menuPlanDisplayName("prolite") == "Pro")
+    func menuPlanDisplayNameDisplaysProliteAsProX5() {
+        #expect(menuPlanDisplayName("prolite") == "Pro x5")
     }
 
     @Test(arguments: [
         ("free", "Free"),
         ("go", "Go"),
         ("plus", "Plus"),
-        ("pro", "Pro"),
-        ("prolite", "Pro"),
+        ("pro", "Pro x20"),
+        ("prolite", "Pro x5"),
         ("team", "Team"),
         ("self_serve_business_usage_based", "Business"),
         ("business", "Business"),

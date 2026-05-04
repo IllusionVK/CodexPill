@@ -19,21 +19,13 @@ struct ActiveAccountMenuContent: View {
                 Text(account.name)
                     .font(.system(size: 15, weight: .semibold))
                 Spacer()
-                Text(menuPlanDisplayName(account.effectivePlanType))
-                    .foregroundStyle(.secondary)
+                ActiveAccountPlanPill(text: menuPlanDisplayName(account.effectivePlanType))
             }
 
-            HStack(alignment: .firstTextBaseline) {
-                Text(activeAccountMetadataPrefix(now: now))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(verbatim: accountMetadataLine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.trailing)
-            }
-            .padding(.top, -2)
+            Text(activeAccountMetadataPrefix(now: now))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.top, -2)
 
             ActiveLimitRow(
                 title: "Session",
@@ -56,13 +48,6 @@ struct ActiveAccountMenuContent: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var accountMetadataLine: String {
-        guard let email = account.email, !email.isEmpty else {
-            return "No email"
-        }
-        return email
-    }
-
     private func activeAccountMetadataPrefix(now: Date) -> String {
         if locations.isEmpty {
             guard showsUpdatedTime else { return "This Mac" }
@@ -70,6 +55,27 @@ struct ActiveAccountMenuContent: View {
         }
 
         return locations.joined(separator: " + ")
+    }
+}
+
+private struct ActiveAccountPlanPill: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 12, weight: .semibold))
+            .lineLimit(1)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(
+                Capsule()
+                    .fill(Color.secondary.opacity(0.12))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color.secondary.opacity(0.12), lineWidth: 0.5)
+            )
     }
 }
 
