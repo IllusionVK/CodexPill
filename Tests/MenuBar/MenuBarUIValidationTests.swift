@@ -450,13 +450,13 @@ struct MenuBarUIValidationTests {
         case "hosted-menu-default":
             #expect(snapshot.sections.map(\.title) == [
                 "Active Account",
-                "Accounts",
+                "Other Accounts",
                 "More Accounts…",
                 "Manage Accounts",
                 "Preferences"
             ])
             #expect(snapshot.statusMessage == nil)
-            #expect(snapshot.sections[1].items.count == 3)
+            #expect(snapshot.sections[1].items.count == 2)
             #expect(snapshot.sections[2].items.count == 1)
             #expect(snapshot.sections[3].items.contains("Add Account…"))
 

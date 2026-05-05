@@ -76,6 +76,45 @@ would add test-only behavior to the product adapter.
 
 ## Runner/Orchestrator Friction
 
+## End-to-End Adapter Proof
+
+RGR-222 proved the deterministic account-switch scenario through Seal's full
+provisional runner path on 2026-05-05 using local Seal checkout `f789a3d`:
+
+```bash
+AGENT_NAME=symphony-RGR-222 OUTPUT_DIR=build/RGR-222/direct/proof make emit-account-switch-proof
+swift run --package-path /Users/raphh/Projects/Seal seal-verifier \
+  --result-json \
+  --markdown-report \
+  --output-dir build/RGR-222/direct/reports \
+  build/RGR-222/direct/proof
+swift run --package-path /Users/raphh/Projects/Seal seal run \
+  --scenario switch-account-changes-active-account \
+  --output build/RGR-222/seal-run \
+  --proof-output build/RGR-222/seal-run/proof \
+  --adapter scripts/seal_run_adapter.sh
+```
+
+Both paths passed the same Seal verifier rule:
+
+- `accounts.switch_account.menu_action_changes_active_account`
+- event sequence:
+  `menu_action_dispatched -> switch_confirmation_presented -> switch_confirmation_accepted -> switch_workflow_started -> active_account_changed`
+- snapshot comparison: `activeAccountId` changed from the validation personal
+  fixture account to the validation business fixture account.
+
+The `seal run` output contained the expected runner layout:
+
+- `proof/`
+- `reports/result.json`
+- `reports/report.md`
+- `adapter/`
+
+The direct and adapter-generated proof payloads matched for scenario,
+feature, execution mode, invariant, event sequence, evidence paths, fixture
+account snapshots, and verifier verdict. The only observed differences were
+expected runtime fields: timestamps and run duration.
+
 Current friction:
 
 - CodexPill still needs a repo-local adapter because Seal must not know
@@ -86,3 +125,12 @@ Current friction:
 - The runner artifact layout is cleaner than the direct path: `seal run`
   produces `proof/`, `reports/result.json`, `reports/report.md`, and
   `adapter/` diagnostics under one root.
+- The adapter invokes `make emit-account-switch-proof`, which means a full
+  runner proof still performs CodexPill project generation and proof-emitter
+  build work. That is acceptable for this deterministic boundary proof, but it
+  is real orchestration cost rather than a lightweight contract check.
+
+Decision after RGR-222: keep the direct `make emit-account-switch-proof` plus
+`seal-verifier` path as the stable fallback. Do not migrate all CodexPill
+validation to `seal run` until the Seal runner contract is no longer
+provisional.
