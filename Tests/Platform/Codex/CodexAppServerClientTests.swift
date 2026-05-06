@@ -478,6 +478,37 @@ struct CodexAppServerClientTests {
     }
 
     @Test
+    func processRunnerKeepsLocalFailureClassificationWhenSharedSessionExitsNonZero() async throws {
+        let fileManager = FileManager.default
+        let directory = fileManager.temporaryDirectory
+            .appendingPathComponent("CodexPill-AppServerClientTests-\(UUID().uuidString)", isDirectory: true)
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: directory) }
+
+        let script = directory.appendingPathComponent("codex-failure-fixture.sh")
+        let scriptBody = """
+        #!/bin/sh
+        printf 'local app-server failure\\n' >&2
+        exit 9
+        """
+        try Data(scriptBody.utf8).write(to: script)
+        try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        let runner = CodexAppServerProcessRunner()
+
+        await #expect(throws: CodexAppServerError.server("local app-server failure")) {
+            _ = try await runner.readAccountStatus(
+                configuration: CodexAppServerConfiguration(
+                    command: CodexCLICommand(executableURL: script, arguments: ["app-server"]),
+                    environment: nil,
+                    responseTimeout: .seconds(1)
+                ),
+                refreshToken: false,
+                requireRateLimitResponse: false
+            )
+        }
+    }
+
+    @Test
     func consumeOutputDataIgnoresNotificationFramesWithoutIDs() throws {
         let decoder = JSONDecoder()
         let state = AppServerSessionState()

@@ -789,6 +789,21 @@ struct SSHRemoteHostClientTests {
         }
     }
 
+    @Test
+    func readCurrentAccountStatusKeepsRemoteFailureClassificationWhenSharedSessionExitsNonZero() async throws {
+        let executableURL = try makeRemoteAppServerFailureExecutable()
+        defer { try? FileManager.default.removeItem(at: executableURL) }
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            sshExecutableURL: executableURL,
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
+        )
+
+        await #expect(throws: CodexAppServerError.remoteConnectionFailed("remote app-server failure")) {
+            _ = try await client.readCurrentAccountStatus(on: RemoteHost(destination: "user@buildbox"))
+        }
+    }
+
     private func makeAccount() -> CodexAccount {
         CodexAccount(
             id: UUID(),
@@ -923,6 +938,19 @@ private func makeEOFSensitiveRemoteAppServerFixtureExecutable() throws -> URL {
         if chunk == "":
             sys.exit(0)
     print('{"id":3,"result":{"rateLimits":{"limitId":"team","limitName":"Team","planType":"team","primary":{"usedPercent":69,"resetsAt":2000000000,"windowDurationMins":300},"secondary":{"usedPercent":38,"resetsAt":2000500000,"windowDurationMins":10080}}}}', flush=True)
+    """
+
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try Data(script.utf8).write(to: url, options: .atomic)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+    return url
+}
+
+private func makeRemoteAppServerFailureExecutable() throws -> URL {
+    let script = """
+    #!/bin/sh
+    printf 'remote app-server failure\\n' >&2
+    exit 9
     """
 
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

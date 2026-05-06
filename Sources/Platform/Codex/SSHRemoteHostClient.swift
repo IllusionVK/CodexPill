@@ -55,6 +55,7 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
     private let commandRunner: CommandRunner
     private let sshExecutableURL: URL
     private let scpExecutableURL: URL
+    private let appServerSessionRunner: CodexAppServerSessionRunner
     private let appServerReadinessProbeDelays: [Duration]
 
     init(
@@ -62,12 +63,14 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
         commandRunner: CommandRunner = ProcessCommandRunner(),
         sshExecutableURL: URL = URL(fileURLWithPath: "/usr/bin/ssh"),
         scpExecutableURL: URL = URL(fileURLWithPath: "/usr/bin/scp"),
+        appServerSessionRunner: CodexAppServerSessionRunner = CodexAppServerSessionRunner(),
         appServerReadinessProbeDelays: [Duration] = [.zero, .seconds(1), .seconds(2)]
     ) {
         self.snapshotLocator = snapshotLocator
         self.commandRunner = commandRunner
         self.sshExecutableURL = sshExecutableURL
         self.scpExecutableURL = scpExecutableURL
+        self.appServerSessionRunner = appServerSessionRunner
         self.appServerReadinessProbeDelays = appServerReadinessProbeDelays
     }
 
@@ -358,103 +361,24 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
     }
 
     private func readAccountStatus(on host: RemoteHost, refreshToken: Bool) async throws -> CodexAccountStatus {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-
-        return try await withCheckedThrowingContinuation { continuation in
-            let process = Process()
-            let inputPipe = Pipe()
-            let inputHandle = inputPipe.fileHandleForWriting
-            let outputPipe = Pipe()
-            let errorPipe = Pipe()
-            let state = AppServerSessionState()
-
-            let finish: @Sendable (Result<CodexAccountStatus, Error>) -> Void = { result in
-                guard state.markFinished() else { return }
-                outputPipe.fileHandleForReading.readabilityHandler = nil
-                errorPipe.fileHandleForReading.readabilityHandler = nil
-                try? inputHandle.close()
-                if process.isRunning {
-                    process.terminate()
+        let status = try await appServerSessionRunner.readAccountStatus(command: CodexAppServerSessionCommand(
+            executableURL: sshExecutableURL,
+            arguments: sshArguments(host: host, command: "codex app-server"),
+            timeout: Self.responseTimeout,
+            refreshToken: refreshToken,
+            requireRateLimitResponse: false,
+            failure: { stderr, terminationStatus, timedOut in
+                if timedOut {
+                    return appServerFailure(stderr: stderr, terminationStatus: terminationStatus, timedOut: true)
                 }
-                continuation.resume(with: result)
+
+                return CodexAppServerError.remoteConnectionFailed(
+                    Self.remoteFailureMessage(stderr: stderr, terminationStatus: terminationStatus ?? 0)
+                )
             }
+        ))
 
-            outputPipe.fileHandleForReading.readabilityHandler = { handle in
-                let data = handle.availableData
-                guard !data.isEmpty else { return }
-
-                do {
-                    if let snapshot = try consumeOutputData(data, decoder: decoder, state: state) {
-                        finish(.success(snapshot))
-                    }
-                } catch {
-                    finish(.failure(error))
-                }
-            }
-
-            errorPipe.fileHandleForReading.readabilityHandler = { handle in
-                let data = handle.availableData
-                guard !data.isEmpty else { return }
-                state.appendErrorOutput(data)
-            }
-
-            process.executableURL = sshExecutableURL
-            process.arguments = sshArguments(host: host, command: "codex app-server")
-            process.standardInput = inputPipe
-            process.standardOutput = outputPipe
-            process.standardError = errorPipe
-            process.terminationHandler = { process in
-                let trailingOutput = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                if !trailingOutput.isEmpty {
-                    do {
-                        if let snapshot = try consumeOutputData(trailingOutput, decoder: decoder, state: state) {
-                            finish(.success(snapshot))
-                            return
-                        }
-                    } catch {
-                        finish(.failure(error))
-                        return
-                    }
-                }
-
-                let trailingError = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                if !trailingError.isEmpty {
-                    state.appendErrorOutput(trailingError)
-                }
-
-                if process.terminationStatus == 0, let partialStatus = state.partialStatus() {
-                    finish(.success(CodexPillAccountStatusMapper().status(from: partialStatus)))
-                    return
-                }
-
-                guard process.terminationStatus != 0 else { return }
-                finish(.failure(CodexAppServerError.remoteConnectionFailed(
-                    remoteFailureMessage(stderr: state.capturedStderr(), terminationStatus: Int(process.terminationStatus))
-                )))
-            }
-
-            do {
-                try process.run()
-                let payload = CodexAppServerClient.makeAppServerRequests(refreshToken: refreshToken).joined(separator: "\n") + "\n"
-                inputHandle.write(Data(payload.utf8))
-
-                Task {
-                    try? await Task.sleep(for: Self.responseTimeout)
-                    if let partialStatus = state.partialStatus() {
-                        finish(.success(CodexPillAccountStatusMapper().status(from: partialStatus)))
-                        return
-                    }
-                    finish(.failure(appServerFailure(
-                        stderr: state.capturedStderr(),
-                        terminationStatus: nil,
-                        timedOut: true
-                    )))
-                }
-            } catch {
-                finish(.failure(error))
-            }
-        }
+        return CodexPillAccountStatusMapper().status(from: status)
     }
 
     private func shouldRetry(status: CodexAccountStatus?, attemptIndex: Int, totalAttempts: Int) -> Bool {
@@ -519,7 +443,7 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    private func remoteFailureMessage(stderr: String?, terminationStatus: Int) -> String {
+    private static func remoteFailureMessage(stderr: String?, terminationStatus: Int) -> String {
         if let stderr, !stderr.isEmpty {
             return stderr
         }

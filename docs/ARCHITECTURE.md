@@ -122,10 +122,13 @@ Reusable Codex app-server access is split into these platform boundaries:
 
 - `CodexAppServerClient` is the production facade used by CodexPill account reads.
 - `CodexAppServerConfiguration` owns executable path, environment, and timeout policy.
-- `CodexAppServerProcessRunner` owns `codex app-server` process launch, stdin/stdout wiring, termination, and timeout completion.
+- `CodexAppServerProcessRunner` adapts local `CodexAppServerConfiguration` into the reusable app-server session runner.
 - `CodexAppServerSession` owns JSON-RPC request construction and response sequencing.
+- `CodexAppServerSessionRunner` owns the reusable app-server session execution loop shared by local and SSH-backed reads: process launch, stdin/stdout/stderr pipe wiring, request writing, output draining, timeout completion, partial-status completion, and finish-once coordination.
 - `CodexAppServerAccountParser` and `CodexAppServerRateLimitParser` map raw app-server payload DTOs into generic app-server DTOs.
 - `CodexPillAccountStatusMapper` maps generic app-server DTOs into CodexPill account and rate-limit models.
+
+Local app-server reads enter this shared session runner through `CodexAppServerProcessRunner`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`. SSH-backed reads enter the same runner from `SSHRemoteHostClient` only after that host adapter has built the remote `ssh ... codex app-server` invocation. `SSHRemoteHostClient` continues to own SSH destination construction, non-interactive SSH options, remote runtime refresh commands, remote auth enrichment reads, and SSH/remote failure classification.
 
 `Platform/Hosts` owns host-client implementations used by validation or host adapters.
 
