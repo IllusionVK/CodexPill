@@ -112,6 +112,54 @@ struct SSHRemoteHostClientTests {
     }
 
     @Test
+    func installationStateTreatsMatchingRemoteSnapshotHashAsInstalled() async throws {
+        let account = makeAccount()
+        let snapshotURL = try makeSnapshotFile(contents: Data("fresh-auth".utf8))
+        defer { try? FileManager.default.removeItem(at: snapshotURL) }
+        let runner = CommandRunnerProbe(results: [
+            .success(.init(
+                terminationStatus: 0,
+                standardOutput: Data("\(makeFingerprint(for: Data("fresh-auth".utf8)))\n".utf8),
+                standardError: Data()
+            ))
+        ])
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: snapshotURL),
+            commandRunner: runner,
+            sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
+        )
+
+        let state = try await client.installationState(for: account, on: RemoteHost(destination: "user@buildbox"))
+
+        #expect(state == .installed)
+    }
+
+    @Test
+    func installationStateTreatsStaleRemoteSnapshotHashAsMissing() async throws {
+        let account = makeAccount()
+        let snapshotURL = try makeSnapshotFile(contents: Data("fresh-auth".utf8))
+        defer { try? FileManager.default.removeItem(at: snapshotURL) }
+        let runner = CommandRunnerProbe(results: [
+            .success(.init(
+                terminationStatus: 0,
+                standardOutput: Data("\(makeFingerprint(for: Data("stale-auth".utf8)))\n".utf8),
+                standardError: Data()
+            ))
+        ])
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: snapshotURL),
+            commandRunner: runner,
+            sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
+        )
+
+        let state = try await client.installationState(for: account, on: RemoteHost(destination: "user@buildbox"))
+
+        #expect(state == .missing)
+    }
+
+    @Test
     func testConnectionRequiresCodexAndChecksRemoteDirectoryAccess() async throws {
         let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data()))
@@ -788,6 +836,12 @@ private func base64URL(_ string: String) -> String {
 private func makeFingerprint(for data: Data) -> String {
     let digest = SHA256.hash(data: data)
     return digest.map { String(format: "%02x", $0) }.joined()
+}
+
+private func makeSnapshotFile(contents: Data) throws -> URL {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).json")
+    try contents.write(to: url, options: .atomic)
+    return url
 }
 
 private func makeRemoteAppServerFixtureExecutable(

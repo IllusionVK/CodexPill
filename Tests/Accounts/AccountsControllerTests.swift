@@ -6,6 +6,80 @@ import Testing
 @MainActor
 struct AccountsControllerTests {
     @Test
+    func completeIsolatedAddAccountHydratesNewInactiveAccountMetadata() async throws {
+        let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [active])
+        let liveIdentity = CurrentIdentityHarness(fingerprint: "live-fingerprint")
+        let identityResolver = SavedAccountIdentityResolver(
+            liveIdentitySource: liveIdentity,
+            storedAccountReconciler: StoredIdentityAdapter()
+        )
+        let authService = IsolatedAddAccountAuthProbe(
+            currentFingerprint: "live-fingerprint",
+            capturedFingerprint: "backup-fingerprint"
+        )
+        let hydratedRateLimits = makeRateLimitsSnapshot()
+        let savedStatusClient = SavedAccountStatusFixture(statusBySnapshot: [
+            "backup-fingerprint": CodexAccountStatus(
+                email: "backup@example.com",
+                planType: "free",
+                rateLimits: hydratedRateLimits
+            )
+        ])
+        let loginSession = IsolatedAddAccountLoginSessionProbe(authData: Data("captured-auth".utf8))
+        let controller = makeController(
+            repository: repository,
+            identityResolver: identityResolver,
+            authService: authService,
+            savedAccountStatusClient: savedStatusClient,
+            isolatedLoginClient: IsolatedAddAccountLoginClientProbe(session: loginSession)
+        )
+
+        controller.load()
+        let session = try await controller.startIsolatedAddAccountFlow(named: "Backup")
+        let savedAccount = try await controller.completeIsolatedAddAccount(session)
+
+        let hydratedBackup = try #require(controller.accounts.first(where: { $0.id == savedAccount.id }))
+        #expect(hydratedBackup.email == "backup@example.com")
+        #expect(hydratedBackup.planType == "free")
+        #expect(hydratedBackup.rateLimits == hydratedRateLimits)
+        #expect(savedStatusClient.readSnapshots == [Data("backup-fingerprint".utf8)])
+        #expect(controller.activeAccountID == active.id)
+        #expect(controller.isBusy == false)
+    }
+
+    @Test
+    func startIsolatedAddAccountRejectsOverlapWithoutClearingActiveOperation() async throws {
+        let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [active])
+        let liveIdentity = CurrentIdentityHarness(fingerprint: "live-fingerprint")
+        let identityResolver = SavedAccountIdentityResolver(
+            liveIdentitySource: liveIdentity,
+            storedAccountReconciler: StoredIdentityAdapter()
+        )
+        let authService = IsolatedAddAccountAuthProbe(
+            currentFingerprint: "live-fingerprint",
+            capturedFingerprint: "backup-fingerprint"
+        )
+        let loginSession = IsolatedAddAccountLoginSessionProbe(authData: Data("captured-auth".utf8))
+        let controller = makeController(
+            repository: repository,
+            identityResolver: identityResolver,
+            authService: authService,
+            isolatedLoginClient: IsolatedAddAccountLoginClientProbe(session: loginSession)
+        )
+
+        controller.load()
+        _ = try await controller.startIsolatedAddAccountFlow(named: "Backup")
+
+        await #expect(throws: AccountsControllerError.operationAlreadyInProgress) {
+            _ = try await controller.startIsolatedAddAccountFlow(named: "Backup 2")
+        }
+        #expect(controller.isBusy)
+        #expect(controller.statusMessage == "Adding account...")
+    }
+
+    @Test
     func completeIsolatedAddAccountAlreadySavedDoesNotQueueSecondPendingError() async throws {
         let existing = makeAccount(name: "Business 1", fingerprint: "captured-fingerprint")
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [existing])
@@ -184,6 +258,166 @@ struct AccountsControllerTests {
     }
 
     @Test
+    func switchToAccountOnHostRelinksActiveSnapshotBeforeRemoteInstall() async {
+        var account = makeAccount(name: "Personal", fingerprint: "stale-fingerprint")
+        account.identity.stableAccountID = "acct_personal"
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
+        let identityResolver = SavedAccountIdentityResolver(
+            liveIdentitySource: CurrentIdentityFixture(
+                stableAccountID: "acct_personal",
+                fingerprint: "fresh-fingerprint"
+            ),
+            storedAccountReconciler: StoredIdentityAdapter()
+        )
+        let relinker = ActiveSnapshotRelinkerProbe(
+            currentFingerprint: "fresh-fingerprint",
+            relinkedFingerprint: "fresh-fingerprint"
+        )
+        let remoteWorkflow = RemoteHostRecordingStatusFixture(
+            status: CodexAccountStatus(
+                email: account.email,
+                planType: account.planType,
+                rateLimits: nil,
+                stableAccountID: "acct_personal",
+                snapshotFingerprint: "fresh-fingerprint"
+            )
+        )
+        let controller = AccountsController(
+            identityResolver: identityResolver,
+            loadAccountsUseCase: LoadAccountsUseCase(
+                repository: repository,
+                identityResolver: identityResolver
+            ),
+            refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
+                accountStatusClient: AccountStatusSuccessCase(
+                    status: CodexAccountStatus(
+                        email: account.email,
+                        planType: "prolite",
+                        rateLimits: nil,
+                        stableAccountID: "acct_personal",
+                        snapshotFingerprint: "fresh-fingerprint"
+                    )
+                ),
+                identityResolver: identityResolver,
+                repository: repository,
+                activeAuthSnapshotRelinker: relinker
+            ),
+            hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
+                authService: NullAuthService(),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+                savedAccountStatusClient: DisabledAccountStatusClient(),
+                identityResolver: identityResolver,
+                repository: repository
+            ),
+            deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
+                repository: repository,
+                identityResolver: identityResolver
+            ),
+            renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
+            persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
+            switchAccountWorkflow: SwitchAccountWorkflow(
+                authService: NullAuthService(),
+                repository: repository,
+                codexAppProcessClient: NullCodexAppProcessClient(),
+                identityResolver: identityResolver
+            ),
+            switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
+                remoteHostSwitchOperations: remoteWorkflow
+            ),
+            addAccountWorkflow: makeAddAccountWorkflow(
+                repository: repository,
+                identityResolver: identityResolver
+            )
+        )
+
+        controller.load()
+        let result = await controller.switchToAccountOnHost(
+            account,
+            on: RemoteHost(destination: "user@buildbox", displayName: "buildbox")
+        )
+
+        #expect(result == .verified(remoteWorkflow.status))
+        #expect(remoteWorkflow.switchedAccount?.identity.snapshotFingerprint == "fresh-fingerprint")
+        #expect(repository.savedAccounts?.first?.identity.snapshotFingerprint == "fresh-fingerprint")
+    }
+
+    @Test
+    func switchToAccountOnHostRelinksActiveSnapshotWhenStatusRefreshFailsButLiveIdentityStillMatches() async {
+        var account = makeAccount(name: "Personal", fingerprint: "stale-fingerprint")
+        account.identity.stableAccountID = "acct_personal"
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
+        let identityResolver = SavedAccountIdentityResolver(
+            liveIdentitySource: CurrentIdentityFixture(
+                stableAccountID: "acct_personal",
+                fingerprint: "fresh-fingerprint"
+            ),
+            storedAccountReconciler: StoredIdentityAdapter()
+        )
+        let relinker = ActiveSnapshotRelinkerProbe(
+            currentFingerprint: "fresh-fingerprint",
+            relinkedFingerprint: "fresh-fingerprint"
+        )
+        let remoteWorkflow = RemoteHostRecordingStatusFixture(
+            status: CodexAccountStatus(
+                email: account.email,
+                planType: account.planType,
+                rateLimits: nil,
+                stableAccountID: "acct_personal",
+                snapshotFingerprint: "fresh-fingerprint"
+            )
+        )
+        let controller = AccountsController(
+            identityResolver: identityResolver,
+            loadAccountsUseCase: LoadAccountsUseCase(
+                repository: repository,
+                identityResolver: identityResolver
+            ),
+            refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+                identityResolver: identityResolver,
+                repository: repository,
+                activeAuthSnapshotRelinker: relinker
+            ),
+            hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
+                authService: NullAuthService(),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+                savedAccountStatusClient: DisabledAccountStatusClient(),
+                identityResolver: identityResolver,
+                repository: repository
+            ),
+            deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
+                repository: repository,
+                identityResolver: identityResolver
+            ),
+            renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
+            persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
+            switchAccountWorkflow: SwitchAccountWorkflow(
+                authService: NullAuthService(),
+                repository: repository,
+                codexAppProcessClient: NullCodexAppProcessClient(),
+                identityResolver: identityResolver
+            ),
+            switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
+                remoteHostSwitchOperations: remoteWorkflow
+            ),
+            addAccountWorkflow: makeAddAccountWorkflow(
+                repository: repository,
+                identityResolver: identityResolver
+            )
+        )
+
+        controller.load()
+        let result = await controller.switchToAccountOnHost(
+            account,
+            on: RemoteHost(destination: "user@buildbox", displayName: "buildbox")
+        )
+
+        #expect(result == .verified(remoteWorkflow.status))
+        #expect(remoteWorkflow.switchedAccount?.identity.snapshotFingerprint == "fresh-fingerprint")
+        #expect(repository.savedAccounts?.first?.identity.snapshotFingerprint == "fresh-fingerprint")
+    }
+
+    @Test
     func switchToAccountOnHostMarksAuthReadFailureAsReachableFailure() async {
         let account = makeAccount(name: "Business", fingerprint: "fingerprint")
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
@@ -255,6 +489,7 @@ struct AccountsControllerTests {
         repository: LoadingPersistingAccountCatalogProbe,
         identityResolver: SavedAccountIdentityResolver,
         authService: some CodexAuthSessionStore & CodexSignInAuthStore,
+        savedAccountStatusClient: SavedCodexAccountStatusClient = DisabledAccountStatusClient(),
         isolatedLoginClient: IsolatedCodexLoginClient = IsolatedAddAccountLoginClientProbe(
             session: IsolatedAddAccountLoginSessionProbe(authData: Data())
         )
@@ -273,7 +508,7 @@ struct AccountsControllerTests {
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: authService,
                 accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
-                savedAccountStatusClient: DisabledAccountStatusClient(),
+                savedAccountStatusClient: savedAccountStatusClient,
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -315,6 +550,21 @@ struct AccountsControllerTests {
             )
         )
     }
+
+    private func makeRateLimitsSnapshot() -> CodexRateLimitSnapshot {
+        CodexRateLimitSnapshot(
+            limitID: "codex",
+            limitName: nil,
+            planType: "free",
+            primary: CodexRateLimitWindow(
+                usedPercent: 11,
+                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
+                windowDurationMinutes: 300
+            ),
+            secondary: nil,
+            fetchedAt: Date(timeIntervalSince1970: 1_776_200_000)
+        )
+    }
 }
 
 private enum TestFailure: LocalizedError {
@@ -337,6 +587,18 @@ private final class AccountStatusErrorCase: CodexAccountStatusClient {
 
     func readCurrentAccountStatus() async throws -> CodexAccountStatus {
         throw error
+    }
+}
+
+private final class AccountStatusSuccessCase: CodexAccountStatusClient {
+    let status: CodexAccountStatus
+
+    init(status: CodexAccountStatus) {
+        self.status = status
+    }
+
+    func readCurrentAccountStatus() async throws -> CodexAccountStatus {
+        status
     }
 }
 
@@ -365,14 +627,53 @@ private final class LoadingPersistingAccountCatalogProbe: AccountCatalogLoader, 
 }
 
 private final class CurrentIdentityFixture: LiveCodexAccountIdentitySource {
+    let stableAccountID: String?
     let fingerprint: String?
 
-    init(fingerprint: String?) {
+    init(stableAccountID: String? = nil, fingerprint: String?) {
+        self.stableAccountID = stableAccountID
         self.fingerprint = fingerprint
     }
 
     func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
-        LiveCodexAccountIdentity(snapshotFingerprint: fingerprint)
+        LiveCodexAccountIdentity(
+            stableAccountID: stableAccountID,
+            snapshotFingerprint: fingerprint
+        )
+    }
+}
+
+private final class ActiveSnapshotRelinkerProbe: ActiveAuthSnapshotRelinking {
+    let currentFingerprint: String?
+    let relinkedFingerprint: String
+
+    init(currentFingerprint: String?, relinkedFingerprint: String) {
+        self.currentFingerprint = currentFingerprint
+        self.relinkedFingerprint = relinkedFingerprint
+    }
+
+    func currentAuthFingerprint() -> String? {
+        currentFingerprint
+    }
+
+    func readCurrentAuthData() throws -> Data {
+        Data("fresh-auth".utf8)
+    }
+
+    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
+        var account = existing ?? CodexAccount(
+            id: UUID(),
+            name: name,
+            snapshotFileName: "\(UUID().uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: nil,
+            planType: nil,
+            rateLimits: nil,
+            identity: .empty
+        )
+        account.identity.snapshotFingerprint = relinkedFingerprint
+        return account
     }
 }
 
@@ -476,7 +777,9 @@ private final class IsolatedAddAccountAuthProbe: CodexAuthSessionStore, CodexSig
 
     func activate(_ account: CodexAccount) throws {}
     func readCurrentAuthData() throws -> Data { Data() }
-    func readAuthSnapshot(for account: CodexAccount) throws -> Data { Data() }
+    func readAuthSnapshot(for account: CodexAccount) throws -> Data {
+        Data((account.identity.snapshotFingerprint ?? "").utf8)
+    }
     func currentAuthFingerprint() -> String? { currentFingerprint }
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity {
         LiveCodexAccountIdentity(snapshotFingerprint: capturedFingerprint)
@@ -497,6 +800,24 @@ private final class IsolatedAddAccountAuthProbe: CodexAuthSessionStore, CodexSig
         )
     }
     func deleteAuthSnapshot(for account: CodexAccount) throws {}
+}
+
+private final class SavedAccountStatusFixture: SavedCodexAccountStatusClient {
+    let statusBySnapshot: [String: CodexAccountStatus]
+    private(set) var readSnapshots: [Data] = []
+
+    init(statusBySnapshot: [String: CodexAccountStatus]) {
+        self.statusBySnapshot = statusBySnapshot
+    }
+
+    func readSavedAccountStatus(authData: Data) async throws -> CodexAccountStatus {
+        readSnapshots.append(authData)
+        let snapshot = String(decoding: authData, as: UTF8.self)
+        guard let status = statusBySnapshot[snapshot] else {
+            throw NSError(domain: "SavedAccountStatusFixture", code: 1)
+        }
+        return status
+    }
 }
 
 private struct IsolatedAddAccountLoginClientProbe: IsolatedCodexLoginClient {
@@ -535,6 +856,25 @@ private struct RemoteHostStatusFixture: RemoteHostSwitchWorkflowOperations {
     func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState { .installed }
     func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
     func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
+    func signOut(on host: RemoteHost) async throws {}
+    func refreshCodexAppServer(on host: RemoteHost) async throws {}
+    func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus { status }
+}
+
+private final class RemoteHostRecordingStatusFixture: RemoteHostSwitchWorkflowOperations {
+    let status: CodexAccountStatus
+    private(set) var switchedAccount: CodexAccount?
+
+    init(status: CodexAccountStatus) {
+        self.status = status
+    }
+
+    func testConnection(to host: RemoteHost) async throws {}
+    func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState { .installed }
+    func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
+    func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {
+        switchedAccount = account
+    }
     func signOut(on host: RemoteHost) async throws {}
     func refreshCodexAppServer(on host: RemoteHost) async throws {}
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus { status }

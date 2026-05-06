@@ -11,9 +11,9 @@ struct MenuBarAlertFactoryTests {
     func switchAccountWarningMentionsRunningCliSessions() {
         let request = factory.makeSwitchAccountRequest(accountName: "Work", runningCLISessions: 2)
 
-        #expect(request.informativeText.contains("switch the local Codex account to Work"))
-        #expect(request.informativeText.contains("2 running Codex CLI sessions were detected"))
-        #expect(request.informativeText.contains("Restart any open Codex CLI terminals to use the new account."))
+        #expect(request.informativeText.contains("switches This Mac to Work"))
+        #expect(request.informativeText.contains("2 Codex terminals are running"))
+        #expect(request.informativeText.contains("Restart to use the new account."))
     }
 
     @Test
@@ -21,18 +21,19 @@ struct MenuBarAlertFactoryTests {
         let request = factory.makeAddAccountRequest(runningCLISessions: 0)
 
         #expect(request.messageText == "Add account")
+        #expect(request.fieldTitle == "Account Name")
         #expect(request.confirmTitle == "Continue")
         #expect(request.informativeText.contains("save the account"))
-        #expect(request.informativeText.contains("without switching your current local Codex session"))
-        #expect(!request.informativeText.contains("running Codex CLI session"))
+        #expect(request.informativeText.contains("without changing This Mac"))
+        #expect(!request.informativeText.contains("Codex terminal is running"))
     }
 
     @Test
     func addAccountWarningMentionsTerminalNoticeWhenCliSessionsExist() {
         let request = factory.makeAddAccountRequest(runningCLISessions: 1)
 
-        #expect(request.informativeText.contains("1 running Codex CLI session was detected"))
-        #expect(request.informativeText.contains("They will keep using the current account unless you switch later."))
+        #expect(request.informativeText.contains("1 Codex terminal is running"))
+        #expect(request.informativeText.contains("It will keep using the current account."))
     }
 
     @Test
@@ -60,8 +61,8 @@ struct MenuBarAlertFactoryTests {
 
         #expect(request.messageText == "Account Added")
         #expect(request.informativeText.contains("Business 2 was saved"))
-        #expect(request.informativeText.contains("current local Codex session was not changed"))
-        #expect(!request.informativeText.contains("running Codex CLI session"))
+        #expect(request.informativeText.contains("This Mac was not changed"))
+        #expect(!request.informativeText.contains("Codex terminal is running"))
         #expect(request.confirmTitle == "Use on This Mac")
         #expect(request.cancelTitle == "Done")
     }
@@ -70,8 +71,8 @@ struct MenuBarAlertFactoryTests {
     func addAccountSuccessRequestMentionsRunningCliSessionsBeforeLocalSwitch() {
         let request = factory.makeAddAccountSuccessRequest(accountName: "Business 2", runningCLISessions: 2)
 
-        #expect(request.informativeText.contains("2 running Codex CLI sessions were detected"))
-        #expect(request.informativeText.contains("Restart any open Codex CLI terminals to use the new account."))
+        #expect(request.informativeText.contains("2 Codex terminals are running"))
+        #expect(request.informativeText.contains("Restart them to use the new account."))
         #expect(request.confirmTitle == "Use on This Mac")
     }
 
@@ -102,10 +103,19 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
+    func addAccountStartFailureCanIncludeSanitizedCodexReason() {
+        let request = factory.makeAddAccountStartFailureRequest(reason: "error sending request")
+
+        #expect(request.messageText == "Couldn't Start Sign-In")
+        #expect(request.informativeText.contains("Check your network connection"))
+        #expect(request.informativeText.contains("Codex reported: error sending request"))
+    }
+
+    @Test
     func removeAccountRequestUsesPlainRemoveWhenAccountIsInactive() {
         let request = factory.makeRemoveAccountRequest(accountName: "Work")
 
-        #expect(request.informativeText.contains("saved snapshot for Work"))
+        #expect(request.informativeText.contains("removes Work from CodexPill"))
         #expect(request.confirmTitle == "Remove")
     }
 
@@ -118,7 +128,7 @@ struct MenuBarAlertFactoryTests {
 
         #expect(request.messageText == "Business 4 is in use")
         #expect(request.informativeText == "Sign out on This Mac and debian-vm before removing it?")
-        #expect(request.confirmTitle == "Sign Out & Remove")
+        #expect(request.confirmTitle == "Sign Out and Remove")
     }
 
     @Test
@@ -154,11 +164,23 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
+    func errorRequestMapsInvalidatedTokenBackendErrorsToActionableCopy() {
+        let request = factory.makeErrorRequest(message: """
+        Codex app-server error: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 401 Unauthorized; body={"error":{"message":"Your authentication token has been invalidated. Please try signing in again.","code":"token_invalidated","status":401}}
+        """)
+
+        #expect(request.messageText == "CodexPill Error")
+        #expect(request.informativeText == "This saved Codex account needs to be signed in again before it can be used. Remove and add the account again, then retry.")
+        #expect(!request.informativeText.contains("backend-api"))
+        #expect(!request.informativeText.contains("token_invalidated"))
+    }
+
+    @Test
     func installCurrentAccountOnHostRequestExplainsCancelAbortsSetup() {
         let request = factory.makeInstallCurrentAccountOnHostRequest(accountName: "Business 1", hostName: "buildbox")
 
         #expect(request.messageText == "Install current account on buildbox?")
-        #expect(request.informativeText.contains("install and switch Business 1 on buildbox now"))
+        #expect(request.informativeText.contains("Install Business 1 on buildbox"))
         #expect(request.informativeText.contains("the host will not be added yet"))
         #expect(request.confirmTitle == "Install and Switch")
         #expect(request.cancelTitle == "Cancel")
@@ -175,7 +197,7 @@ struct MenuBarAlertFactoryTests {
 
         #expect(request.messageText == "Use Business 2 now?")
         #expect(request.informativeText.contains("Business 4 is no longer the best option. Switching to Business 2 instead."))
-        #expect(request.informativeText.contains("CodexPill will switch debian-vm to Business 2."))
+        #expect(request.informativeText.contains("Switch debian-vm to Business 2."))
         #expect(request.confirmTitle == "Switch")
     }
 }

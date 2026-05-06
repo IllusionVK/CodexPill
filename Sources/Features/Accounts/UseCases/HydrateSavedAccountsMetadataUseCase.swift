@@ -67,7 +67,7 @@ struct HydrateSavedAccountsMetadataUseCase {
             } catch {
                 continue
             }
-            let hasFreshRateLimits = appServerRateLimitsAreComplete(remote.rateLimits)
+            let hasFreshRateLimits = appServerRateLimitsHaveUsableWindow(remote.rateLimits)
                 && !appServerRateLimitsLookSuspiciouslyZeroed(remote.rateLimits)
 
             updatedAccounts[index].applyRemoteMetadata(

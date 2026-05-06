@@ -43,7 +43,7 @@ Rename saved account
 Body:
 
 ```text
-Update the label used in CodexPill for this saved account. This does not change the underlying Codex identity.
+This only changes the name shown in CodexPill.
 ```
 
 Field:

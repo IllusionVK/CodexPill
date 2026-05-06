@@ -2,14 +2,16 @@
 
 ## User Story
 
-As a CodexPill user, I want to add another Codex account without switching my current Codex account, so that I can prepare accounts for later use without disrupting my current local Codex work.
+As a CodexPill user, I want to add another Codex account without changing This Mac, so that I can prepare accounts for later use without disrupting current Codex work.
 
 ## Product Contract
 
-- `Add Account` saves a new account; it does not switch the active local Codex account.
+- `Add Account` saves a new account; it does not switch This Mac.
 - `Use on This Mac` remains the explicit action that switches the active local account.
 - Add Account captures the new sign-in through a temporary isolated `CODEX_HOME`.
 - Temporary isolated auth state is treated as sensitive and must be cleaned up after success, cancellation, timeout, or failure.
+- Only one Add Account sign-in may run at a time.
+- After the account is saved, CodexPill attempts a best-effort isolated status read so the new account can show available session or weekly usage immediately.
 - CodexPill must not log or expose raw auth payloads.
 
 ## Happy Path
@@ -23,8 +25,9 @@ As a CodexPill user, I want to add another Codex account without switching my cu
 7. The user completes sign-in in the browser.
 8. CodexPill captures the isolated auth snapshot and verifies it.
 9. CodexPill saves the account in the local catalog.
-10. CodexPill confirms that the current local Codex account was not changed.
-11. CodexPill shows a success alert with `Done` and `Use on This Mac`.
+10. CodexPill attempts to hydrate the saved account metadata and rate limits without switching local auth.
+11. CodexPill confirms that This Mac was not changed.
+12. CodexPill shows a success alert with `Done` and `Use on This Mac`.
 
 ## Sign-In Alert
 
@@ -57,7 +60,7 @@ Title: `Account Added`
 Body:
 
 ```text
-"Business 7" was saved. Your current local Codex session was not changed.
+"Business 7" was saved. This Mac was not changed.
 ```
 
 Actions:
@@ -65,7 +68,7 @@ Actions:
 - `Use on This Mac`: switches to that saved account immediately without showing a second switch confirmation.
 - `Done`: dismisses the alert.
 
-If Codex CLI sessions are running, the success alert should include the same restart warning used by normal local switch confirmations before the user chooses `Use on This Mac`.
+If Codex terminals are running, the success alert should include the same restart warning used by normal local switch confirmations before the user chooses `Use on This Mac`.
 
 Remote host actions are intentionally omitted from the v0 success alert. Users can switch the new account on a remote host from the normal account menu.
 
@@ -87,11 +90,23 @@ Given the sign-in alert is visible, when the user selects `Copy Code`, then the 
 
 Given the user completes browser sign-in, when CodexPill captures and saves the isolated account, then the saved account appears in the catalog and the live local Codex auth remains unchanged.
 
+### Post-Add Usage Hydration
+
+Given Add Account saves a new inactive account, when CodexPill can read that account's status through the isolated app-server path, then CodexPill updates the saved account with returned email, plan, and any usable rate-limit window before leaving the Add Account flow.
+
+If Codex returns only session or only weekly usage, CodexPill must preserve the returned usable window instead of treating the whole status as missing.
+
+If hydration fails, Add Account still succeeds and the account remains saved; CodexPill may show missing usage until a later refresh succeeds.
+
+### Overlapping Sign-In
+
+Given Add Account is already waiting for browser sign-in, when the user or runtime attempts to start another Add Account flow, then CodexPill rejects the second attempt without cancelling or clearing the first pending sign-in.
+
 ### Use On This Mac
 
 Given the success alert is visible, when the user selects `Use on This Mac`, then CodexPill switches to the saved account directly and does not show a second switch confirmation.
 
-Given one or more Codex CLI sessions are running, when the success alert is visible, then the alert warns that open Codex CLI terminals must be restarted to use the new account.
+Given one or more Codex terminals are running, when the success alert is visible, then the alert warns that they must be restarted to use the new account.
 
 ### Cancel During Sign-In
 
@@ -137,12 +152,14 @@ Title: `Couldn't Start Sign-In`
 Body:
 
 ```text
-Codex could not start a sign-in session. Try again in a few minutes.
+Codex could not start a sign-in session. Check your network connection, then try again.
 ```
 
 Action:
 
 - `OK`
+
+If Codex provides a startup error before the device code is available, CodexPill may append a sanitized `Codex reported: ...` diagnostic. Device codes and auth URL query strings must be redacted before any diagnostic is shown.
 
 ### Live Auth Mutation Guard
 
@@ -153,7 +170,7 @@ Title: `Couldn't Add Account`
 Body:
 
 ```text
-CodexPill could not verify that your current account stayed unchanged. No account was added.
+CodexPill could not verify that This Mac stayed unchanged. No account was added.
 ```
 
 ### Catalog Save Failure
@@ -165,7 +182,7 @@ Title: `Couldn't Save Account`
 Body:
 
 ```text
-The sign-in completed, but CodexPill could not save the account. Your current Codex account was not changed.
+The sign-in completed, but CodexPill could not save the account. This Mac was not changed.
 ```
 
 ### Quit During Sign-In
@@ -184,6 +201,8 @@ The Add Account acceptance criteria should drive unit, integration, and live UI 
 - `add_account_shows_device_code_and_copy_action`
 - `add_account_copy_code_keeps_waiting`
 - `add_account_saves_without_switching`
+- `add_account_hydrates_saved_account_usage_after_save`
+- `add_account_rejects_overlapping_sign_in_without_clearing_pending_flow`
 - `add_account_use_on_this_mac_routes_existing_switch_flow`
 - `add_account_cancel_cleans_up`
 - `add_account_duplicate_identity_blocks_after_sign_in`

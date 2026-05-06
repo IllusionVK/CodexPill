@@ -118,8 +118,9 @@ final class AccountsController {
     func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> RemoteHostSwitchOutcome {
         operationState.begin(status: "Switching \(account.name) on \(host.displayName)...")
         do {
+            let accountToSwitch = await refreshActiveSnapshotBeforeRemoteSwitchIfNeeded(account)
             let result = try await switchAccountOnHostWorkflow.run(
-                account: account,
+                account: accountToSwitch,
                 on: host,
                 among: accounts
             )
@@ -148,6 +149,29 @@ final class AccountsController {
                 error.localizedDescription,
                 hostReachable: isReachableRemoteVerificationFailure(error)
             )
+        }
+    }
+
+    private func refreshActiveSnapshotBeforeRemoteSwitchIfNeeded(_ account: CodexAccount) async -> CodexAccount {
+        guard account.id == activeAccountID else { return account }
+        do {
+            let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
+            catalogState.applyRefreshed(result)
+            return accounts.first(where: { $0.id == account.id }) ?? account
+        } catch {
+            do {
+                if let result = try refreshActiveAccountUseCase.relinkCurrentAuthSnapshotIfNeeded(
+                    accounts: accounts,
+                    targetAccountID: account.id
+                ) {
+                    catalogState.applyRefreshed(result)
+                    return accounts.first(where: { $0.id == account.id }) ?? account
+                }
+            } catch {
+                accountsControllerLogger.log("Remote switch preflight active snapshot relink skipped: \(error.localizedDescription, privacy: .public)")
+            }
+            accountsControllerLogger.log("Remote switch preflight active snapshot refresh skipped: \(error.localizedDescription, privacy: .public)")
+            return account
         }
     }
 
@@ -210,6 +234,9 @@ final class AccountsController {
     }
 
     func startIsolatedAddAccountFlow(named pendingAccountName: String?) async throws -> IsolatedAddAccountSignInSession {
+        guard !isBusy else {
+            throw AccountsControllerError.operationAlreadyInProgress
+        }
         accountsControllerLogger.log("Starting isolated add-account flow")
         operationState.begin(status: "Adding account...")
         do {
@@ -235,6 +262,7 @@ final class AccountsController {
                 result.savedAccount,
                 activeAccountID: result.activeAccountID
             )
+            await hydrateSavedAccountsMetadataAfterAddingAccount()
             operationState.succeed()
             return result.savedAccount
         } catch {
@@ -368,6 +396,24 @@ final class AccountsController {
         }
     }
 
+    private func hydrateSavedAccountsMetadataAfterAddingAccount() async {
+        guard !isHydratingSavedAccountsMetadata else { return }
+        guard accounts.contains(where: { $0.id != activeAccountID && $0.rateLimits == nil }) else { return }
+
+        isHydratingSavedAccountsMetadata = true
+        defer { isHydratingSavedAccountsMetadata = false }
+
+        do {
+            let result = try await hydrateSavedAccountsMetadataUseCase.run(
+                accounts: accounts,
+                activeAccountID: activeAccountID
+            )
+            catalogState.applyHydrated(result)
+        } catch {
+            accountsControllerLogger.log("Post-add saved account metadata hydration skipped: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
 }
 
 private struct RemoteHostSwitchVerificationError: LocalizedError, Equatable {
@@ -382,4 +428,15 @@ private func isReachableRemoteVerificationFailure(_ error: Error) -> Bool {
         return true
     }
     return false
+}
+
+enum AccountsControllerError: LocalizedError, Equatable {
+    case operationAlreadyInProgress
+
+    var errorDescription: String? {
+        switch self {
+        case .operationAlreadyInProgress:
+            "Another account operation is already in progress."
+        }
+    }
 }

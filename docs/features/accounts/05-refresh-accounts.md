@@ -58,3 +58,27 @@ The safest status source remains `codex app-server` launched as a short-lived ch
 ### Follow-Up Trigger
 
 Revisit this path if Codex changes the app-server protocol shape or if remote inactive-account refresh should use isolated saved-account reads too.
+
+## Active Local Snapshot Relinking
+
+Status: `accepted for active local refresh`
+
+Date: 2026-05-06
+
+### Decision
+
+When refreshing the active local account, CodexPill may relink that saved account's snapshot from the current live local auth if the resolved Codex account identity is the same but the auth fingerprint changed.
+
+This handles the case where the user signs back into Codex outside CodexPill. The saved catalog entry still represents the same account, but the saved auth snapshot can contain a revoked refresh token. Relinking the active saved snapshot prevents later remote install/switch flows from copying stale auth to a host.
+
+### Refresh Semantics
+
+For the active local account:
+
+- read current account identity and rate-limit status from the local Codex app-server;
+- resolve the returned identity to exactly one saved account;
+- if current live auth has a different fingerprint for that same saved account, overwrite that saved account's snapshot with current live auth;
+- preserve the saved account id, display name, and catalog position;
+- then apply returned email, plan, and rate-limit metadata as normal.
+
+For inactive saved accounts, CodexPill must keep using isolated saved-account status reads and must not rotate inactive snapshots through the real local auth file.

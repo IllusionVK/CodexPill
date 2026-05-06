@@ -55,6 +55,16 @@ struct AccountActionFlowTests {
     }
 
     @Test
+    func promptUnavailablePreservesSanitizedFailureReason() {
+        let step = AccountActionFlow().resolveAddAccountStartFailure(
+            IsolatedCodexLoginError.promptUnavailable(reason: "error sending request"),
+            retryName: "Business 2"
+        )
+
+        #expect(step == .showStartFailure(reason: "error sending request"))
+    }
+
+    @Test
     func duplicateDisplayNameOffersNameRecovery() {
         let step = AccountActionFlow().resolveAddAccountStartFailure(
             AccountDisplayNameError.duplicateAccountName,

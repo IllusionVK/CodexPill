@@ -34,7 +34,8 @@ struct AccountsFeatureFactory {
         let refreshActiveAccountUseCase = RefreshActiveAccountUseCase(
             accountStatusClient: accountStatusClient,
             identityResolver: identityResolver,
-            repository: repository
+            repository: repository,
+            activeAuthSnapshotRelinker: authService
         )
 
         return AccountsController(

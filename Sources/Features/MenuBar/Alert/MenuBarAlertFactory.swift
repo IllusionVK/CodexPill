@@ -5,7 +5,7 @@ struct MenuBarAlertFactory {
         MenuBarTextInputAlertRequest(
             messageText: "Add account",
             informativeText: addAccountInformativeText(runningCLISessions: runningCLISessions),
-            fieldTitle: "Saved Account Name",
+            fieldTitle: "Account Name",
             placeholder: "Business 2",
             confirmTitle: "Continue",
             cancelTitle: "Cancel"
@@ -30,16 +30,16 @@ struct MenuBarAlertFactory {
     func makeAddAccountSuccessRequest(accountName: String, runningCLISessions: Int) -> MenuBarConfirmationAlertRequest {
         let cliNotice: String
         if runningCLISessions == 1 {
-            cliNotice = "\n\n1 running Codex CLI session was detected. Restart any open Codex CLI terminals to use the new account."
+            cliNotice = "\n\n1 Codex terminal is running. Restart it to use the new account."
         } else if runningCLISessions > 1 {
-            cliNotice = "\n\n\(runningCLISessions) running Codex CLI sessions were detected. Restart any open Codex CLI terminals to use the new account."
+            cliNotice = "\n\n\(runningCLISessions) Codex terminals are running. Restart them to use the new account."
         } else {
             cliNotice = ""
         }
 
         return MenuBarConfirmationAlertRequest(
             messageText: "Account Added",
-            informativeText: "\(accountName) was saved. Your current local Codex session was not changed.\(cliNotice)",
+            informativeText: "\(accountName) was saved. This Mac was not changed.\(cliNotice)",
             confirmTitle: "Use on This Mac",
             cancelTitle: "Done"
         )
@@ -64,7 +64,7 @@ struct MenuBarAlertFactory {
     }
 
     func makeAccountAlreadySavedRequest(accountName: String) -> MenuBarInfoAlertRequest {
-        MenuBarInfoAlertRequest(
+        return MenuBarInfoAlertRequest(
             messageText: "Account Already Saved",
             informativeText: "This Codex account is already saved as \(accountName).",
             style: .informational,
@@ -72,10 +72,17 @@ struct MenuBarAlertFactory {
         )
     }
 
-    func makeAddAccountStartFailureRequest() -> MenuBarInfoAlertRequest {
-        MenuBarInfoAlertRequest(
+    func makeAddAccountStartFailureRequest(reason: String? = nil) -> MenuBarInfoAlertRequest {
+        let detail: String
+        if let reason, !reason.isEmpty {
+            detail = "\n\nCodex reported: \(reason)"
+        } else {
+            detail = ""
+        }
+
+        return MenuBarInfoAlertRequest(
             messageText: "Couldn't Start Sign-In",
-            informativeText: "Codex could not start a sign-in session. Try again in a few minutes.",
+            informativeText: "Codex could not start a sign-in session. Check your network connection, then try again.\(detail)",
             style: .warning,
             buttonTitle: "OK"
         )
@@ -84,7 +91,7 @@ struct MenuBarAlertFactory {
     func makeAddAccountUnsafeAuthChangeRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "Couldn't Add Account",
-            informativeText: "CodexPill could not verify that your current account stayed unchanged. No account was added.",
+            informativeText: "CodexPill could not verify that This Mac stayed unchanged. No account was added.",
             style: .warning,
             buttonTitle: "OK"
         )
@@ -93,7 +100,7 @@ struct MenuBarAlertFactory {
     func makeAddAccountSaveFailureRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "Couldn't Save Account",
-            informativeText: "The sign-in completed, but CodexPill could not save the account. Your current Codex account was not changed.",
+            informativeText: "The sign-in completed, but CodexPill could not save the account. This Mac was not changed.",
             style: .warning,
             buttonTitle: "OK"
         )
@@ -112,7 +119,7 @@ struct MenuBarAlertFactory {
         guard !activeTargets.isEmpty else {
             return MenuBarConfirmationAlertRequest(
                 messageText: "Remove saved account?",
-                informativeText: "This will remove the saved snapshot for \(accountName).\n\nThis action cannot be undone.",
+                informativeText: "This removes \(accountName) from CodexPill.\n\nThis action cannot be undone.",
                 confirmTitle: "Remove",
                 cancelTitle: "Cancel"
             )
@@ -121,7 +128,7 @@ struct MenuBarAlertFactory {
         return MenuBarConfirmationAlertRequest(
             messageText: "\(accountName) is in use",
             informativeText: "Sign out on \(formattedTargetList(activeTargets)) before removing it?",
-            confirmTitle: "Sign Out & Remove",
+            confirmTitle: "Sign Out and Remove",
             cancelTitle: "Cancel"
         )
     }
@@ -129,7 +136,7 @@ struct MenuBarAlertFactory {
     func makeRenameAccountRequest(accountName: String) -> MenuBarTextInputAlertRequest {
         MenuBarTextInputAlertRequest(
             messageText: "Rename saved account",
-            informativeText: "Update the label used in CodexPill for this saved account. This does not change the underlying Codex identity.",
+            informativeText: "This only changes the name shown in CodexPill.",
             fieldTitle: "Account Name",
             placeholder: accountName,
             confirmTitle: "Rename",
@@ -140,7 +147,7 @@ struct MenuBarAlertFactory {
     func makeAddHostRequest() -> MenuBarHostSetupPanelRequest {
         MenuBarHostSetupPanelRequest(
             messageText: "Add remote host",
-            informativeText: "Enter the SSH destination for the host you want CodexPill to target, for example user@host.",
+            informativeText: "Enter the SSH destination CodexPill should use, for example user@host.",
             fieldTitle: "SSH Destination",
             placeholder: "user@host",
             nameFieldTitle: "Host Name (Optional)",
@@ -164,7 +171,7 @@ struct MenuBarAlertFactory {
     func makeInstallCurrentAccountOnHostRequest(accountName: String, hostName: String) -> MenuBarConfirmationAlertRequest {
         MenuBarConfirmationAlertRequest(
             messageText: "Install current account on \(hostName)?",
-            informativeText: "CodexPill can install and switch \(accountName) on \(hostName) now, so the host is ready immediately. If you cancel, the host will not be added yet.",
+            informativeText: "Install \(accountName) on \(hostName) and switch the host to it now? If you cancel, the host will not be added yet.",
             confirmTitle: "Install and Switch",
             cancelTitle: "Cancel"
         )
@@ -189,7 +196,7 @@ struct MenuBarAlertFactory {
     func makeErrorRequest(message: String) -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "CodexPill Error",
-            informativeText: message,
+            informativeText: userFacingErrorMessage(for: message),
             style: .warning,
             buttonTitle: "OK"
         )
@@ -207,14 +214,14 @@ struct MenuBarAlertFactory {
             lines.append("")
         }
 
-        lines.append("CodexPill will switch \(targetDescription) to \(accountName).")
+        lines.append("Switch \(targetDescription) to \(accountName).")
 
         if let runningCLISessions, runningCLISessions > 0 {
             let sessionText = runningCLISessions == 1
-                ? "1 running Codex CLI session was"
-                : "\(runningCLISessions) running Codex CLI sessions were"
+                ? "1 Codex terminal is"
+                : "\(runningCLISessions) Codex terminals are"
             lines.append("")
-            lines.append("\(sessionText) detected. Restart any open Codex CLI terminals to use the new account.")
+            lines.append("\(sessionText) running. Restart to use the new account.")
         }
 
         return MenuBarConfirmationAlertRequest(
@@ -227,12 +234,12 @@ struct MenuBarAlertFactory {
 
     private func switchInformativeText(for accountName: String, runningCLISessions: Int) -> String {
         var lines = [
-            "This will switch the local Codex account to \(accountName) and restart Codex."
+            "This switches This Mac to \(accountName) and restarts Codex."
         ]
 
         if runningCLISessions > 0 {
-            let sessionText = runningCLISessions == 1 ? "1 running Codex CLI session was" : "\(runningCLISessions) running Codex CLI sessions were"
-            lines.append("\(sessionText) detected. Restart any open Codex CLI terminals to use the new account.")
+            let sessionText = runningCLISessions == 1 ? "1 Codex terminal is" : "\(runningCLISessions) Codex terminals are"
+            lines.append("\(sessionText) running. Restart to use the new account.")
         }
 
         return lines.joined(separator: " ")
@@ -240,12 +247,13 @@ struct MenuBarAlertFactory {
 
     private func addAccountInformativeText(runningCLISessions: Int) -> String {
         var lines = [
-            "CodexPill will open a browser sign-in and save the account without switching your current local Codex session."
+            "Use your browser to sign in. CodexPill will save the account without changing This Mac."
         ]
 
         if runningCLISessions > 0 {
-            let sessionText = runningCLISessions == 1 ? "1 running Codex CLI session was" : "\(runningCLISessions) running Codex CLI sessions were"
-            lines.append("\(sessionText) detected. They will keep using the current account unless you switch later.")
+            let sessionText = runningCLISessions == 1 ? "1 Codex terminal is" : "\(runningCLISessions) Codex terminals are"
+            let pronoun = runningCLISessions == 1 ? "It" : "They"
+            lines.append("\(sessionText) running. \(pronoun) will keep using the current account.")
         }
 
         return lines.joined(separator: " ")
@@ -264,4 +272,14 @@ struct MenuBarAlertFactory {
             return "\(leadingTargets), and \(targets[targets.count - 1])"
         }
     }
+}
+
+private func userFacingErrorMessage(for message: String) -> String {
+    let lowercased = message.lowercased()
+    if lowercased.contains("token_invalidated") ||
+        lowercased.contains("authentication token has been invalidated") ||
+        lowercased.contains("refresh token was revoked") {
+        return "This saved Codex account needs to be signed in again before it can be used. Remove and add the account again, then retry."
+    }
+    return message
 }

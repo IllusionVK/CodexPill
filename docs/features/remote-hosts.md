@@ -2,6 +2,8 @@
 
 Remote Hosts owns configuring SSH targets, installing saved account snapshots on those targets, switching remote Codex accounts, and verifying the remote active account.
 
+Remote install state is freshness-aware. A saved account is considered installed on a host only when the cached remote snapshot matches the current local saved snapshot. If the remote cache is missing or stale, CodexPill reinstalls the snapshot before switching so old refresh tokens are not copied back into the remote Codex auth state.
+
 ## Entry Points
 
 - `Hosts` in the App Controls section.
@@ -31,7 +33,7 @@ Layout contract:
 Copy:
 
 - Title: `Add remote host`
-- Body: `Enter the SSH destination for the host you want CodexPill to target, for example user@host.`
+- Body: `Enter the SSH destination CodexPill should use, for example user@host.`
 - Optional name label: `Host Name (Optional)`
 - Destination label: `SSH Destination`
 - Idle status: `CodexPill checks the connection automatically.`
@@ -66,6 +68,7 @@ After a host validates, CodexPill asks whether to install and switch the current
 Copy:
 
 - Title pattern: `Install current account on <Host Name>?`
+- Body pattern: `Install <Account Name> on <Host Name> and switch the host to it now? If you cancel, the host will not be added yet.`
 - Primary action: `Install and Switch`
 - Secondary action: `Cancel`
 

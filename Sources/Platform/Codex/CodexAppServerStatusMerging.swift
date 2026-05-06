@@ -11,6 +11,11 @@ func appServerRateLimitsAreComplete(_ snapshot: CodexRateLimitSnapshot?) -> Bool
     return snapshot.primary != nil && snapshot.secondary != nil
 }
 
+func appServerRateLimitsHaveUsableWindow(_ snapshot: CodexRateLimitSnapshot?) -> Bool {
+    guard let snapshot else { return false }
+    return snapshot.primary != nil || snapshot.secondary != nil
+}
+
 func appServerRateLimitsLookSuspiciouslyZeroed(_ snapshot: CodexRateLimitSnapshot?) -> Bool {
     guard let snapshot else { return false }
     return appServerRateLimitWindowLooksSuspiciouslyZeroed(snapshot.primary)

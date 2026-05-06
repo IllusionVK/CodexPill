@@ -53,10 +53,18 @@ struct SystemIsolatedCodexLoginClient: IsolatedCodexLoginClient {
             output.append(String(decoding: data, as: UTF8.self))
         }
         stderr.fileHandleForReading.readabilityHandler = { handle in
-            _ = handle.availableData
+            let data = handle.availableData
+            guard !data.isEmpty else { return }
+            output.append(String(decoding: data, as: UTF8.self))
         }
 
-        try process.run()
+        do {
+            try process.run()
+        } catch {
+            try? session.cleanup()
+            throw error
+        }
+
         do {
             let prompt = try await waitForPrompt(output: output, process: process)
             return RunningIsolatedCodexLoginSession(
@@ -101,11 +109,11 @@ struct SystemIsolatedCodexLoginClient: IsolatedCodexLoginClient {
                 return prompt
             }
             if !process.isRunning {
-                throw IsolatedCodexLoginError.promptUnavailable
+                throw IsolatedCodexLoginError.promptUnavailable(reason: sanitizedFailureReason(from: output.value))
             }
             try await Task.sleep(for: .milliseconds(200))
         }
-        throw IsolatedCodexLoginError.promptUnavailable
+        throw IsolatedCodexLoginError.promptUnavailable(reason: sanitizedFailureReason(from: output.value))
     }
 
     private func extractPrompt(from output: String) -> IsolatedCodexLoginPrompt? {
@@ -122,6 +130,43 @@ struct SystemIsolatedCodexLoginClient: IsolatedCodexLoginClient {
     }
 
     private func stripANSIEscapes(_ output: String) -> String {
+        output.replacingOccurrences(
+            of: "\u{001B}\\[[0-9;]*[A-Za-z]",
+            with: "",
+            options: .regularExpression
+        )
+    }
+
+    private func sanitizedFailureReason(from output: String) -> String? {
+        CodexLoginOutputSanitizer.sanitizedFailureReason(from: output)
+    }
+}
+
+enum CodexLoginOutputSanitizer {
+    static func sanitizedFailureReason(from output: String) -> String? {
+        let sanitized = stripANSIEscapes(output)
+            .replacingOccurrences(
+                of: #"\b[A-Z0-9]{4,}-[A-Z0-9]{4,}\b"#,
+                with: "[device code]",
+                options: .regularExpression
+            )
+            .replacingOccurrences(
+                of: #"https://auth\.openai\.com/codex/device\S*"#,
+                with: "https://auth.openai.com/codex/device",
+                options: .regularExpression
+            )
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+
+        guard !sanitized.isEmpty else {
+            return nil
+        }
+        return String(sanitized.prefix(240))
+    }
+
+    private static func stripANSIEscapes(_ output: String) -> String {
         output.replacingOccurrences(
             of: "\u{001B}\\[[0-9;]*[A-Za-z]",
             with: "",

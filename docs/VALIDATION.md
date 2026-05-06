@@ -158,7 +158,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `menubar.account_catalog.adapts_to_account_and_host_shape`
 
 - `feature`: `menubar`
-- `rule`: Saved account catalog presentation must adapt to the setup. A single saved account with no hosts uses `Account > Add Account…, Rename…, Remove…` and does not render a duplicate catalog row. Multiple saved accounts with no hosts render `Other Accounts` rows that exclude the active local account, while active local management stays under `Account > Rename…, Remove…`. Configured hosts keep the full `Accounts` / `More Accounts…` row design because rows expose local and remote target actions. Account row submenus must show a disabled email identity row, fall back to `No email` when the email is unknown, preserve the disabled usage row below it, and expose enabled `switchAccount:` targets in the live runtime snapshot.
+- `rule`: Saved account catalog presentation must adapt to the setup. A single saved account with no hosts uses `Account > Add Account…, Rename…, Remove…` and does not render a duplicate catalog row. Multiple saved accounts with no hosts render `Other Accounts` rows that exclude the active local account, while active local management and Add Account stay grouped under `Account > Add Account…, Rename…, Remove…`. Configured hosts keep the full `Accounts` / `More Accounts…` row design because rows expose local and remote target actions. Account row submenus must show a disabled email identity row, fall back to `No email` when the email is unknown, preserve the disabled usage row below it, and expose enabled `switchAccount:` targets in the live runtime snapshot.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["deterministic_ui", "live_ui"]`
 - `scenarios`: `["single_account_management_menu", "other_accounts_excludes_active_local", "hosts_keep_full_accounts_section", "overflow_accounts"]`
@@ -183,14 +183,16 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `accounts.add_account.v0_contract`
 
 - `feature`: `accounts`
-- `rule`: Add Account saves a new local account through an isolated Codex sign-in flow without switching the current local account. The flow must expose the device code in-app before browser handoff, allow safe cancellation, route optional local use through one success-alert decision that includes any CLI restart warning, block duplicate display names and duplicate captured identities, clean temporary auth state, and never mutate real user auth from tests unless an explicit live-auth scenario opts in.
+- `rule`: Add Account saves a new local account through an isolated Codex sign-in flow without switching the current local account. The flow must expose the device code in-app before browser handoff, allow safe cancellation, reject overlapping sign-in attempts without clearing the pending attempt, hydrate the newly saved inactive account with any usable primary or secondary rate-limit window when available, route optional local use through one success-alert decision that includes any CLI restart warning, block duplicate display names and duplicate captured identities, clean temporary auth state, and never mutate real user auth from tests unless an explicit live-auth scenario opts in.
 - `owner_layer`: `integration`
 - `proofs_required`: `["unit", "integration", "deterministic_ui", "live_ui"]`
-- `scenarios`: `["add_account_duplicate_display_name_blocks_before_sign_in", "add_account_shows_device_code_and_copy_action", "add_account_copy_code_keeps_waiting", "add_account_saves_without_switching", "add_account_use_on_this_mac_switches_without_second_confirmation", "add_account_cancel_cleans_up", "add_account_duplicate_identity_blocks_after_sign_in", "add_account_expired_code_allows_try_again", "add_account_failed_before_code_clears_state", "add_account_live_auth_mutation_aborts", "add_account_catalog_save_failure_does_not_switch", "add_account_quit_cleans_up", "add_account_startup_removes_stale_temp_homes"]`
+- `scenarios`: `["add_account_duplicate_display_name_blocks_before_sign_in", "add_account_shows_device_code_and_copy_action", "add_account_copy_code_keeps_waiting", "add_account_saves_without_switching", "add_account_hydrates_saved_account_usage_after_save", "add_account_rejects_overlapping_sign_in_without_clearing_pending_flow", "add_account_use_on_this_mac_switches_without_second_confirmation", "add_account_cancel_cleans_up", "add_account_duplicate_identity_blocks_after_sign_in", "add_account_expired_code_allows_try_again", "add_account_failed_before_code_clears_state", "add_account_live_auth_mutation_aborts", "add_account_catalog_save_failure_does_not_switch", "add_account_quit_cleans_up", "add_account_startup_removes_stale_temp_homes"]`
 - `automated_proofs`:
   - `add_account_duplicate_display_name_blocks_before_sign_in`: `AddAccountWorkflowTests.isolatedAddAccountRejectsDuplicateNameBeforeStartingLogin`
   - `add_account_shows_device_code_and_copy_action`: `MenuBarAlertFactoryTests.addAccountSignInRequestShowsDeviceCodeCopy`
   - `add_account_saves_without_switching`: `AddAccountWorkflowTests.completeIsolatedAddAccountPersistsCapturedAuthWithoutChangingActiveAccount`
+  - `add_account_hydrates_saved_account_usage_after_save`: `AccountsControllerTests.completeIsolatedAddAccountHydratesNewInactiveAccountMetadata` and `HydrateSavedAccountsMetadataUseCaseTests.runBackfillsInactiveAccountsWithPrimaryOnlyRateLimits`
+  - `add_account_rejects_overlapping_sign_in_without_clearing_pending_flow`: `AccountsControllerTests.startIsolatedAddAccountRejectsOverlapWithoutClearingActiveOperation`
   - `add_account_cancel_cleans_up`: `AddAccountWorkflowTests.cancelIsolatedAddAccountTerminatesLoginAndCleansTemporaryHome`
   - `add_account_duplicate_identity_blocks_after_sign_in`: `AddAccountWorkflowTests.completeIsolatedAddAccountRejectsAlreadySavedCapturedIdentity`
   - `add_account_live_auth_mutation_aborts`: `AddAccountWorkflowTests.completeIsolatedAddAccountAbortsWhenLiveAuthChangesDuringSignIn`
@@ -243,13 +245,14 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `accounts.scheduled_refresh.requested_and_completed`
 
 - `feature`: `accounts`
-- `rule`: The scheduled refresh timer refreshes the active local account without rotating saved inactive snapshots through the real local auth file. The running app emits completion or failure proof without surfacing a blocking alert. Failure events must include the sanitized refresh error so app-server contract drift is diagnosable from validation artifacts. Remote-host refresh behavior is covered by the remote-host invariants, not by this scheduled-refresh proof.
+- `rule`: The scheduled refresh timer refreshes the active local account without rotating saved inactive snapshots through the real local auth file. If the active local account resolves to the same saved account but the live auth fingerprint changed, CodexPill relinks that saved account snapshot from current live auth before persisting refreshed metadata. The running app emits completion or failure proof without surfacing a blocking alert. Failure events must include the sanitized refresh error so app-server contract drift is diagnosable from validation artifacts. Remote-host refresh behavior is covered by the remote-host invariants, not by this scheduled-refresh proof.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["integration", "live_ui"]`
 - `scenarios`: `["scheduled_refresh"]`
 - `event_evidence`: `["scheduled_refresh_requested", "scheduled_refresh_completed", "scheduled_refresh_failed"]`
 - `snapshot_evidence`: `account_before`, `account_after`, and `ui_after_refresh` at `evidence/ui-after-refresh.json`
 - `identity_fields`: `activeAccountId`, `savedAccountIds`, `savedAccountNames`, `savedAccountCount`
+- `automated_proofs`: `["RefreshActiveAccountUseCaseTests.runRelinksSavedSnapshotWhenLiveAuthFingerprintChangedForSameAccount"]`
 
 ### `accounts.scheduled_refresh.no_blocking_alert_visible`
 
@@ -266,7 +269,8 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `rule`: App-server reads must handle JSON-RPC notification frames, surface JSON-RPC error messages from account or rate-limit responses, and retry transient rate-limit failures. When a refresh can only preserve old rate limits, CodexPill must not advance the rate-limit freshness timestamp.
 - `owner_layer`: `integration`
 - `proofs_required`: `["integration"]`
-- `scenarios`: `["app_server_json_rpc_error", "app_server_transient_rate_limit_retry", "preserve_stale_rate_limits_without_marking_fresh"]`
+- `scenarios`: `["app_server_json_rpc_error", "app_server_transient_rate_limit_retry", "preserve_stale_rate_limits_without_marking_fresh", "invalidated_token_error_uses_actionable_copy"]`
+- `automated_proofs`: `["MenuBarAlertFactoryTests.errorRequestMapsInvalidatedTokenBackendErrorsToActionableCopy"]`
 
 ### `accounts.effective_plan.maps_app_server_plan_codes`
 
@@ -342,10 +346,11 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `hosts.switch_workflow.installs_missing_accounts_before_switch`
 
 - `feature`: `hosts`
-- `rule`: Switching an account on a remote host installs the snapshot first when it is missing, skips installation when it is already present, and stops cleanly on install or switch failures.
+- `rule`: Switching an account on a remote host installs the snapshot first when it is missing or stale, skips installation only when the remote snapshot hash matches the current local saved snapshot, and stops cleanly on install or switch failures. If the selected account is the active local account, CodexPill preflights active-account refresh and relinks the saved snapshot from current local auth before remote install/switch so a stale saved refresh token is not copied to the host. If the status refresh fails but live auth identity still uniquely matches the selected saved account, CodexPill still relinks the saved snapshot from live auth before switching.
 - `owner_layer`: `integration`
 - `proofs_required`: `["integration"]`
-- `scenarios`: `["missing_remote_snapshot", "installed_remote_snapshot", "install_failure", "switch_failure"]`
+- `scenarios`: `["missing_remote_snapshot", "installed_remote_snapshot", "stale_remote_snapshot", "active_local_snapshot_relinked_before_remote_switch", "active_local_status_refresh_failed_snapshot_relinked_by_live_identity", "install_failure", "switch_failure"]`
+- `automated_proofs`: `["SwitchAccountOnHostWorkflowTests", "SSHRemoteHostClientTests.installationStateTreatsStaleRemoteSnapshotHashAsMissing", "AccountsControllerTests.switchToAccountOnHostRelinksActiveSnapshotBeforeRemoteInstall", "AccountsControllerTests.switchToAccountOnHostRelinksActiveSnapshotWhenStatusRefreshFailsButLiveIdentityStillMatches"]`
 
 ### `hosts.switch_account_on_host.changes_remote_active_account`
 

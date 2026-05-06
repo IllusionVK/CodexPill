@@ -68,11 +68,10 @@ struct MenuBarMenuBuilder {
         menu.addItem(.separator())
         if state.shouldShowSingleAccountManagementMenu {
             menu.addItem(accountManagementMenuItem(state: state, target: target, includesAddAccount: true))
+        } else if state.shouldShowActiveAccountManagementMenu {
+            menu.addItem(accountManagementMenuItem(state: state, target: target, includesAddAccount: true))
         } else {
             menu.addItem(addAccountMenuItem(state: state, target: target))
-            if state.shouldShowActiveAccountManagementMenu {
-                menu.addItem(accountManagementMenuItem(state: state, target: target, includesAddAccount: false))
-            }
         }
         menu.addItem(hostsMenuItem(state: state, target: target))
         menu.addItem(notificationsMenuItem(state: state, target: target))

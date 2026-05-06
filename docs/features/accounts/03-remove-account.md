@@ -27,7 +27,7 @@ Remove…
 1. The user opens a saved account submenu.
 2. The user chooses `Remove…`.
 3. CodexPill shows a destructive confirmation.
-4. The user confirms `Remove` or `Sign Out & Remove`.
+4. The user confirms `Remove` or `Sign Out and Remove`.
 5. CodexPill signs out any active local or connected remote target that is using the account.
 6. CodexPill deletes the saved snapshot for that account.
 7. CodexPill removes the account from the local catalog.
@@ -44,7 +44,7 @@ Remove saved account?
 Body:
 
 ```text
-This will remove the saved snapshot for <account>.
+This removes <account> from CodexPill.
 
 This action cannot be undone.
 ```
@@ -66,7 +66,7 @@ Sign out on <target list> before removing it?
 Actions:
 
 - `Remove`
-- `Sign Out & Remove` when active targets must be signed out first
+- `Sign Out and Remove` when active targets must be signed out first
 - `Cancel`
 
 ## Acceptance Criteria

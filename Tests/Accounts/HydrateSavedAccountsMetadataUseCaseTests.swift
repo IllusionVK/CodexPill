@@ -141,6 +141,54 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
     }
 
     @Test
+    func runBackfillsInactiveAccountsWithPrimaryOnlyRateLimits() async throws {
+        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
+        let inactiveMissing = makeAccount(name: "Missing", fingerprint: "missing", withRateLimits: false)
+        let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
+        let primaryOnlyRateLimits = CodexRateLimitSnapshot(
+            limitID: "codex",
+            limitName: nil,
+            planType: "free",
+            primary: CodexRateLimitWindow(
+                usedPercent: 9,
+                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
+                windowDurationMinutes: 300
+            ),
+            secondary: nil,
+            fetchedAt: Date(timeIntervalSince1970: 1_776_200_000)
+        )
+        let repository = HydrationCatalogProbe()
+        let useCase = HydrateSavedAccountsMetadataUseCase(
+            authService: auth,
+            accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [:], authService: auth),
+            savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
+                "missing": CodexAccountStatus(
+                    email: "missing@example.com",
+                    planType: "free",
+                    rateLimits: primaryOnlyRateLimits
+                )
+            ], authService: auth),
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
+                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
+            ),
+            repository: repository
+        )
+
+        let result = try await useCase.run(
+            accounts: [active, inactiveMissing],
+            activeAccountID: active.id
+        )
+
+        let hydratedMissing = try #require(result.accounts.first(where: { $0.id == inactiveMissing.id }))
+        #expect(hydratedMissing.rateLimits == primaryOnlyRateLimits)
+        #expect(hydratedMissing.email == "missing@example.com")
+        #expect(hydratedMissing.planType == "free")
+        #expect(result.hydratedAccountIDs == [inactiveMissing.id])
+        #expect(repository.savedAccounts == result.accounts)
+    }
+
+    @Test
     func runDoesNotMarkPreservedInactiveRateLimitsFreshWhenRefreshReturnsNoRateLimits() async throws {
         let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
         let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
@@ -188,14 +236,6 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
     @Test(arguments: [
         CodexAccountStatus(email: "ready@example.com", planType: "pro", rateLimits: nil),
-        CodexAccountStatus(email: "ready@example.com", planType: "pro", rateLimits: CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "pro",
-            primary: CodexRateLimitWindow(usedPercent: 12, resetsAt: .now, windowDurationMinutes: 300),
-            secondary: nil,
-            fetchedAt: .now
-        )),
         CodexAccountStatus(email: "ready@example.com", planType: "pro", rateLimits: CodexRateLimitSnapshot(
             limitID: "codex",
             limitName: nil,

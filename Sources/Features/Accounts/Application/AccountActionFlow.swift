@@ -14,7 +14,7 @@ struct AccountActionFlow {
     }
 
     enum AddAccountFailureStep: Equatable {
-        case showStartFailure
+        case showStartFailure(reason: String?)
         case offerExpiredCodeRetry(retryName: String)
         case showError(message: String)
         case offerDuplicateNameRecovery
@@ -53,8 +53,8 @@ struct AccountActionFlow {
     private func resolveAddAccountFailure(_ error: Error, retryName: String) -> AddAccountFailureStep {
         if let loginError = error as? IsolatedCodexLoginError {
             switch loginError {
-            case .promptUnavailable:
-                return .showStartFailure
+            case .promptUnavailable(let reason):
+                return .showStartFailure(reason: reason)
             case .authCaptureTimedOut:
                 return .offerExpiredCodeRetry(retryName: retryName)
             case .authCaptureFailed, .loginStatusVerificationFailed:

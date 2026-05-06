@@ -284,13 +284,14 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func addAccountIsDirectMenuAction() throws {
+    func addAccountIsDirectMenuActionWhenHostsAreConfigured() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
                 activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)]
+                inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)],
+                remoteHosts: [makeRemoteHost(activeAccount: nil)]
             ),
             target: coordinator
         )
@@ -491,15 +492,18 @@ struct MenuBarMenuBuilderTests {
 
         let accountSection = try #require(snapshot.sections.first(where: { $0.title == "Other Accounts" }))
         let activeRow = menu.items.first(where: { $0.submenu?.title == active.name })
-        let accountMenu = try #require(menu.items.first(where: { $0.title == "Account" })?.submenu)
+        let accountItem = try #require(menu.items.first(where: { $0.title == "Account" }))
+        let accountMenu = try #require(accountItem.submenu)
         let rename = try #require(accountMenu.items.first(where: { $0.title == "Rename…" }))
         let remove = try #require(accountMenu.items.first(where: { $0.title == "Remove…" }))
-        let addAccount = try #require(menu.items.first(where: { $0.title == "Add Account…" }))
+        let addAccount = try #require(accountMenu.items.first(where: { $0.title == "Add Account…" }))
 
         #expect(accountSection.items.count == 2)
         #expect(accountSection.items.allSatisfy { !$0.contains(active.name) })
         #expect(activeRow == nil)
+        #expect(accountItem.image != nil)
         #expect(addAccount.action == #selector(MenuBarCoordinator.addAccount))
+        #expect(menu.items.contains(where: { $0.title == "Add Account…" }) == false)
         #expect(rename.representedObject as? String == active.id.uuidString)
         #expect(remove.representedObject as? String == active.id.uuidString)
     }

@@ -19,15 +19,19 @@ protocol IsolatedCodexLoginClient {
 }
 
 enum IsolatedCodexLoginError: LocalizedError {
-    case promptUnavailable
+    case promptUnavailable(reason: String?)
     case authCaptureFailed
     case authCaptureTimedOut
     case loginStatusVerificationFailed
 
     var errorDescription: String? {
         switch self {
-        case .promptUnavailable:
-            "Codex could not start a sign-in session. Try again in a few minutes."
+        case .promptUnavailable(let reason):
+            if let reason, !reason.isEmpty {
+                "Codex could not start a sign-in session. \(reason)"
+            } else {
+                "Codex could not start a sign-in session."
+            }
         case .authCaptureFailed:
             "The Codex sign-in did not complete."
         case .authCaptureTimedOut:

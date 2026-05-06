@@ -86,17 +86,23 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
     }
 
     func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState {
+        let remoteSnapshotPath = ".codexpill/snapshots/\(account.snapshotFileName)"
         let result = try await commandRunner.run(
             executableURL: sshExecutableURL,
             arguments: sshArguments(
                 host: host,
-                command: "test -f \(quoted(".codexpill/snapshots/\(account.snapshotFileName)"))"
+                command: remoteSnapshotHashCommand(path: remoteSnapshotPath)
             )
         )
 
         switch result.terminationStatus {
         case 0:
-            return .installed
+            let remoteHash = String(decoding: result.standardOutput, as: UTF8.self)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !remoteHash.isEmpty else { return .missing }
+
+            let localSnapshot = try Data(contentsOf: snapshotLocator.snapshotURL(for: account))
+            return remoteHash == snapshotFingerprint(for: localSnapshot) ? .installed : .missing
         case 1:
             return .missing
         default:
@@ -249,6 +255,11 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
 
     private func sshArguments(host: RemoteHost, command: String) -> [String] {
         baseRemoteCommandOptions() + [host.destination, command]
+    }
+
+    private func remoteSnapshotHashCommand(path: String) -> String {
+        let quotedPath = quoted(path)
+        return "if [ ! -f \(quotedPath) ]; then exit 1; fi; if command -v sha256sum >/dev/null 2>&1; then sha256sum \(quotedPath) | awk '{print $1}'; else shasum -a 256 \(quotedPath) | awk '{print $1}'; fi"
     }
 
     private func baseRemoteCommandOptions() -> [String] {

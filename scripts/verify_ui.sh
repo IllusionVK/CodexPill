@@ -89,7 +89,7 @@ case "${SCENARIO}" in
   hosted-menu-default)
     ASSERTIONS_JSON='[
     "Current Account section includes the active account summary",
-    "Two inactive accounts are visible and one account overflows into More Accounts…",
+    "Other Accounts excludes the active account, shows two inactive accounts, and overflows one account into More Accounts…",
     "Status message is omitted when the menu is not busy"
   ]'
     ;;

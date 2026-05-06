@@ -648,8 +648,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         _ = store.consumePendingErrorMessage()
 
         switch step {
-        case .showStartFailure:
-            alertPresenter.presentInfo(alertFactory.makeAddAccountStartFailureRequest())
+        case .showStartFailure(let reason):
+            alertPresenter.presentInfo(alertFactory.makeAddAccountStartFailureRequest(reason: reason))
         case .offerExpiredCodeRetry(let retryName):
             let request = alertFactory.makeAddAccountExpiredRequest()
             guard alertPresenter.presentConfirmation(request) else { return }

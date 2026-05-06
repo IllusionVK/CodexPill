@@ -64,6 +64,52 @@ struct RefreshActiveAccountUseCaseTests {
     }
 
     @Test
+    func runRelinksSavedSnapshotWhenLiveAuthFingerprintChangedForSameAccount() async throws {
+        var account = makeAccount(name: "Personal", fingerprint: "stale-fingerprint", email: "personal@example.com")
+        account.identity.stableAccountID = "acct_personal"
+        account.updatedAt = Date(timeIntervalSince1970: 1_744_195_200)
+        let relinker = ActiveAuthSnapshotRelinkerProbe(
+            currentFingerprint: "fresh-fingerprint",
+            currentAuthData: Data("fresh-auth".utf8),
+            relinkedAccount: {
+                var relinked = account
+                relinked.identity.snapshotFingerprint = "fresh-fingerprint"
+                return relinked
+            }()
+        )
+        let repository = PersistingAccountCatalogProbe()
+        let useCase = RefreshActiveAccountUseCase(
+            accountStatusClient: AccountStatusProbe(
+                status: CodexAccountStatus(
+                    email: "personal@example.com",
+                    planType: "prolite",
+                    rateLimits: nil,
+                    stableAccountID: "acct_personal",
+                    snapshotFingerprint: "fresh-fingerprint"
+                )
+            ),
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentitySource: CurrentIdentityFixture(
+                    stableAccountID: "acct_personal",
+                    fingerprint: "fresh-fingerprint"
+                ),
+                storedAccountReconciler: IdentityReconcilerAdapter()
+            ),
+            repository: repository,
+            activeAuthSnapshotRelinker: relinker
+        )
+
+        let result = try await useCase.run(accounts: [account])
+
+        #expect(result.refreshedAccountID == account.id)
+        #expect(result.accounts.first?.identity.snapshotFingerprint == "fresh-fingerprint")
+        #expect(relinker.savedAuthData == Data("fresh-auth".utf8))
+        #expect(relinker.savedExistingAccount?.id == account.id)
+        #expect(result.accounts.first?.updatedAt == account.updatedAt)
+        #expect(repository.savedAccounts == result.accounts)
+    }
+
+    @Test
     func runDoesNotMarkPreservedRateLimitsFreshWhenAppServerReturnsNoRateLimits() async throws {
         let existingUpdatedAt = Date(timeIntervalSince1970: 1_744_195_200)
         let existingRateLimits = CodexRateLimitSnapshot(
@@ -168,11 +214,48 @@ private final class PersistingAccountCatalogProbe: AccountCatalogStore {
     }
 }
 
+private final class ActiveAuthSnapshotRelinkerProbe: ActiveAuthSnapshotRelinking {
+    let currentFingerprint: String?
+    let currentAuthData: Data
+    let relinkedAccount: CodexAccount
+    private(set) var savedAuthData: Data?
+    private(set) var savedExistingAccount: CodexAccount?
+
+    init(currentFingerprint: String?, currentAuthData: Data, relinkedAccount: CodexAccount) {
+        self.currentFingerprint = currentFingerprint
+        self.currentAuthData = currentAuthData
+        self.relinkedAccount = relinkedAccount
+    }
+
+    func currentAuthFingerprint() -> String? {
+        currentFingerprint
+    }
+
+    func readCurrentAuthData() throws -> Data {
+        currentAuthData
+    }
+
+    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
+        savedAuthData = authData
+        savedExistingAccount = existing
+        return relinkedAccount
+    }
+}
+
 private struct CurrentIdentityFixture: LiveCodexAccountIdentitySource {
+    let stableAccountID: String?
     let fingerprint: String?
 
+    init(stableAccountID: String? = nil, fingerprint: String?) {
+        self.stableAccountID = stableAccountID
+        self.fingerprint = fingerprint
+    }
+
     func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
-        LiveCodexAccountIdentity(snapshotFingerprint: fingerprint)
+        LiveCodexAccountIdentity(
+            stableAccountID: stableAccountID,
+            snapshotFingerprint: fingerprint
+        )
     }
 }
 
