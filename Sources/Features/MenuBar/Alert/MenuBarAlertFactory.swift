@@ -57,7 +57,11 @@ struct MenuBarAlertFactory {
     func makeAddAccountExpiredRequest() -> MenuBarConfirmationAlertRequest {
         MenuBarConfirmationAlertRequest(
             messageText: "Sign-In Expired",
-            informativeText: "The Codex sign-in code expired before the account was added.",
+            informativeText: """
+            The Codex sign-in code expired before the account was added.
+
+            If ChatGPT asked you to enable device-code authorization, enable it in ChatGPT Security Settings, then try again.
+            """,
             confirmTitle: "Try Again",
             cancelTitle: "Cancel"
         )
@@ -82,7 +86,11 @@ struct MenuBarAlertFactory {
 
         return MenuBarInfoAlertRequest(
             messageText: "Couldn't Start Sign-In",
-            informativeText: "Codex could not start a sign-in session. Check your network connection, then try again.\(detail)",
+            informativeText: """
+            Codex could not start a sign-in session. Check your network connection, then try again.
+
+            If ChatGPT asked you to enable device-code authorization, enable it in ChatGPT Security Settings, then try again.\(detail)
+            """,
             style: .warning,
             buttonTitle: "OK"
         )

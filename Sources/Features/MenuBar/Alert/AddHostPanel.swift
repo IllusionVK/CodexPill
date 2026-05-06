@@ -249,19 +249,24 @@ private struct AddHostPanel: View {
                     }
             }
 
-            HStack(spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
                 if model.isTesting {
                     ProgressView()
                         .controlSize(.small)
                 } else if let imageName = statusImageName {
                     Image(systemName: imageName)
                         .foregroundStyle(statusColor)
+                        .padding(.top, 1)
                 }
 
                 Text(model.statusText)
                     .font(.system(size: 13))
                     .foregroundStyle(statusColor)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.leading)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 8) {
                 Spacer()

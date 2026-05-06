@@ -82,7 +82,23 @@ struct MenuBarHostSetupFormStateTests {
 
         #expect(state.isTesting == false)
         #expect(!state.canSubmit)
-        #expect(state.statusMessage == "SSH is not ready for non-interactive use. Configure keys, host trust, passphrases, 2FA, or SSH config outside CodexPill, then try again.")
+        #expect(state.statusMessage == "SSH is not ready for CodexPill. Set up SSH access, then try again.")
+        #expect(state.statusKind == .failure)
+    }
+
+    @Test
+    func destinationResolutionFailureShowsHostNotFoundMessage() {
+        var state = MenuBarHostSetupFormState(
+            destination: "de",
+            idleStatusText: "CodexPill checks the connection automatically."
+        )
+
+        state.beginTesting()
+        state.finishTesting(with: .failure(RemoteHostClientError.sshDestinationNotFound))
+
+        #expect(state.isTesting == false)
+        #expect(!state.canSubmit)
+        #expect(state.statusMessage == "Host not found. Check the hostname or SSH config alias.")
         #expect(state.statusKind == .failure)
     }
 

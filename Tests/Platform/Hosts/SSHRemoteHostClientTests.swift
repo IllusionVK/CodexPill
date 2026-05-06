@@ -231,6 +231,27 @@ struct SSHRemoteHostClientTests {
     }
 
     @Test
+    func testConnectionClassifiesUnknownHostAsDestinationNotFound() async {
+        let runner = CommandRunnerProbe(results: [
+            .success(.init(
+                terminationStatus: 255,
+                standardOutput: Data(),
+                standardError: Data("ssh: Could not resolve hostname de: nodename nor servname provided, or not known".utf8)
+            ))
+        ])
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            commandRunner: runner,
+            sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
+        )
+
+        await #expect(throws: RemoteHostClientError.sshDestinationNotFound) {
+            try await client.testConnection(to: RemoteHost(destination: "de"))
+        }
+    }
+
+    @Test
     func testConnectionSurfacesRemoteCommandFailures() async {
         let runner = CommandRunnerProbe(results: [
             .success(.init(

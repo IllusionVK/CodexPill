@@ -134,6 +134,8 @@ Body:
 
 ```text
 The Codex sign-in code expired before the account was added.
+
+If ChatGPT asked you to enable device-code authorization, enable it in ChatGPT Security Settings, then try again.
 ```
 
 Actions:
@@ -153,6 +155,8 @@ Body:
 
 ```text
 Codex could not start a sign-in session. Check your network connection, then try again.
+
+If ChatGPT asked you to enable device-code authorization, enable it in ChatGPT Security Settings, then try again.
 ```
 
 Action:

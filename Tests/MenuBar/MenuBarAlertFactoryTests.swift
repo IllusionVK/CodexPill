@@ -90,6 +90,8 @@ struct MenuBarAlertFactoryTests {
     func addAccountFailureRequestsUseSpecificRecoveryCopy() {
         let expired = factory.makeAddAccountExpiredRequest()
         #expect(expired.messageText == "Sign-In Expired")
+        #expect(expired.informativeText.contains("enable device-code authorization"))
+        #expect(expired.informativeText.contains("ChatGPT Security Settings"))
         #expect(expired.confirmTitle == "Try Again")
         #expect(expired.cancelTitle == "Cancel")
 
@@ -108,6 +110,8 @@ struct MenuBarAlertFactoryTests {
 
         #expect(request.messageText == "Couldn't Start Sign-In")
         #expect(request.informativeText.contains("Check your network connection"))
+        #expect(request.informativeText.contains("enable device-code authorization"))
+        #expect(request.informativeText.contains("ChatGPT Security Settings"))
         #expect(request.informativeText.contains("Codex reported: error sending request"))
     }
 

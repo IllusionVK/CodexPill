@@ -54,7 +54,8 @@ The destination field starts neutral. After the user pauses typing, CodexPill ma
 
 - Neutral/checking while validation is pending.
 - Error styling for invalid or unreachable destinations.
-- SSH setup failures such as missing credentials, host-key prompts, 2FA, password prompts, passphrase prompts, or connectivity failures explain that SSH must be configured outside CodexPill for non-interactive use.
+- Unknown hostnames or missing SSH config aliases show `Host not found. Check the hostname or SSH config alias.`
+- SSH setup failures such as missing credentials, host-key prompts, 2FA, password prompts, passphrase prompts, or connectivity failures show `SSH is not ready for CodexPill. Set up SSH access, then try again.`
 - Success styling when the host is reachable.
 
 `Add Host` unlocks only when the destination is valid.
