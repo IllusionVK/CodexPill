@@ -11,7 +11,7 @@ As a CodexPill user, I want to add another Codex account without changing This M
 - Add Account captures the new sign-in through a temporary isolated `CODEX_HOME`.
 - Temporary isolated auth state is treated as sensitive and must be cleaned up after success, cancellation, timeout, or failure.
 - Only one Add Account sign-in may run at a time.
-- After the account is saved, CodexPill attempts a best-effort isolated status read so the new account can show available session or weekly usage immediately.
+- After the account is saved, CodexPill attempts a best-effort isolated status read so the new account can show available session or weekly usage immediately. Returned windows are classified by duration instead of App Server `primary` / `secondary` field position.
 - CodexPill must not log or expose raw auth payloads.
 
 ## Happy Path
@@ -94,7 +94,7 @@ Given the user completes browser sign-in, when CodexPill captures and saves the 
 
 Given Add Account saves a new inactive account, when CodexPill can read that account's status through the isolated app-server path, then CodexPill updates the saved account with returned email, plan, and any usable rate-limit window before leaving the Add Account flow.
 
-If Codex returns only session or only weekly usage, CodexPill must preserve the returned usable window instead of treating the whole status as missing.
+If Codex returns only session or only weekly usage, CodexPill must preserve the returned usable window instead of treating the whole status as missing. For example, a Free account may return a weekly-length window as `primary`; CodexPill must show that as weekly usage, not session usage.
 
 If hydration fails, Add Account still succeeds and the account remains saved; CodexPill may show missing usage until a later refresh succeeds.
 

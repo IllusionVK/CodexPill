@@ -29,14 +29,14 @@ struct ActiveAccountMenuContent: View {
 
             ActiveLimitRow(
                 title: "Session",
-                window: account.rateLimits?.primary,
+                window: account.rateLimits?.sessionWindow,
                 tintColor: progressAccentColor,
                 showsPacingMarkers: showsPacingMarkers,
                 now: now
             )
             ActiveLimitRow(
                 title: "Weekly",
-                window: account.rateLimits?.secondary,
+                window: account.rateLimits?.weeklyWindow,
                 tintColor: progressAccentColor,
                 showsPacingMarkers: showsPacingMarkers,
                 now: now

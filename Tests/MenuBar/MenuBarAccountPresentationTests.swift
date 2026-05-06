@@ -166,6 +166,34 @@ struct MenuBarAccountPresentationTests {
     }
 
     @Test
+    func compactUsageSummaryMapsWeeklyDurationPrimaryWindowToWeeklyLabel() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Backup",
+            snapshotFileName: "backup.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "backup@example.com",
+            planType: "free",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: "codex",
+                limitName: nil,
+                planType: "free",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 0,
+                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                secondary: nil,
+                fetchedAt: now
+            )
+        )
+
+        #expect(compactMenuRowUsageSummary(for: account, now: now) == "S --  W 0%")
+    }
+
+    @Test
     func statusItemTooltipKeepsExactHourPrecisionSeparateFromCardCopy() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let account = CodexAccount(

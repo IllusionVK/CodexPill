@@ -18,6 +18,38 @@ struct AccountAvailabilityTests {
     }
 
     @Test
+    func availabilityServiceTreatsWeeklyOnlyAccountAsAvailableWhenWeeklyHasHeadroom() {
+        let service = AccountAvailabilityService()
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Free",
+            snapshotFileName: "free.json",
+            createdAt: .now,
+            updatedAt: .now,
+            email: "free@example.com",
+            planType: "free",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: "codex",
+                limitName: nil,
+                planType: "free",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 0,
+                    resetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                secondary: nil,
+                fetchedAt: .now
+            )
+        )
+
+        let availability = service.availability(for: account)
+
+        #expect(availability.status == .availableNow)
+        #expect(availability.sessionUsedPercent == 0)
+        #expect(availability.weeklyUsedPercent == 0)
+    }
+
+    @Test
     func availabilityServiceMarksAccountBlockedBySessionWhenSessionIsExhausted() {
         let service = AccountAvailabilityService()
         let now = Date()

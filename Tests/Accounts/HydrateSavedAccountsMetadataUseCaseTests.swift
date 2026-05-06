@@ -141,7 +141,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
     }
 
     @Test
-    func runBackfillsInactiveAccountsWithPrimaryOnlyRateLimits() async throws {
+    func runBackfillsInactiveAccountsWithWeeklyOnlyRateLimits() async throws {
         let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
         let inactiveMissing = makeAccount(name: "Missing", fingerprint: "missing", withRateLimits: false)
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
@@ -152,7 +152,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
             primary: CodexRateLimitWindow(
                 usedPercent: 9,
                 resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
-                windowDurationMinutes: 300
+                windowDurationMinutes: 10_080
             ),
             secondary: nil,
             fetchedAt: Date(timeIntervalSince1970: 1_776_200_000)

@@ -183,7 +183,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `accounts.add_account.v0_contract`
 
 - `feature`: `accounts`
-- `rule`: Add Account saves a new local account through an isolated Codex sign-in flow without switching the current local account. The flow must expose the device code in-app before browser handoff, allow safe cancellation, reject overlapping sign-in attempts without clearing the pending attempt, hydrate the newly saved inactive account with any usable primary or secondary rate-limit window when available, route optional local use through one success-alert decision that includes any CLI restart warning, block duplicate display names and duplicate captured identities, clean temporary auth state, and never mutate real user auth from tests unless an explicit live-auth scenario opts in.
+- `rule`: Add Account saves a new local account through an isolated Codex sign-in flow without switching the current local account. The flow must expose the device code in-app before browser handoff, allow safe cancellation, reject overlapping sign-in attempts without clearing the pending attempt, hydrate the newly saved inactive account with any usable rate-limit window when available, route optional local use through one success-alert decision that includes any CLI restart warning, block duplicate display names and duplicate captured identities, clean temporary auth state, and never mutate real user auth from tests unless an explicit live-auth scenario opts in.
 - `owner_layer`: `integration`
 - `proofs_required`: `["unit", "integration", "deterministic_ui", "live_ui"]`
 - `scenarios`: `["add_account_duplicate_display_name_blocks_before_sign_in", "add_account_shows_device_code_and_copy_action", "add_account_copy_code_keeps_waiting", "add_account_saves_without_switching", "add_account_hydrates_saved_account_usage_after_save", "add_account_rejects_overlapping_sign_in_without_clearing_pending_flow", "add_account_use_on_this_mac_switches_without_second_confirmation", "add_account_cancel_cleans_up", "add_account_duplicate_identity_blocks_after_sign_in", "add_account_expired_code_allows_try_again", "add_account_failed_before_code_clears_state", "add_account_live_auth_mutation_aborts", "add_account_catalog_save_failure_does_not_switch", "add_account_quit_cleans_up", "add_account_startup_removes_stale_temp_homes"]`
@@ -191,7 +191,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
   - `add_account_duplicate_display_name_blocks_before_sign_in`: `AddAccountWorkflowTests.isolatedAddAccountRejectsDuplicateNameBeforeStartingLogin`
   - `add_account_shows_device_code_and_copy_action`: `MenuBarAlertFactoryTests.addAccountSignInRequestShowsDeviceCodeCopy`
   - `add_account_saves_without_switching`: `AddAccountWorkflowTests.completeIsolatedAddAccountPersistsCapturedAuthWithoutChangingActiveAccount`
-  - `add_account_hydrates_saved_account_usage_after_save`: `AccountsControllerTests.completeIsolatedAddAccountHydratesNewInactiveAccountMetadata` and `HydrateSavedAccountsMetadataUseCaseTests.runBackfillsInactiveAccountsWithPrimaryOnlyRateLimits`
+  - `add_account_hydrates_saved_account_usage_after_save`: `AccountsControllerTests.completeIsolatedAddAccountHydratesNewInactiveAccountMetadata` and `HydrateSavedAccountsMetadataUseCaseTests.runBackfillsInactiveAccountsWithWeeklyOnlyRateLimits`
   - `add_account_rejects_overlapping_sign_in_without_clearing_pending_flow`: `AccountsControllerTests.startIsolatedAddAccountRejectsOverlapWithoutClearingActiveOperation`
   - `add_account_cancel_cleans_up`: `AddAccountWorkflowTests.cancelIsolatedAddAccountTerminatesLoginAndCleansTemporaryHome`
   - `add_account_duplicate_identity_blocks_after_sign_in`: `AddAccountWorkflowTests.completeIsolatedAddAccountRejectsAlreadySavedCapturedIdentity`
@@ -271,6 +271,15 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["integration"]`
 - `scenarios`: `["app_server_json_rpc_error", "app_server_transient_rate_limit_retry", "preserve_stale_rate_limits_without_marking_fresh", "invalidated_token_error_uses_actionable_copy"]`
 - `automated_proofs`: `["MenuBarAlertFactoryTests.errorRequestMapsInvalidatedTokenBackendErrorsToActionableCopy"]`
+
+### `accounts.rate_limits.classify_windows_by_duration`
+
+- `feature`: `accounts`
+- `rule`: CodexPill must not assume App Server `primary` always means session and `secondary` always means weekly. Session and weekly presentation, status-item indicators, and availability decisions classify returned windows by `windowDurationMins`; weekly-length windows such as Free-account `primary` windows render as weekly usage, not session usage. Legacy payloads without window durations may fall back to positional mapping.
+- `owner_layer`: `domain`
+- `proofs_required`: `["unit"]`
+- `scenarios`: `["free_weekly_only_primary_window", "legacy_positional_rate_limit_payload"]`
+- `automated_proofs`: `["CodexRateLimitWindowTests.rateLimitSnapshotClassifiesWindowsByDurationInsteadOfPosition", "CodexRateLimitWindowTests.rateLimitSnapshotKeepsLegacyPositionalFallbackWhenDurationsAreMissing", "AccountAvailabilityTests.availabilityServiceTreatsWeeklyOnlyAccountAsAvailableWhenWeeklyHasHeadroom", "MenuBarAccountPresentationTests.compactUsageSummaryMapsWeeklyDurationPrimaryWindowToWeeklyLabel"]`
 
 ### `accounts.effective_plan.maps_app_server_plan_codes`
 

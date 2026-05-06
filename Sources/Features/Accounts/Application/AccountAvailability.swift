@@ -125,10 +125,11 @@ struct AccountAvailabilityService {
         on target: AccountAvailabilityTarget = .local,
         now: Date = .now
     ) -> AccountTargetAvailability {
-        let sessionWindow = account.rateLimits?.primary
-        let weeklyWindow = account.rateLimits?.secondary
-        let sessionUsedPercent = sessionWindow?.displayedUsedPercent(at: now) ?? 100
-        let weeklyUsedPercent = weeklyWindow?.displayedUsedPercent(at: now) ?? 100
+        let rateLimits = account.rateLimits
+        let sessionWindow = rateLimits?.sessionWindow
+        let weeklyWindow = rateLimits?.weeklyWindow
+        let sessionUsedPercent = sessionWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent(for: rateLimits)
+        let weeklyUsedPercent = weeklyWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent(for: rateLimits)
         let sessionResetAt = sessionWindow?.resetsAt
         let weeklyResetAt = weeklyWindow?.resetsAt
 
@@ -163,10 +164,11 @@ struct AccountAvailabilityService {
     ) -> AccountTargetAvailability {
         let target = AccountAvailabilityTarget.remote(hostDestination: remoteTarget.hostDestination)
         let displayAccount = remoteTarget.displayAccount
-        let sessionUsedPercent = displayAccount?.rateLimits?.primary?.displayedUsedPercent(at: now) ?? 100
-        let weeklyUsedPercent = displayAccount?.rateLimits?.secondary?.displayedUsedPercent(at: now) ?? 100
-        let sessionResetAt = displayAccount?.rateLimits?.primary?.resetsAt
-        let weeklyResetAt = displayAccount?.rateLimits?.secondary?.resetsAt
+        let rateLimits = displayAccount?.rateLimits
+        let sessionUsedPercent = rateLimits?.sessionWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent(for: rateLimits)
+        let weeklyUsedPercent = rateLimits?.weeklyWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent(for: rateLimits)
+        let sessionResetAt = rateLimits?.sessionWindow?.resetsAt
+        let weeklyResetAt = rateLimits?.weeklyWindow?.resetsAt
 
         let status: AccountAvailabilityStatus
         switch remoteTarget.connectionState {
@@ -242,5 +244,9 @@ struct AccountAvailabilityService {
         case (nil, nil):
             return nil
         }
+    }
+
+    private func missingWindowUsedPercent(for rateLimits: CodexRateLimitSnapshot?) -> Int {
+        rateLimits == nil ? 100 : 0
     }
 }

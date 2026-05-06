@@ -7,6 +7,39 @@ struct CodexRateLimitSnapshot: Codable, Hashable {
     var primary: CodexRateLimitWindow?
     var secondary: CodexRateLimitWindow?
     var fetchedAt: Date
+
+    var sessionWindow: CodexRateLimitWindow? {
+        if let window = knownDurationWindows.first(where: { $0.isSessionDuration }) {
+            return window
+        }
+
+        return legacyWindow(primary, fallbackWhenOtherWindowHasKnownDuration: secondary)
+    }
+
+    var weeklyWindow: CodexRateLimitWindow? {
+        if let window = knownDurationWindows.first(where: { $0.isWeeklyDuration }) {
+            return window
+        }
+
+        return legacyWindow(secondary, fallbackWhenOtherWindowHasKnownDuration: primary)
+    }
+
+    private var knownDurationWindows: [CodexRateLimitWindow] {
+        [primary, secondary]
+            .compactMap { $0 }
+            .filter { $0.windowDurationMinutes != nil }
+    }
+
+    private func legacyWindow(
+        _ positionalWindow: CodexRateLimitWindow?,
+        fallbackWhenOtherWindowHasKnownDuration otherWindow: CodexRateLimitWindow?
+    ) -> CodexRateLimitWindow? {
+        guard positionalWindow?.windowDurationMinutes == nil,
+              otherWindow?.windowDurationMinutes == nil else {
+            return nil
+        }
+        return positionalWindow
+    }
 }
 
 func effectiveCodexPlanType(accountPlanType: String?, rateLimitPlanType: String?) -> String? {
@@ -75,6 +108,8 @@ private func knownCodexPlanType(_ planType: String?) -> String? {
 }
 
 struct CodexRateLimitWindow: Codable, Hashable {
+    static let weeklyDurationMinutes = 10_080
+
     var usedPercent: Int
     var resetsAt: Date?
     var windowDurationMinutes: Int?
@@ -82,5 +117,15 @@ struct CodexRateLimitWindow: Codable, Hashable {
     func displayedUsedPercent(at now: Date = .now) -> Int {
         guard let resetsAt else { return usedPercent }
         return resetsAt <= now ? 0 : usedPercent
+    }
+
+    fileprivate var isSessionDuration: Bool {
+        guard let windowDurationMinutes else { return false }
+        return windowDurationMinutes < Self.weeklyDurationMinutes
+    }
+
+    fileprivate var isWeeklyDuration: Bool {
+        guard let windowDurationMinutes else { return false }
+        return windowDurationMinutes >= Self.weeklyDurationMinutes
     }
 }

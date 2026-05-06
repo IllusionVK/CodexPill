@@ -219,8 +219,8 @@ enum MenuBarValidationSupport {
         now: Date
     ) -> String {
         let plan = menuPlanDisplayName(account.effectivePlanType)
-        let session = usageLine(title: "Session", window: account.rateLimits?.primary, now: now)
-        let weekly = usageLine(title: "Weekly", window: account.rateLimits?.secondary, now: now)
+        let session = usageLine(title: "Session", window: account.rateLimits?.sessionWindow, now: now)
+        let weekly = usageLine(title: "Weekly", window: account.rateLimits?.weeklyWindow, now: now)
         return ([account.name, plan, location, session, weekly].compactMap { $0 }).joined(separator: " • ")
     }
 

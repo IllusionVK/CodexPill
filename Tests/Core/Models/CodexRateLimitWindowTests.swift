@@ -36,6 +36,40 @@ struct CodexRateLimitWindowTests {
     }
 
     @Test
+    func rateLimitSnapshotClassifiesWindowsByDurationInsteadOfPosition() {
+        let weeklyOnly = CodexRateLimitSnapshot(
+            limitID: "codex",
+            limitName: nil,
+            planType: "free",
+            primary: CodexRateLimitWindow(
+                usedPercent: 7,
+                resetsAt: Date(timeIntervalSince1970: 2_000),
+                windowDurationMinutes: 10_080
+            ),
+            secondary: nil,
+            fetchedAt: Date(timeIntervalSince1970: 1_000)
+        )
+
+        #expect(weeklyOnly.sessionWindow == nil)
+        #expect(weeklyOnly.weeklyWindow?.usedPercent == 7)
+    }
+
+    @Test
+    func rateLimitSnapshotKeepsLegacyPositionalFallbackWhenDurationsAreMissing() {
+        let legacy = CodexRateLimitSnapshot(
+            limitID: "codex",
+            limitName: nil,
+            planType: "plus",
+            primary: CodexRateLimitWindow(usedPercent: 12, resetsAt: nil, windowDurationMinutes: nil),
+            secondary: CodexRateLimitWindow(usedPercent: 34, resetsAt: nil, windowDurationMinutes: nil),
+            fetchedAt: Date(timeIntervalSince1970: 1_000)
+        )
+
+        #expect(legacy.sessionWindow?.usedPercent == 12)
+        #expect(legacy.weeklyWindow?.usedPercent == 34)
+    }
+
+    @Test
     func displayedUsedPercentFallsBackToZeroOnceWindowHasExpired() {
         let window = CodexRateLimitWindow(
             usedPercent: 100,

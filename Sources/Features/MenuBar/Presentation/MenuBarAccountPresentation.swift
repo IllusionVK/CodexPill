@@ -99,14 +99,14 @@ func compactMenuRowDisplayName(for accountName: String, maxLength: Int = 20) -> 
 }
 
 func compactAccountUsageSummary(for account: CodexAccount, now: Date = .now) -> String {
-    let session = compactLimitDetail(prefix: "S", window: account.rateLimits?.primary, now: now, hidesResetWhenUnused: false)
-    let weekly = compactLimitDetail(prefix: "W", window: account.rateLimits?.secondary, now: now, hidesResetWhenUnused: false)
+    let session = compactLimitDetail(prefix: "S", window: account.rateLimits?.sessionWindow, now: now, hidesResetWhenUnused: false)
+    let weekly = compactLimitDetail(prefix: "W", window: account.rateLimits?.weeklyWindow, now: now, hidesResetWhenUnused: false)
     return "\(session) • \(weekly)"
 }
 
 func compactMenuRowUsageSummary(for account: CodexAccount, now: Date = .now) -> String {
-    let session = compactLimitDetail(prefix: "S", window: account.rateLimits?.primary, now: now, hidesResetWhenUnused: true)
-    let weekly = compactLimitDetail(prefix: "W", window: account.rateLimits?.secondary, now: now, hidesResetWhenUnused: true)
+    let session = compactLimitDetail(prefix: "S", window: account.rateLimits?.sessionWindow, now: now, hidesResetWhenUnused: true)
+    let weekly = compactLimitDetail(prefix: "W", window: account.rateLimits?.weeklyWindow, now: now, hidesResetWhenUnused: true)
     return "\(session)  \(weekly)"
 }
 
@@ -192,15 +192,15 @@ func statusItemTooltipText(for account: CodexAccount?, now: Date = .now) -> Stri
 
     lines.append(menuPlanDisplayName(account.effectivePlanType))
 
-    if let primary = account.rateLimits?.primary,
-       primary.displayedUsedPercent(at: now) >= 100,
-       let reset = tooltipResetStatusText(for: primary, now: now) {
+    if let session = account.rateLimits?.sessionWindow,
+       session.displayedUsedPercent(at: now) >= 100,
+       let reset = tooltipResetStatusText(for: session, now: now) {
         lines.append("Session \(reset.lowercased())")
     }
 
-    if let secondary = account.rateLimits?.secondary,
-       secondary.displayedUsedPercent(at: now) >= 100,
-       let reset = tooltipResetStatusText(for: secondary, now: now) {
+    if let weekly = account.rateLimits?.weeklyWindow,
+       weekly.displayedUsedPercent(at: now) >= 100,
+       let reset = tooltipResetStatusText(for: weekly, now: now) {
         lines.append("Weekly \(reset.lowercased())")
     }
 
@@ -208,8 +208,8 @@ func statusItemTooltipText(for account: CodexAccount?, now: Date = .now) -> Stri
 }
 
 func statusItemHoverTitle(for account: CodexAccount?, now: Date = .now) -> String {
-    let session = hoverStatusSegment(prefix: "S", window: account?.rateLimits?.primary, now: now)
-    let weekly = hoverStatusSegment(prefix: "W", window: account?.rateLimits?.secondary, now: now)
+    let session = hoverStatusSegment(prefix: "S", window: account?.rateLimits?.sessionWindow, now: now)
+    let weekly = hoverStatusSegment(prefix: "W", window: account?.rateLimits?.weeklyWindow, now: now)
     return "\(session) \(weekly)"
 }
 
