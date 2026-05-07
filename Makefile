@@ -9,7 +9,7 @@ PROOF_EMITTER_BINARY := $(DERIVED_DATA)/Build/Products/Debug/CodexPillProofEmitt
 DEV_BUNDLE_ID ?= com.raphhgg.codexpill.dev
 STAGING_BUNDLE_ID ?= com.raphhgg.codexpill.staging
 
-.PHONY: diagnose generate prepare-result-bundle build test build-proof-emitter emit-account-switch-proof run verify-ui verify-ui-live clean
+.PHONY: diagnose generate prepare-result-bundle build test mutation build-proof-emitter emit-account-switch-proof run verify-ui verify-ui-live clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -61,6 +61,9 @@ test: generate prepare-result-bundle
 		-derivedDataPath "$(DERIVED_DATA)" \
 		-resultBundlePath "$(RESULT_BUNDLE)" \
 		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+
+mutation:
+	./scripts/run_mutation.sh
 
 run:
 	./scripts/run_menubar.sh
