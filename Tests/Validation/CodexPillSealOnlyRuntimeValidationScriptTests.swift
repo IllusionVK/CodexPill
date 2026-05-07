@@ -311,6 +311,65 @@ struct CodexPillSealOnlyRuntimeValidationScriptTests {
     }
 
     @Test
+    func wrapperSupportsRemoveActiveAccountSealScenario() throws {
+        let repoRoot = Self.repoRoot()
+        let scriptURL = repoRoot.appendingPathComponent("scripts/verify_account_switch_seal.sh")
+        let artifactRoot = repoRoot
+            .appendingPathComponent("build/verification/CodexPillSealOnlyRuntimeValidationScriptTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("remove-active-account-signs-out-before-deletion", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: artifactRoot.deletingLastPathComponent()) }
+
+        let fakeSeal = try Self.writeFakeSeal(
+            repoRoot: repoRoot,
+            name: "fake-seal-remove-active-account-passed.sh",
+            body: """
+            #!/usr/bin/env bash
+            set -euo pipefail
+            output=""
+            scenario=""
+            while [[ $# -gt 0 ]]; do
+              case "$1" in
+                --output)
+                  output="$2"
+                  shift 2
+                  ;;
+                --scenario)
+                  scenario="$2"
+                  shift 2
+                  ;;
+                *)
+                  shift
+                  ;;
+              esac
+            done
+            mkdir -p "${output}/proof" "${output}/reports" "${output}/adapter"
+            printf '{"scenario":"%s"}\\n' "${scenario}" > "${output}/proof/manifest.json"
+            printf '{"status":"passed"}\\n' > "${output}/reports/result.json"
+            printf '# Seal Runner Report\\n' > "${output}/reports/report.md"
+            printf '{"exitCode":0}\\n' > "${output}/adapter/exit.json"
+            """
+        )
+
+        let result = try run(
+            scriptURL,
+            environment: [
+                "AGENT_NAME": "CodexPillSealOnlyRuntimeValidationScriptTests",
+                "ARTIFACT_ROOT": artifactRoot.path,
+                "CODEXPILL_SEAL_COMMAND": fakeSeal.path,
+                "SCENARIO": "remove-active-account-signs-out-before-deletion",
+            ]
+        )
+
+        #expect(result.exitStatus == 0)
+
+        let summaryData = try Data(contentsOf: artifactRoot.appendingPathComponent("codexpill-summary.json"))
+        let summary = try #require(JSONSerialization.jsonObject(with: summaryData) as? [String: Any])
+        #expect(summary["scenario"] as? String == "remove-active-account-signs-out-before-deletion")
+        #expect(summary["authoritativeRuntimeValidation"] as? String == "seal")
+        #expect(summary["doesNotDefineIndependentVerdict"] as? Bool == true)
+    }
+
+    @Test
     func wrapperUsesSealConfigBackedAdapterAndProofOutputDefault() throws {
         let script = try String(contentsOf: Self.repoRoot().appendingPathComponent("scripts/verify_account_switch_seal.sh"))
 
@@ -331,7 +390,8 @@ struct CodexPillSealOnlyRuntimeValidationScriptTests {
         #expect(config.contains("remote-host-refresh-failure-preserves-fallback-state:"))
         #expect(config.contains("baseline-menu-open-runtime-ready:"))
         #expect(config.contains("active-account-grouping-runtime-ready:"))
-        #expect(config.components(separatedBy: "adapter: scripts/seal_run_adapter.sh").count == 6)
+        #expect(config.contains("remove-active-account-signs-out-before-deletion:"))
+        #expect(config.components(separatedBy: "adapter: scripts/seal_run_adapter.sh").count == 7)
     }
 
     private static func repoRoot() -> URL {

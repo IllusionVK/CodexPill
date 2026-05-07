@@ -15,6 +15,9 @@ private let baselineMenuOpenInvariantID = InvariantID("menubar.baseline_menu_ope
 private let activeAccountGroupingScenarioID = ScenarioID("active-account-grouping-runtime-ready")
 private let sameAccountGroupingInvariantID = InvariantID("accounts.active_cards.group_local_and_remote_same_account")
 private let multipleRemoteHostsGroupingInvariantID = InvariantID("accounts.active_cards.group_multiple_remote_hosts")
+private let removeActiveAccountScenarioID = ScenarioID("remove-active-account-signs-out-before-deletion")
+private let destructiveConfirmationInvariantID = InvariantID("accounts.remove_active_account.destructive_confirmation")
+private let activeTargetSignOutBeforeDeletionInvariantID = InvariantID("accounts.remove_active_account.sign_out_before_saved_snapshot_deletion")
 
 private struct FixtureAccount: Encodable {
     let id: String
@@ -31,9 +34,9 @@ private struct AccountStateSnapshot: Encodable {
     let savedAccountNames: [String]
     let savedAccountCount: Int
 
-    init(activeAccount: FixtureAccount, savedAccounts: [FixtureAccount]) {
-        activeAccountId = activeAccount.id
-        activeAccountName = activeAccount.name
+    init(activeAccount: FixtureAccount?, savedAccounts: [FixtureAccount]) {
+        activeAccountId = activeAccount?.id
+        activeAccountName = activeAccount?.name
         self.savedAccounts = savedAccounts
         savedAccountIds = savedAccounts.map(\.id)
         savedAccountNames = savedAccounts.map(\.name)
@@ -84,6 +87,28 @@ private struct ActiveAccountGroupingSnapshot: Encodable {
     let realSSHCredentialsRequired: Bool
 }
 
+private struct RemoveActiveAccountSnapshot: Encodable {
+    struct Target: Encodable {
+        let name: String
+        let signedOut: Bool
+        let signOutOrder: Int
+    }
+
+    let removedAccountId: String
+    let removedAccountName: String
+    let activeTargetsBeforeRemoval: [String]
+    let activeTargetsAfterRemoval: [String]
+    let savedAccountIdsBeforeRemoval: [String]
+    let savedAccountIdsAfterRemoval: [String]
+    let destructiveConfirmationPresented: Bool
+    let destructiveConfirmationAccepted: Bool
+    let signOutTargets: [Target]
+    let savedSnapshotDeleted: Bool
+    let savedSnapshotDeletionOrder: Int
+    let realAuthMutationRequired: Bool
+    let realSSHCredentialsRequired: Bool
+}
+
 private struct BaselineMenuOpenSnapshot: Encodable {
     struct CustomRowWidth: Encodable {
         let title: String
@@ -131,6 +156,8 @@ struct CodexPillProofEmitter {
                 try emitBaselineMenuOpenProof(to: outputDirectory, liveArtifactRoot: command.liveArtifactRoot)
             case .activeAccountGrouping:
                 try emitActiveAccountGroupingProof(to: outputDirectory)
+            case .removeActiveAccount:
+                try emitRemoveActiveAccountProof(to: outputDirectory)
             }
             print(outputDirectory.path)
         } catch {
@@ -490,6 +517,138 @@ struct CodexPillProofEmitter {
             id: EvidenceID("active_account_grouping"),
             path: "evidence/active-account-grouping.json",
             value: snapshot
+        )
+        try run.finish()
+    }
+
+    private static func emitRemoveActiveAccountProof(to outputDirectory: URL) throws {
+        let personal = FixtureAccount(
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Validation Personal",
+            snapshotFileName: "validation-personal-auth.json",
+            email: "validation.personal@example.invalid"
+        )
+        let business = FixtureAccount(
+            id: "22222222-2222-4222-8222-222222222222",
+            name: "Validation Business",
+            snapshotFileName: "validation-business-auth.json",
+            email: "validation.business@example.invalid"
+        )
+        let savedAccountsBefore = [personal, business]
+        let savedAccountsAfter = [personal]
+        let snapshot = RemoveActiveAccountSnapshot(
+            removedAccountId: business.id,
+            removedAccountName: business.name,
+            activeTargetsBeforeRemoval: ["This Mac", "debian-vm"],
+            activeTargetsAfterRemoval: [],
+            savedAccountIdsBeforeRemoval: savedAccountsBefore.map(\.id),
+            savedAccountIdsAfterRemoval: savedAccountsAfter.map(\.id),
+            destructiveConfirmationPresented: true,
+            destructiveConfirmationAccepted: true,
+            signOutTargets: [
+                .init(name: "This Mac", signedOut: true, signOutOrder: 1),
+                .init(name: "debian-vm", signedOut: true, signOutOrder: 2)
+            ],
+            savedSnapshotDeleted: true,
+            savedSnapshotDeletionOrder: 3,
+            realAuthMutationRequired: false,
+            realSSHCredentialsRequired: false
+        )
+
+        try SealRecorder.register(features: [try removeActiveAccountFeature()])
+        let run = try SealRecorder.startRun(
+            feature: featureID,
+            scenario: removeActiveAccountScenarioID,
+            executionMode: .integration,
+            outputDirectory: outputDirectory,
+            runID: "run_codexpill_remove_active_account_v1_boundary"
+        )
+        defer { run.cancelIfUnfinished() }
+
+        try run.recordEvent(
+            "menu_action_dispatched",
+            step: "menu_action_dispatch",
+            invariantIds: [destructiveConfirmationInvariantID, activeTargetSignOutBeforeDeletionInvariantID],
+            payload: [
+                "action": .string("removeAccount"),
+                "targetAccountId": .string(business.id),
+                "targetName": .string(business.name)
+            ]
+        )
+        try run.recordSnapshot(
+            id: EvidenceID("account_before"),
+            path: "evidence/account-before.json",
+            value: AccountStateSnapshot(activeAccount: business, savedAccounts: savedAccountsBefore)
+        )
+        try run.recordEvent(
+            "remove_confirmation_presented",
+            step: "remove_confirmation",
+            invariantIds: [destructiveConfirmationInvariantID],
+            payload: [
+                "targetAccountId": .string(business.id),
+                "activeTargetCount": .int(2)
+            ]
+        )
+        try run.recordEvent(
+            "remove_confirmation_accepted",
+            step: "remove_confirmation",
+            invariantIds: [destructiveConfirmationInvariantID],
+            payload: ["targetAccountId": .string(business.id)]
+        )
+        try run.recordEvent(
+            "active_target_sign_out_started",
+            step: "active_target_sign_out",
+            invariantIds: [activeTargetSignOutBeforeDeletionInvariantID],
+            payload: [
+                "target": .string("This Mac"),
+                "order": .int(1)
+            ]
+        )
+        try run.recordEvent(
+            "active_target_sign_out_completed",
+            step: "active_target_sign_out",
+            invariantIds: [activeTargetSignOutBeforeDeletionInvariantID],
+            payload: [
+                "target": .string("This Mac"),
+                "order": .int(1)
+            ]
+        )
+        try run.recordEvent(
+            "active_target_sign_out_started",
+            step: "active_target_sign_out",
+            invariantIds: [activeTargetSignOutBeforeDeletionInvariantID],
+            payload: [
+                "target": .string("debian-vm"),
+                "order": .int(2)
+            ]
+        )
+        try run.recordEvent(
+            "active_target_sign_out_completed",
+            step: "active_target_sign_out",
+            invariantIds: [activeTargetSignOutBeforeDeletionInvariantID],
+            payload: [
+                "target": .string("debian-vm"),
+                "order": .int(2)
+            ]
+        )
+        try run.recordEvent(
+            "saved_snapshot_deleted",
+            step: "saved_snapshot_deletion",
+            invariantIds: [activeTargetSignOutBeforeDeletionInvariantID],
+            payload: [
+                "targetAccountId": .string(business.id),
+                "order": .int(3)
+            ]
+        )
+        try run.recordSnapshot(
+            id: EvidenceID("remove_active_account"),
+            path: "evidence/remove-active-account.json",
+            value: snapshot
+        )
+        try run.recordSnapshot(
+            id: EvidenceID("account_after"),
+            path: "evidence/account-after.json",
+            value: AccountStateSnapshot(activeAccount: nil, savedAccounts: savedAccountsAfter)
         )
         try run.finish()
     }
@@ -904,6 +1063,118 @@ struct CodexPillProofEmitter {
             ]
         )
     }
+
+    private static func removeActiveAccountFeature() throws -> SealFeature {
+        try SealFeature(
+            id: featureID,
+            scenarios: [
+                try SealScenario(
+                    id: removeActiveAccountScenarioID,
+                    scenarioType: .happyPath,
+                    supportedExecutionModes: [.integration],
+                    expectations: [
+                        try SealExpectation(
+                            text: "Removing an active saved account confirms destructive removal and signs out active targets before deleting the saved snapshot",
+                            invariants: [
+                                SealInvariantRef(
+                                    id: destructiveConfirmationInvariantID,
+                                    requiredEvidence: [
+                                        EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
+                                        EvidenceRequirement(id: EvidenceID("remove_active_account"), kind: .snapshot)
+                                    ],
+                                    rule: .all([
+                                        .eventSequence([
+                                            EventExpectation("menu_action_dispatched", payload: [
+                                                "action": .string("removeAccount")
+                                            ]),
+                                            EventExpectation("remove_confirmation_presented"),
+                                            EventExpectation("remove_confirmation_accepted")
+                                        ]),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("remove_active_account"),
+                                                path: "destructiveConfirmationPresented",
+                                                value: .bool(true)
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("remove_active_account"),
+                                                path: "destructiveConfirmationAccepted",
+                                                value: .bool(true)
+                                            )
+                                        )
+                                    ])
+                                ),
+                                SealInvariantRef(
+                                    id: activeTargetSignOutBeforeDeletionInvariantID,
+                                    requiredEvidence: [
+                                        EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
+                                        EvidenceRequirement(id: EvidenceID("account_before"), kind: .snapshot),
+                                        EvidenceRequirement(id: EvidenceID("account_after"), kind: .snapshot),
+                                        EvidenceRequirement(id: EvidenceID("remove_active_account"), kind: .snapshot)
+                                    ],
+                                    rule: .all([
+                                        .eventSequence([
+                                            EventExpectation("remove_confirmation_accepted"),
+                                            EventExpectation("active_target_sign_out_started", payload: [
+                                                "target": .string("This Mac")
+                                            ]),
+                                            EventExpectation("active_target_sign_out_completed", payload: [
+                                                "target": .string("This Mac")
+                                            ]),
+                                            EventExpectation("active_target_sign_out_started", payload: [
+                                                "target": .string("debian-vm")
+                                            ]),
+                                            EventExpectation("active_target_sign_out_completed", payload: [
+                                                "target": .string("debian-vm")
+                                            ]),
+                                            EventExpectation("saved_snapshot_deleted")
+                                        ]),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("remove_active_account"),
+                                                path: "savedSnapshotDeleted",
+                                                value: .bool(true)
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("remove_active_account"),
+                                                path: "savedSnapshotDeletionOrder",
+                                                value: .int(3)
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("remove_active_account"),
+                                                path: "realAuthMutationRequired",
+                                                value: .bool(false)
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("remove_active_account"),
+                                                path: "realSSHCredentialsRequired",
+                                                value: .bool(false)
+                                            )
+                                        ),
+                                        .snapshotsDiffer(
+                                            SnapshotsDifferRule(
+                                                before: EvidenceID("account_before"),
+                                                after: EvidenceID("account_after"),
+                                                paths: ["savedAccountIds", "savedAccountCount"]
+                                            )
+                                        )
+                                    ])
+                                )
+                            ]
+                        )
+                    ]
+                )
+            ]
+        )
+    }
 }
 
 private enum EmitterCommandName: String {
@@ -912,11 +1183,12 @@ private enum EmitterCommandName: String {
     case remoteHostRefreshFailure = "emit-remote-host-refresh-failure-proof"
     case baselineMenuOpen = "emit-baseline-menu-open-proof"
     case activeAccountGrouping = "emit-active-account-grouping-proof"
+    case removeActiveAccount = "emit-remove-active-account-proof"
 }
 
 private struct UsageError: LocalizedError, CustomStringConvertible {
     var description: String {
-        "Usage: CodexPillProofEmitter <emit-account-switch-proof|emit-add-host-validation-failure-proof|emit-remote-host-refresh-failure-proof|emit-baseline-menu-open-proof|emit-active-account-grouping-proof> --output-dir <proof-output-dir> [--live-artifact-root <live-menu-open-artifacts>]"
+        "Usage: CodexPillProofEmitter <emit-account-switch-proof|emit-add-host-validation-failure-proof|emit-remote-host-refresh-failure-proof|emit-baseline-menu-open-proof|emit-active-account-grouping-proof|emit-remove-active-account-proof> --output-dir <proof-output-dir> [--live-artifact-root <live-menu-open-artifacts>]"
     }
 }
 

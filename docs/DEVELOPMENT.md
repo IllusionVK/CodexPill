@@ -65,6 +65,12 @@ Seal-only Add Host validation-failure runtime validation:
 swift run --package-path ../Seal seal run --scenario add-host-destination-validation-failed
 ```
 
+Seal-only remove active account runtime validation:
+
+```bash
+swift run --package-path ../Seal seal run --scenario remove-active-account-signs-out-before-deletion
+```
+
 Those shorter commands resolve the CodexPill adapter from `.seal/run.yml` and
 use Seal's default artifact layout under `build/seal-runs/<scenario>/...`. The
 Make targets remain as compatibility entry points for agents that need a stable

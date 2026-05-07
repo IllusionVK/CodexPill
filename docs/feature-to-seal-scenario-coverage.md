@@ -44,6 +44,7 @@ summaries and legacy live artifacts are diagnostic pointers only.
 | Switching an account through a remote-host submenu updates that host's active account. | `live-remote-host-switch` | `switch-account-on-host-changes-remote-active-account` | Seal runtime/live scenario exists |
 | Scheduled refresh requests and completes without changing saved account identity or showing a blocking alert. | `live-scheduled-refresh` | `scheduled-refresh-preserves-account-catalog` | Seal runtime/live scenario exists |
 | Persisted remote host refresh failure preserves fallback state, marks the host disconnected, and hides disconnected hosts from active account facts. | `persisted_host_refresh_failure` | `remote-host-refresh-failure-preserves-fallback-state` | Seal runtime/live scenario exists |
+| Removing an active saved account confirms destructive removal and signs out active targets before deleting the saved snapshot. | Remove-account live validation in `MenuBarLiveValidationTests` | `remove-active-account-signs-out-before-deletion` | Seal runtime/live scenario exists |
 | Active local and connected remote account cards group same-account targets and multiple remote hosts without real SSH credentials. | Multiple-host active-card live validation | `active-account-grouping-runtime-ready` | Seal runtime/live scenario exists |
 | Baseline app starts, the menu opens, required App Controls render, inactive account switch wiring is present, and custom rows fit the rendered width. | `live-menu-open` | `baseline-menu-open-runtime-ready` | Seal runtime/live scenario exists |
 
@@ -114,10 +115,10 @@ summaries and legacy live artifacts are diagnostic pointers only.
 
 | Claim | Category | Current proof or rationale |
 | --- | --- | --- |
-| Remove requires destructive confirmation and cancel does not mutate account state. | Seal scenario needed | This is runtime alert/action behavior and should be covered once destructive-flow Seal scenarios are introduced. |
+| Remove requires destructive confirmation before active-account removal proceeds. | Seal runtime/live scenario exists | Covered for the confirmed active-account path by `remove-active-account-signs-out-before-deletion`. The cancel/no-mutation branch remains lower-layer or future focused Seal coverage. |
 | Confirmed removal deletes the local saved snapshot and recomputes active saved-account match. | Lower-layer test owns this better | Repository/use-case tests own snapshot deletion and catalog recomputation. |
-| Removing an active local account signs out local auth and relaunches Codex before deleting the snapshot. | Seal scenario needed | Integration tests own ordering today; a Seal scenario is useful for release readiness because this is a high-risk live account mutation path. |
-| Removing an active connected remote account signs out the host before deleting the snapshot and no longer presents it as active. | Seal scenario needed | Current live tests cover this legacy path; it should be migrated because it is cross-target runtime behavior. |
+| Removing an active local account signs out local auth before deleting the snapshot. | Seal runtime/live scenario exists | `remove-active-account-signs-out-before-deletion` proves the selected fixture-owned local plus connected-remote target shape without real auth mutation. Lower-layer tests continue to own relaunch and failure ordering. |
+| Removing an active connected remote account signs out the host before deleting the snapshot and no longer presents it as active. | Seal runtime/live scenario exists | `remove-active-account-signs-out-before-deletion` proves fixture-owned local and remote sign-out evidence before deletion without real SSH credentials. |
 | Sign-out failure keeps the saved account and surfaces the failure. | Lower-layer test owns this better | Injected use-case tests own failure ordering and retention safely. |
 | Removing a saved account does not delete remote snapshots already installed on remote hosts. | Lower-layer test owns this better | This is command/repository orchestration best proven with injected remote clients. |
 | Remove actions are disabled while another account operation is busy. | Seal scenario needed | Runtime busy-state gating is visible and shared with other menu actions. |
@@ -171,17 +172,16 @@ These legacy flows are still useful but are not currently Seal-backed:
 | Legacy flow | Related claim | Proposed disposition |
 | --- | --- | --- |
 | `live-status-item-hover` | Text-on-hover remains visible while pointer stays inside resized status-item bounds. | Promote to a status-bar Seal scenario if live hover remains a release-readiness gate. |
-| Remove-account live validation in `MenuBarLiveValidationTests` | Active local and remote targets are signed out before saved account deletion. | Promote to destructive account-flow Seal scenario before relying on Seal for removal readiness. |
+| Remove-account live validation in `MenuBarLiveValidationTests` | Active local and remote targets are signed out before saved account deletion. | Migrated to `remove-active-account-signs-out-before-deletion`; keep lower-layer and harness safety coverage. |
 
 ## Prioritized Migration Backlog
 
 1. **Status item hover Seal scenario**: migrate `live-status-item-hover` if hover behavior remains a live release gate.
-2. **Remove active account Seal scenario**: cover local and connected remote sign-out before saved snapshot deletion, with no deletion on sign-out failure deferred to lower-layer tests.
-3. **Switch-account post-refresh Seal scenario**: extend or add Seal coverage for Codex relaunch/post-switch refresh evidence beyond visible active-account change.
-4. **Add Account success-to-switch Seal scenario**: cover `Use on This Mac` routing through the existing switch path without a second confirmation.
-5. **Remote verification failure Seal scenario**: prove runtime failure surfacing after a remote switch verification mismatch.
-6. **Busy-state gating Seal scenario**: cover disabled or confirmation-routed actions during active account operations.
-7. **Notification action dispatch Seal scenario**: cover notification actions routing into local or remote switch paths when macOS notification delivery can be controlled without flakiness.
+2. **Switch-account post-refresh Seal scenario**: extend or add Seal coverage for Codex relaunch/post-switch refresh evidence beyond visible active-account change.
+3. **Add Account success-to-switch Seal scenario**: cover `Use on This Mac` routing through the existing switch path without a second confirmation.
+4. **Remote verification failure Seal scenario**: prove runtime failure surfacing after a remote switch verification mismatch.
+5. **Busy-state gating Seal scenario**: cover disabled or confirmation-routed actions during active account operations.
+6. **Notification action dispatch Seal scenario**: cover notification actions routing into local or remote switch paths when macOS notification delivery can be controlled without flakiness.
 
 ## Not Recommended For Seal
 

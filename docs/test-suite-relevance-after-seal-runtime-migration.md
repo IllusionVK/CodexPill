@@ -74,13 +74,13 @@ Seal already owns these runtime/live claims as canonical migrated scenarios:
 | Remote-host submenu switch updates that host's active account. | `live-remote-host-switch` | `switch-account-on-host-changes-remote-active-account` | Keep `SwitchAccountOnHostWorkflowTests`, `RemoteHostAccountVerifierTests`, and SSH/validation-client tests for install, switch, refresh, verification, and failure semantics. |
 | Scheduled refresh completes without changing saved account identity or showing a blocking alert. | `live-scheduled-refresh` | `scheduled-refresh-preserves-account-catalog` | Keep controller/use-case tests for silent refresh, error behavior, stale rate-limit preservation, and remote refresh. Candidate to reduce duplicate live proof checks only after failure-path ownership is clear. |
 | Persisted remote host refresh failure preserves fallback state and hides disconnected hosts from active account facts. | `persisted_host_refresh_failure` | `remote-host-refresh-failure-preserves-fallback-state` | Keep host refresh, active-card projection, and validation-client tests for lower-layer fallback/disconnection state. Candidate to narrow duplicate live success assertions now that Seal owns the runtime claim. |
+| Removing an active saved account signs out active targets before deleting the saved snapshot. | Remove-account live validation in `MenuBarLiveValidationTests` | `remove-active-account-signs-out-before-deletion` | Keep `DeleteSavedAccountUseCaseTests`, repository deletion tests, remote command mapping tests, sign-out failure ordering tests, and fixture safety tests. |
 
 Claims that still need Seal scenarios must not drive deletion yet:
 
 - `live-menu-open`: app launch, menu-open runtime snapshot, custom row width, and inactive-account action wiring.
 - `live-status-item-hover`: status-item hover and resized bounds behavior.
 - active-account grouping across local and remote targets.
-- remove active account sign-out before saved snapshot deletion.
 - switch-account relaunch and post-switch refresh evidence.
 - Add Account success routing into local switch without a second confirmation.
 - remote verification failure surfaced in the live menu.
@@ -140,7 +140,6 @@ only by legacy live tests or deterministic approximations:
 | --- | --- | --- |
 | Baseline menu-open Seal scenario | `make verify-ui-live` / `live-menu-open` plus deterministic UI | Runtime launch, menu opening, custom row width, and action wiring are live readiness claims. |
 | Status-item hover Seal scenario | `StatusItemRuntimeTests` plus `live-status-item-hover` | Unit tests cover policy/events, but real hover bounds are runtime UI behavior. |
-| Remove active account Seal scenario | `DeleteSavedAccountUseCaseTests`, host client tests, `MenuBarLiveValidationTests` | Live destructive flow deserves Seal readiness proof, while failure ordering stays lower-layer. |
 | Switch-account post-refresh Seal scenario | `SwitchAccountWorkflowTests` plus current switch Seal scenario | Existing Seal coverage proves visible active-account change, not relaunch/post-switch refresh as distinct invariants. |
 | Add Account success-to-switch Seal scenario | `AccountActionFlowTests`, `AddAccountWorkflowTests`, alert tests | Runtime coordinator wiring after success is not currently Seal-backed. |
 | Remote verification failure Seal scenario | `SwitchAccountOnHostWorkflowTests`, `MenuBarLiveValidationTests` | Injected tests prove failure semantics; live menu recovery remains a runtime gap. |
