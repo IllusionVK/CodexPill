@@ -129,7 +129,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `rule`: The CodexPill-owned Seal runner adapter must accept Seal's generic `--scenario`, `--proof-output`, and `--artifact-root` inputs, resolve selected CodexPill runtime scenarios locally, emit proof through CodexPill-owned proof emitters, and write adapter diagnostics under the runner-owned `adapter/` directory without teaching Seal CodexPill scenario semantics.
 - `owner_layer`: `integration`
 - `proofs_required`: `["integration", "seal_run"]`
-- `scenarios`: `["switch-account-changes-active-account", "add-host-destination-validation-failed", "remote-host-refresh-failure-preserves-fallback-state", "baseline-menu-open-runtime-ready", "unsupported-scenario"]`
+- `scenarios`: `["switch-account-changes-active-account", "add-host-destination-validation-failed", "remote-host-refresh-failure-preserves-fallback-state", "baseline-menu-open-runtime-ready", "active-account-grouping-runtime-ready", "unsupported-scenario"]`
 
 ### `validation.seal_only_runtime.selected_flow_authority`
 
@@ -137,7 +137,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `rule`: Selected CodexPill runtime validation flows must run through config-backed `seal run`; `proof/`, `reports/result.json`, `reports/report.md`, and `adapter/` are the only authoritative pass/fail artifacts. CodexPill may write a compatibility summary, but it must only point to Seal artifacts and mark legacy runtime output as non-authoritative.
 - `owner_layer`: `integration`
 - `proofs_required`: `["integration", "seal_run"]`
-- `scenarios`: `["switch-account-changes-active-account", "add-host-destination-validation-failed", "remote-host-refresh-failure-preserves-fallback-state", "baseline-menu-open-runtime-ready"]`
+- `scenarios`: `["switch-account-changes-active-account", "add-host-destination-validation-failed", "remote-host-refresh-failure-preserves-fallback-state", "baseline-menu-open-runtime-ready", "active-account-grouping-runtime-ready"]`
 
 ### `menubar.status_item_content.fallback_icon_only`
 
