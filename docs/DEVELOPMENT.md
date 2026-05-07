@@ -53,6 +53,12 @@ Live menubar validation:
 make verify-ui-live
 ```
 
+Seal-only account-switch runtime validation:
+
+```bash
+make verify-account-switch-seal
+```
+
 ## Validation Artifacts
 
 `make verify-ui` renders deterministic menu states from fixtures and writes screenshot plus JSON artifacts under `build/verification/<agent>/<scenario>/`.

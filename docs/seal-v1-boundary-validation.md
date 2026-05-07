@@ -7,7 +7,10 @@ The current V1 boundary is deliberately split:
 - CodexPill owns a proof-producing entrypoint for a real product rule.
 - Seal owns verification of the emitted proof through `seal-verifier`.
 
-This slice validates `accounts.switch_account.menu_action_changes_active_account` without committing to the future `seal-run` product shape.
+This slice validates `accounts.switch_account.menu_action_changes_active_account`.
+As of RGR-253, the selected runtime validation gate for
+`switch-account-changes-active-account` is the explicit `seal run` path; the
+direct emitter remains useful for lower-level proof-emitter development only.
 
 ## Account Switch Proof Emitter
 
@@ -33,17 +36,14 @@ The emitter refuses to write under default Codex production data directories:
 - `~/Library/Application Support/Codex`
 - `~/Library/Application Support/CodexPill`
 
-## Seal Run Adapter Prototype
+## Seal-Only Runtime Validation
 
-CodexPill now has a prototype client-owned adapter for Seal's provisional
-`seal run` command:
+CodexPill has a client-owned adapter for Seal's provisional `seal run` command.
+Run the selected account-switch runtime validation through the repo-local
+Makefile target:
 
 ```bash
-swift run --package-path /Users/raphh/Projects/Seal seal run \
-  --scenario switch-account-changes-active-account \
-  --output build/seal-run/account-switch \
-  --proof-output build/seal-run/account-switch/proof \
-  --adapter scripts/seal_run_adapter.sh
+AGENT_NAME=symphony-RGR-253 make verify-account-switch-seal
 ```
 
 The adapter accepts Seal's generic `--scenario`, `--proof-output`, and
@@ -51,7 +51,21 @@ The adapter accepts Seal's generic `--scenario`, `--proof-output`, and
 switch scenario, emits proof through `make emit-account-switch-proof`, and writes
 CodexPill diagnostics under the runner-owned `adapter/` directory.
 
-The direct baseline remains:
+The authoritative artifacts for this selected flow are:
+
+- `proof/`
+- `reports/result.json`
+- `reports/report.md`
+- `adapter/`
+
+`codexpill-summary.json` is compatibility-only. It points report consumers to
+Seal artifacts, records the Seal runner exit code, and marks legacy CodexPill
+runtime outputs such as `summary.json` and `validation-events.jsonl` as
+non-authoritative. The wrapper removes stale legacy output for this scenario
+before invoking `seal run`, so old CodexPill runtime artifacts cannot make the
+selected flow pass.
+
+The direct proof-emitter development path remains:
 
 ```bash
 OUTPUT_DIR=build/validation-proof/account-switch make emit-account-switch-proof
@@ -62,11 +76,12 @@ swift run --package-path /Users/raphh/Projects/Seal seal-verifier \
   build/validation-proof/account-switch
 ```
 
-Prototype decision: continue toward CodexPill `seal run` adoption for
-deterministic Seal-backed scenarios, but keep direct `seal-verifier` as the
-stable path until `seal run` is no longer provisional. The adapter boundary fits
-the existing account-switch proof emitter cleanly without moving CodexPill
-scenario resolution, fixture setup, or business semantics into Seal.
+RGR-253 decision: for `switch-account-changes-active-account`, Seal runner
+artifacts are good enough to be the runtime validation authority. The reports
+give the required machine-readable and human-readable evidence, and the runner
+exit codes distinguish failed proof, invalid or incomplete proof, adapter
+failure, and runner/setup error. The remaining friction is adapter ceremony and
+build cost, not missing report authority.
 
 The first failure path exercised by this prototype is adapter-side scenario
 resolution: unsupported scenarios exit non-zero and write diagnostics under
@@ -130,7 +145,7 @@ Current friction:
   build work. That is acceptable for this deterministic boundary proof, but it
   is real orchestration cost rather than a lightweight contract check.
 
-Decision after RGR-222: keep the direct `make emit-account-switch-proof` plus
-`seal-verifier` path as the stable fallback. Do not migrate all CodexPill
-validation to `seal run` until the Seal runner contract is no longer
-provisional.
+Decision after RGR-253: use `make verify-account-switch-seal` as the selected
+account-switch runtime validation gate. Do not migrate all CodexPill validation
+to `seal run` yet, and do not add CodexPill adapter discovery to Seal in this
+slice.

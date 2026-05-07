@@ -9,7 +9,7 @@ PROOF_EMITTER_BINARY := $(DERIVED_DATA)/Build/Products/Debug/CodexPillProofEmitt
 DEV_BUNDLE_ID ?= com.raphhgg.codexpill.dev
 STAGING_BUNDLE_ID ?= com.raphhgg.codexpill.staging
 
-.PHONY: diagnose generate prepare-result-bundle build test mutation build-proof-emitter emit-account-switch-proof run verify-ui verify-ui-live clean
+.PHONY: diagnose generate prepare-result-bundle build test mutation build-proof-emitter emit-account-switch-proof verify-account-switch-seal run verify-ui verify-ui-live clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -51,6 +51,9 @@ emit-account-switch-proof: build-proof-emitter
 		exit 64; \
 	fi
 	"$(PROOF_EMITTER_BINARY)" emit-account-switch-proof --output-dir "$${OUTPUT_DIR}"
+
+verify-account-switch-seal:
+	./scripts/verify_account_switch_seal.sh
 
 test: generate prepare-result-bundle
 	xcodebuild test \

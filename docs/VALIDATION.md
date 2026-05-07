@@ -131,6 +131,14 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["integration", "seal_run"]`
 - `scenarios`: `["switch-account-changes-active-account", "unsupported-scenario"]`
 
+### `validation.seal_only_runtime.account_switch_authority`
+
+- `feature`: `validation`
+- `rule`: The selected CodexPill runtime validation flow for `switch-account-changes-active-account` must run through `seal run`; `proof/`, `reports/result.json`, `reports/report.md`, and `adapter/` are the only authoritative pass/fail artifacts. CodexPill may write a compatibility summary, but it must only point to Seal artifacts and mark legacy runtime output as non-authoritative.
+- `owner_layer`: `integration`
+- `proofs_required`: `["integration", "seal_run"]`
+- `scenarios`: `["switch-account-changes-active-account"]`
+
 ### `menubar.status_item_content.fallback_icon_only`
 
 - `feature`: `menubar`
@@ -293,13 +301,13 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `accounts.switch_account.menu_action_changes_active_account`
 
 - `feature`: `accounts`
-- `rule`: Selecting an inactive account from the running menubar emits the switch workflow event sequence and changes the active-account snapshot. The live smoke additionally checks that the runtime snapshot moved to the clicked target.
-- `owner_layer`: `live_ui`
-- `proofs_required`: `["integration", "live_ui"]`
+- `rule`: Selecting an inactive account emits the switch workflow event sequence and changes the active-account snapshot. For the selected runtime validation flow, Seal runner artifacts are the authoritative pass/fail gate.
+- `owner_layer`: `seal_run`
+- `proofs_required`: `["integration", "seal_run"]`
 - `scenarios`: `["live-account-switch", "switch-account-changes-active-account"]`
 - `event_evidence`: `["menu_action_dispatched", "switch_confirmation_presented", "switch_confirmation_accepted", "switch_workflow_started", "active_account_changed"]`
 - `snapshot_evidence`: `["account_before", "account_after"]`
-- `seal_v1_boundary_validation`: `make emit-account-switch-proof` emits a deterministic `.integration` Seal proof for this invariant from fixture-owned account state only. This is an internal V1 boundary validation slice for CodexPill-owned proof emission plus Seal-owned verification; it is not the future Seal-owned one-command runner.
+- `seal_only_runtime_validation`: `make verify-account-switch-seal` runs the CodexPill-owned explicit adapter through `seal run`. Seal outputs under `proof/`, `reports/`, and `adapter/` are authoritative; CodexPill's `codexpill-summary.json` is compatibility-only.
 
 ### `menubar.text_on_hover.stays_visible_inside_resized_bounds`
 
