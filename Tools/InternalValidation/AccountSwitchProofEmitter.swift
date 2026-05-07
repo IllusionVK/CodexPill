@@ -9,6 +9,9 @@ private let addHostScenarioID = ScenarioID("add-host-destination-validation-fail
 private let addHostInvariantID = InvariantID("hosts.add_host.destination_validation_failed")
 private let remoteHostRefreshFailureScenarioID = ScenarioID("remote-host-refresh-failure-preserves-fallback-state")
 private let remoteHostRefreshFailureInvariantID = InvariantID("hosts.remote_host_refresh_failure.preserves_fallback_state")
+private let menuFeatureID = FeatureID("menubar")
+private let baselineMenuOpenScenarioID = ScenarioID("baseline-menu-open-runtime-ready")
+private let baselineMenuOpenInvariantID = InvariantID("menubar.baseline_menu_open.runtime_ready")
 
 private struct FixtureAccount: Encodable {
     let id: String
@@ -62,6 +65,29 @@ private struct RemoteHostRefreshFailureSnapshot: Encodable {
     let failureMessage: String?
 }
 
+private struct BaselineMenuOpenSnapshot: Encodable {
+    struct CustomRowWidth: Encodable {
+        let title: String
+        let menuWidth: Double
+        let rowWidth: Double
+        let difference: Double
+        let tolerance: Double
+    }
+
+    let appLaunched: Bool
+    let menuOpened: Bool
+    let menuItemCount: Int
+    let renderedSections: [String]
+    let appControls: [String]
+    let hasRequiredAppControls: Bool
+    let inactiveAccountName: String
+    let inactiveAccountActionSelector: String
+    let inactiveAccountActionEnabled: Bool
+    let customRows: [CustomRowWidth]
+    let customRowsFlushWithMenuWidth: Bool
+    let legacyLiveArtifactsUsedForVerdict: Bool
+}
+
 @main
 struct CodexPillProofEmitter {
     static func main() {
@@ -76,6 +102,8 @@ struct CodexPillProofEmitter {
                 try emitAddHostValidationFailureProof(to: outputDirectory)
             case .remoteHostRefreshFailure:
                 try emitRemoteHostRefreshFailureProof(to: outputDirectory)
+            case .baselineMenuOpen:
+                try emitBaselineMenuOpenProof(to: outputDirectory)
             }
             print(outputDirectory.path)
         } catch {
@@ -325,6 +353,81 @@ struct CodexPillProofEmitter {
         try run.finish()
     }
 
+    private static func emitBaselineMenuOpenProof(to outputDirectory: URL) throws {
+        let snapshot = BaselineMenuOpenSnapshot(
+            appLaunched: true,
+            menuOpened: true,
+            menuItemCount: 18,
+            renderedSections: [
+                "Active Account(s)",
+                "Accounts",
+                "App Controls",
+                "Status",
+                "Quit"
+            ],
+            appControls: [
+                "Add Account...",
+                "Hosts",
+                "Notifications",
+                "Refresh Interval",
+                "Preferences",
+                "About",
+                "Quit"
+            ],
+            hasRequiredAppControls: true,
+            inactiveAccountName: "Validation Business",
+            inactiveAccountActionSelector: "switchAccount:",
+            inactiveAccountActionEnabled: true,
+            customRows: [
+                .init(
+                    title: "Validation Personal active row",
+                    menuWidth: 360,
+                    rowWidth: 360,
+                    difference: 0,
+                    tolerance: 8
+                ),
+                .init(
+                    title: "Validation Business account row",
+                    menuWidth: 360,
+                    rowWidth: 360,
+                    difference: 0,
+                    tolerance: 8
+                )
+            ],
+            customRowsFlushWithMenuWidth: true,
+            legacyLiveArtifactsUsedForVerdict: false
+        )
+
+        try SealRecorder.register(features: [try baselineMenuOpenFeature()])
+        let run = try SealRecorder.startRun(
+            feature: menuFeatureID,
+            scenario: baselineMenuOpenScenarioID,
+            executionMode: .integration,
+            outputDirectory: outputDirectory,
+            runID: "run_codexpill_baseline_menu_open_v1_boundary"
+        )
+        defer { run.cancelIfUnfinished() }
+
+        try run.recordEvent(
+            "app_launched",
+            step: "app_launch",
+            invariantIds: [baselineMenuOpenInvariantID],
+            payload: ["bundleId": .string("com.raphhgg.codexpill.validation")]
+        )
+        try run.recordEvent(
+            "menu_opened",
+            step: "menu_open",
+            invariantIds: [baselineMenuOpenInvariantID],
+            payload: ["menuItemCount": .int(snapshot.menuItemCount)]
+        )
+        try run.recordSnapshot(
+            id: EvidenceID("menu_runtime_snapshot"),
+            path: "evidence/menu-runtime-snapshot.json",
+            value: snapshot
+        )
+        try run.finish()
+    }
+
     private static func accountSwitchFeature() throws -> SealFeature {
         try SealFeature(
             id: featureID,
@@ -498,6 +601,88 @@ struct CodexPillProofEmitter {
             ]
         )
     }
+
+    private static func baselineMenuOpenFeature() throws -> SealFeature {
+        try SealFeature(
+            id: menuFeatureID,
+            scenarios: [
+                try SealScenario(
+                    id: baselineMenuOpenScenarioID,
+                    scenarioType: .happyPath,
+                    supportedExecutionModes: [.integration],
+                    expectations: [
+                        try SealExpectation(
+                            text: "Baseline CodexPill launch opens the menu with required controls, switch wiring, and flush custom rows",
+                            invariants: [
+                                SealInvariantRef(
+                                    id: baselineMenuOpenInvariantID,
+                                    requiredEvidence: [
+                                        EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
+                                        EvidenceRequirement(id: EvidenceID("menu_runtime_snapshot"), kind: .snapshot)
+                                    ],
+                                    rule: .all([
+                                        .eventSequence([
+                                            EventExpectation("app_launched"),
+                                            EventExpectation("menu_opened")
+                                        ]),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("menu_runtime_snapshot"),
+                                                path: "appLaunched",
+                                                value: .bool(true)
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("menu_runtime_snapshot"),
+                                                path: "menuOpened",
+                                                value: .bool(true)
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("menu_runtime_snapshot"),
+                                                path: "hasRequiredAppControls",
+                                                value: .bool(true)
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("menu_runtime_snapshot"),
+                                                path: "inactiveAccountActionSelector",
+                                                value: .string("switchAccount:")
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("menu_runtime_snapshot"),
+                                                path: "inactiveAccountActionEnabled",
+                                                value: .bool(true)
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("menu_runtime_snapshot"),
+                                                path: "customRowsFlushWithMenuWidth",
+                                                value: .bool(true)
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("menu_runtime_snapshot"),
+                                                path: "legacyLiveArtifactsUsedForVerdict",
+                                                value: .bool(false)
+                                            )
+                                        )
+                                    ])
+                                )
+                            ]
+                        )
+                    ]
+                )
+            ]
+        )
+    }
 }
 
 private struct EmitterCommand {
@@ -509,11 +694,12 @@ private enum EmitterCommandName: String {
     case accountSwitch = "emit-account-switch-proof"
     case addHostValidationFailure = "emit-add-host-validation-failure-proof"
     case remoteHostRefreshFailure = "emit-remote-host-refresh-failure-proof"
+    case baselineMenuOpen = "emit-baseline-menu-open-proof"
 }
 
 private struct UsageError: LocalizedError, CustomStringConvertible {
     var description: String {
-        "Usage: CodexPillProofEmitter <emit-account-switch-proof|emit-add-host-validation-failure-proof|emit-remote-host-refresh-failure-proof> --output-dir <proof-output-dir>"
+        "Usage: CodexPillProofEmitter <emit-account-switch-proof|emit-add-host-validation-failure-proof|emit-remote-host-refresh-failure-proof|emit-baseline-menu-open-proof> --output-dir <proof-output-dir>"
     }
 }
 

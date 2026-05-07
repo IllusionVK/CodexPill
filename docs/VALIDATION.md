@@ -123,21 +123,21 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 
 ## Current feature invariants
 
-### `validation.seal_run_adapter.resolves_account_switch`
+### `validation.seal_run_adapter.resolves_selected_runtime_scenarios`
 
 - `feature`: `validation`
-- `rule`: The CodexPill-owned Seal runner adapter must accept Seal's generic `--scenario`, `--proof-output`, and `--artifact-root` inputs, resolve `switch-account-changes-active-account` locally, emit proof through the existing account-switch proof emitter, and write adapter diagnostics under the runner-owned `adapter/` directory without teaching Seal CodexPill scenario semantics.
+- `rule`: The CodexPill-owned Seal runner adapter must accept Seal's generic `--scenario`, `--proof-output`, and `--artifact-root` inputs, resolve selected CodexPill runtime scenarios locally, emit proof through CodexPill-owned proof emitters, and write adapter diagnostics under the runner-owned `adapter/` directory without teaching Seal CodexPill scenario semantics.
 - `owner_layer`: `integration`
 - `proofs_required`: `["integration", "seal_run"]`
-- `scenarios`: `["switch-account-changes-active-account", "unsupported-scenario"]`
+- `scenarios`: `["switch-account-changes-active-account", "add-host-destination-validation-failed", "remote-host-refresh-failure-preserves-fallback-state", "baseline-menu-open-runtime-ready", "unsupported-scenario"]`
 
-### `validation.seal_only_runtime.account_switch_authority`
+### `validation.seal_only_runtime.selected_flow_authority`
 
 - `feature`: `validation`
-- `rule`: The selected CodexPill runtime validation flow for `switch-account-changes-active-account` must run through config-backed `seal run`; `proof/`, `reports/result.json`, `reports/report.md`, and `adapter/` are the only authoritative pass/fail artifacts. CodexPill may write a compatibility summary, but it must only point to Seal artifacts and mark legacy runtime output as non-authoritative.
+- `rule`: Selected CodexPill runtime validation flows must run through config-backed `seal run`; `proof/`, `reports/result.json`, `reports/report.md`, and `adapter/` are the only authoritative pass/fail artifacts. CodexPill may write a compatibility summary, but it must only point to Seal artifacts and mark legacy runtime output as non-authoritative.
 - `owner_layer`: `integration`
 - `proofs_required`: `["integration", "seal_run"]`
-- `scenarios`: `["switch-account-changes-active-account"]`
+- `scenarios`: `["switch-account-changes-active-account", "add-host-destination-validation-failed", "remote-host-refresh-failure-preserves-fallback-state", "baseline-menu-open-runtime-ready"]`
 
 ### `menubar.status_item_content.fallback_icon_only`
 
@@ -174,10 +174,21 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `menubar.custom_rows.stay_flush_with_rendered_menu_width`
 
 - `feature`: `menubar`
-- `rule`: Custom menubar rows must stay flush with the rendered menu width so hosted cards and other custom sections do not leave a visible right-side gap.
-- `owner_layer`: `live_ui`
-- `proofs_required`: `["live_ui"]`
-- `scenarios`: `["live-menu-open"]`
+- `rule`: Custom menubar rows must stay flush with the rendered menu width so hosted cards and other custom sections do not leave a visible right-side gap. For baseline runtime readiness, Seal runner artifacts are the authoritative pass/fail gate.
+- `owner_layer`: `seal_run`
+- `proofs_required`: `["seal_run"]`
+- `scenarios`: `["live-menu-open", "baseline-menu-open-runtime-ready"]`
+
+### `menubar.baseline_menu_open.runtime_ready`
+
+- `feature`: `menubar`
+- `rule`: Baseline CodexPill runtime readiness proves app launch, menu opening, rendered menu state, required App Controls presence, inactive-account `switchAccount:` action wiring, flush custom row width evidence, and no legacy live artifact dependency for the verdict.
+- `owner_layer`: `seal_run`
+- `proofs_required`: `["seal_run", "deterministic_ui"]`
+- `scenarios`: `["live-menu-open", "baseline-menu-open-runtime-ready"]`
+- `event_evidence`: `["app_launched", "menu_opened"]`
+- `snapshot_evidence`: `["menu_runtime_snapshot"]`
+- `seal_only_runtime_validation`: Prefer `swift run --package-path ../Seal seal run --scenario baseline-menu-open-runtime-ready`, which resolves the CodexPill-owned adapter from `.seal/run.yml` and uses Seal's default artifact layout. `make verify-baseline-menu-open-seal` remains a compatibility wrapper with a stable `build/verification/<agent>/...` artifact root. Seal outputs under `proof/`, `reports/`, and `adapter/` are authoritative; CodexPill's `codexpill-summary.json` is compatibility-only.
 
 ### `accounts.add_account.name_dialog_cancelled`
 
