@@ -43,6 +43,7 @@ summaries and legacy live artifacts are diagnostic pointers only.
 | Add Host panel accepts an invalid destination and emits validation feedback. | `live-add-host-destination-validation-failed` | `add-host-destination-validation-failed` | Seal runtime/live scenario exists |
 | Switching an account through a remote-host submenu updates that host's active account. | `live-remote-host-switch` | `switch-account-on-host-changes-remote-active-account` | Seal runtime/live scenario exists |
 | Scheduled refresh requests and completes without changing saved account identity or showing a blocking alert. | `live-scheduled-refresh` | `scheduled-refresh-preserves-account-catalog` | Seal runtime/live scenario exists |
+| Persisted remote host refresh failure preserves fallback state, marks the host disconnected, and hides disconnected hosts from active account facts. | `persisted_host_refresh_failure` | `remote-host-refresh-failure-preserves-fallback-state` | Seal runtime/live scenario exists |
 
 ## Coverage Map
 
@@ -148,7 +149,7 @@ summaries and legacy live artifacts are diagnostic pointers only.
 | Successful Add Host validates SSH and remote Codex readiness, then asks whether to install and switch the current account. | Seal scenario needed | The invalid path is Seal-backed, but success/follow-up runtime flow is not. Real SSH readiness remains environmental. |
 | SSH destination accepts OpenSSH-compatible aliases and destinations but not raw SSH flags, and uses `BatchMode=yes`. | Lower-layer test owns this better | SSH command construction and destination validation should stay in SSH client/unit tests. |
 | Non-interactive SSH failures explain setup must happen outside CodexPill. | Manual/OS/environmental validation | Failure causes depend on local SSH config, credentials, host-key trust, 2FA, and network. |
-| Remote host refresh fallback preserves last-known account state while marking disconnected. | Seal scenario needed | `persisted_host_refresh_failure` is listed as live UI coverage but is not Seal-backed. |
+| Remote host refresh fallback preserves last-known account state while marking disconnected. | Seal runtime/live scenario exists | Covered by `persisted_host_refresh_failure` / `remote-host-refresh-failure-preserves-fallback-state`. |
 | Reachable verification failures remain connected and surface verification failure. | Seal scenario needed | Runtime recovery state should be Seal-backed after the happy path. |
 
 ### Notifications
@@ -169,7 +170,6 @@ These legacy flows are still useful but are not currently Seal-backed:
 | --- | --- | --- |
 | `live-menu-open` | App starts, menu opens, custom rows fit rendered width, inactive-account action wiring metadata is present. | Promote to a baseline menu-open Seal scenario. |
 | `live-status-item-hover` | Text-on-hover remains visible while pointer stays inside resized status-item bounds. | Promote to a status-bar Seal scenario if live hover remains a release-readiness gate. |
-| `persisted_host_refresh_failure` | Persisted remote host refresh failure preserves fallback state and hides disconnected hosts from active cards. | Promote to a remote-host failure Seal scenario. |
 | Remove-account live validation in `MenuBarLiveValidationTests` | Active local and remote targets are signed out before saved account deletion. | Promote to destructive account-flow Seal scenario before relying on Seal for removal readiness. |
 | Multiple-host active-card live validation in `MenuBarLiveValidationTests` | Connected verified remote hosts render grouped active account cards without mutating local catalog. | Promote to active-account grouping Seal scenario. |
 
@@ -177,14 +177,13 @@ These legacy flows are still useful but are not currently Seal-backed:
 
 1. **Baseline menu-open Seal scenario**: cover app launch, menu-open runtime snapshot, custom row width, inactive account action wiring, and required App Controls presence.
 2. **Status item hover Seal scenario**: migrate `live-status-item-hover` if hover behavior remains a live release gate.
-3. **Remote host refresh failure Seal scenario**: cover persisted host fallback, disconnected marking, and hiding disconnected hosts from active account cards.
-4. **Active account grouping Seal scenario**: cover local plus remote same-account collapse and multiple connected remote host grouping.
-5. **Remove active account Seal scenario**: cover local and connected remote sign-out before saved snapshot deletion, with no deletion on sign-out failure deferred to lower-layer tests.
-6. **Switch-account post-refresh Seal scenario**: extend or add Seal coverage for Codex relaunch/post-switch refresh evidence beyond visible active-account change.
-7. **Add Account success-to-switch Seal scenario**: cover `Use on This Mac` routing through the existing switch path without a second confirmation.
-8. **Remote verification failure Seal scenario**: prove runtime failure surfacing after a remote switch verification mismatch.
-9. **Busy-state gating Seal scenario**: cover disabled or confirmation-routed actions during active account operations.
-10. **Notification action dispatch Seal scenario**: cover notification actions routing into local or remote switch paths when macOS notification delivery can be controlled without flakiness.
+3. **Active account grouping Seal scenario**: cover local plus remote same-account collapse and multiple connected remote host grouping.
+4. **Remove active account Seal scenario**: cover local and connected remote sign-out before saved snapshot deletion, with no deletion on sign-out failure deferred to lower-layer tests.
+5. **Switch-account post-refresh Seal scenario**: extend or add Seal coverage for Codex relaunch/post-switch refresh evidence beyond visible active-account change.
+6. **Add Account success-to-switch Seal scenario**: cover `Use on This Mac` routing through the existing switch path without a second confirmation.
+7. **Remote verification failure Seal scenario**: prove runtime failure surfacing after a remote switch verification mismatch.
+8. **Busy-state gating Seal scenario**: cover disabled or confirmation-routed actions during active account operations.
+9. **Notification action dispatch Seal scenario**: cover notification actions routing into local or remote switch paths when macOS notification delivery can be controlled without flakiness.
 
 ## Not Recommended For Seal
 

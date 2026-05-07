@@ -12,15 +12,12 @@ backlog, not a cleanup patch. No tests are deleted by this slice.
 - `docs/VALIDATION.md`
 - `docs/feature-to-seal-scenario-coverage.md`
 - repository test layout under `Tests/`
-- current Seal-backed scenario declarations in feature-owned validation
-  catalogs under `Sources/Features/Accounts/Validation/` and
+- current Seal-backed scenario declarations in `.seal/run.yml` and
+  feature-owned validation catalogs under
+  `Sources/Features/Accounts/Validation/` and
   `Sources/Features/Hosts/Validation/`, plus shared proof runtime under
   `Sources/Features/Validation/`
-
-The issue brief referenced `docs/seal-runtime-validation-migration-plan.md`.
-That file is not present in this checkout. The landed CodexPill-owned coverage
-map is `docs/feature-to-seal-scenario-coverage.md`, which records the same
-runtime ownership boundary needed for this review.
+- `docs/seal-runtime-validation-migration-plan.md`
 
 ## Decision Rule
 
@@ -36,6 +33,17 @@ own: bad data mapping, broken persistence, unsafe auth-file ordering, wrong
 command construction, missing redaction, stale rate-limit preservation, ranking
 policy drift, or injected error mapping.
 
+## Ownership Categories
+
+| Category | Disposition | Current examples |
+| --- | --- | --- |
+| Keep | Preserve lower-layer tests when they prove distinct defects before runtime proof would fail. | Model, settings, parser, persistence, injected workflow, deterministic UI, projection, validation-boundary, redaction, and harness-isolation tests. |
+| Migrate | Promote runtime/live behavior to Seal when the claim needs a running app, live menu state, runtime action dispatch, or cross-feature coordinator wiring. | Baseline menu open, hover bounds, active-account grouping, destructive remove flow, post-switch refresh evidence, Add Account success routing, remote verification failure, busy-state gating, and notification action dispatch. |
+| Remove or narrow | Delete only future duplicate assertions after equivalent Seal scenarios and stable machine-readable Seal results exist. | Legacy live success assertions for migrated scenarios, duplicate proof-sequence checks, and stale snapshot presence checks that can pass without fresh Seal verification. |
+| Defer | Keep manual or OS/external-environment validation explicit until automation can control the dependency without risking local state or flakiness. | Real browser device-auth completion, real SSH credentials and host-key behavior, macOS notification authorization/delivery, clipboard interaction, global hot-key conflicts, native alert text entry, and installed Codex app-server protocol drift. |
+
+This slice records ownership only. No test is deleted here.
+
 ## Suites Reviewed
 
 | Suite area | Files reviewed | Current relevance |
@@ -50,8 +58,8 @@ policy drift, or injected error mapping.
 | Menubar presentation and deterministic UI | `Tests/MenuBar/MenuBarMenu*Tests.swift`, `MenuBarAccount*Tests.swift`, `ActiveAccountsProjectionTests.swift`, `StatusBarIconRendererTests.swift`, `KeyboardShortcutPresentationTests.swift`, `MenuBarUIValidationTests.swift` | Keep. Static menu shape, copy, layout, projection, sorting, overflow, and deterministic screenshots are better owned below Seal. |
 | Menubar runtime units | `Tests/MenuBar/StatusItem*Tests.swift`, `GlobalShortcutRuntimeTests.swift`, `MenuBarHostActionCoordinatorTests.swift`, `MenuBarNotificationWorkflowTests.swift`, `AccountAvailabilityNotificationRuntimeTests.swift` | Keep. These tests inject OS/runtime seams and cover policy, event emission, registration failure, notification workflow, and coordinator routing. |
 | Menubar alert and form tests | `Tests/MenuBar/MenuBarAlertFactoryTests.swift`, `MenuBarHostSetupFormStateTests.swift`, `ShortcutCapturePanelTests.swift` | Keep. Copy/action shape and native-panel state are lower-layer or manual/OS adjacent. |
-| Menubar live validation tests | `Tests/MenuBar/MenuBarLiveValidationTests.swift` | Mixed. Keep harness, redaction, injected-runtime, and non-Seal flows. Rewrite or migrate Seal-proof emitter tests after Seal has stable machine-readable verifier result coverage. Promote legacy runtime flows to Seal scenarios before deleting live coverage. |
-| Menubar live smoke script tests | `Tests/MenuBar/MenuBarLiveSmokeScriptTests.swift` | Keep for now. These tests guard the shell validation contract and Seal-derived summary semantics; revisit only after the Seal verifier artifact contract is fully stable. |
+| Menubar live validation tests | `Tests/MenuBar/MenuBarLiveValidationTests.swift` | Mixed. Keep harness, redaction, injected-runtime, and non-Seal flows. Rewrite or migrate Seal-proof emitter tests after Seal has stable machine-readable verifier result coverage. Promote legacy runtime flows to Seal scenarios before deleting live coverage. The persisted remote-host refresh failure runtime claim is now Seal-backed, so remaining CodexPill live coverage should focus on fixture safety and bridge diagnostics, not independent pass/fail authority. |
+| Menubar live smoke script tests | `Tests/MenuBar/MenuBarLiveSmokeScriptTests.swift` | Keep for now. These tests guard the shell validation contract and Seal-derived summary semantics for the legacy smoke-script bridge; revisit only after the Seal verifier artifact contract is fully stable and the bridge no longer provides handoff evidence. |
 | App runtime environment | `Tests/App/AppRuntimeEnvironmentTests.swift` | Keep. These tests enforce validation environment isolation and automated-test safety gates. |
 
 ## Feature Claims Considered
@@ -65,12 +73,12 @@ Seal already owns these runtime/live claims as canonical migrated scenarios:
 | Add Host invalid destination emits validation feedback. | `live-add-host-destination-validation-failed` | `add-host-destination-validation-failed` | Keep form-state and remote-host command tests. Candidate to reduce duplicate legacy live script assertions. |
 | Remote-host submenu switch updates that host's active account. | `live-remote-host-switch` | `switch-account-on-host-changes-remote-active-account` | Keep `SwitchAccountOnHostWorkflowTests`, `RemoteHostAccountVerifierTests`, and SSH/validation-client tests for install, switch, refresh, verification, and failure semantics. |
 | Scheduled refresh completes without changing saved account identity or showing a blocking alert. | `live-scheduled-refresh` | `scheduled-refresh-preserves-account-catalog` | Keep controller/use-case tests for silent refresh, error behavior, stale rate-limit preservation, and remote refresh. Candidate to reduce duplicate live proof checks only after failure-path ownership is clear. |
+| Persisted remote host refresh failure preserves fallback state and hides disconnected hosts from active account facts. | `persisted_host_refresh_failure` | `remote-host-refresh-failure-preserves-fallback-state` | Keep host refresh, active-card projection, and validation-client tests for lower-layer fallback/disconnection state. Candidate to narrow duplicate live success assertions now that Seal owns the runtime claim. |
 
 Claims that still need Seal scenarios must not drive deletion yet:
 
 - `live-menu-open`: app launch, menu-open runtime snapshot, custom row width, and inactive-account action wiring.
 - `live-status-item-hover`: status-item hover and resized bounds behavior.
-- `persisted_host_refresh_failure`: disconnected persisted host fallback and active-card hiding.
 - active-account grouping across local and remote targets.
 - remove active account sign-out before saved snapshot deletion.
 - switch-account relaunch and post-switch refresh evidence.
@@ -132,7 +140,6 @@ only by legacy live tests or deterministic approximations:
 | --- | --- | --- |
 | Baseline menu-open Seal scenario | `make verify-ui-live` / `live-menu-open` plus deterministic UI | Runtime launch, menu opening, custom row width, and action wiring are live readiness claims. |
 | Status-item hover Seal scenario | `StatusItemRuntimeTests` plus `live-status-item-hover` | Unit tests cover policy/events, but real hover bounds are runtime UI behavior. |
-| Remote host refresh failure Seal scenario | `MenuBarLiveValidationTests` | Persisted fallback and active-card hiding are live menu recovery behavior. |
 | Active account grouping Seal scenario | deterministic UI plus `MenuBarLiveValidationTests` | Grouping across local and remote targets is a visible runtime contract. |
 | Remove active account Seal scenario | `DeleteSavedAccountUseCaseTests`, host client tests, `MenuBarLiveValidationTests` | Live destructive flow deserves Seal readiness proof, while failure ordering stays lower-layer. |
 | Switch-account post-refresh Seal scenario | `SwitchAccountWorkflowTests` plus current switch Seal scenario | Existing Seal coverage proves visible active-account change, not relaunch/post-switch refresh as distinct invariants. |
@@ -153,8 +160,9 @@ Seal scenario exists and after a lower-layer distinct-failure check remains.
 
 Potential future deletion candidates:
 
-- duplicate legacy live success assertions for the five already Seal-backed
-  scenarios, but only after Seal verifier result artifacts are stable and the
+- duplicate legacy live success assertions for the already Seal-backed
+  legacy smoke-script scenarios and the config-backed remote-host refresh
+  failure scenario, but only after Seal verifier result artifacts are stable and the
   validation script no longer needs compatibility summaries;
 - redundant proof-sequence assertions that inspect the same migrated invariant
   Seal already verifies, while retaining artifact cleanup, redaction, and
@@ -189,21 +197,20 @@ that future rewrites must preserve their isolation.
    legacy live success assertions.
 2. Promote `live-status-item-hover` to a Seal scenario if hover remains a
    release-readiness gate.
-3. Promote persisted remote-host refresh failure to a Seal scenario.
-4. Promote active local/remote account grouping to a Seal scenario.
-5. Promote active-account removal sign-out flow to a Seal scenario, with
+3. Promote active local/remote account grouping to a Seal scenario.
+4. Promote active-account removal sign-out flow to a Seal scenario, with
    lower-layer tests retaining sign-out failure ordering.
-6. Extend switch-account Seal coverage for Codex relaunch and post-switch
+5. Extend switch-account Seal coverage for Codex relaunch and post-switch
    refresh evidence.
-7. Add Seal coverage for Add Account success routing into local switch.
-8. Add Seal coverage for remote switch verification failure surfacing.
-9. Add one shared busy-state action-gating Seal scenario.
-10. Add notification action dispatch Seal coverage only if macOS delivery can be
+6. Add Seal coverage for Add Account success routing into local switch.
+7. Add Seal coverage for remote switch verification failure surfacing.
+8. Add one shared busy-state action-gating Seal scenario.
+9. Add notification action dispatch Seal coverage only if macOS delivery can be
     controlled without flakiness.
-11. After machine-readable Seal verifier results are stable, narrow
+10. After machine-readable Seal verifier results are stable, narrow
     `MenuBarLiveValidationTests` Seal emitter tests to CodexPill declaration and
     event forwarding coverage.
-12. After compatibility summaries are retired, simplify
+11. After compatibility summaries are retired, simplify
     `MenuBarLiveSmokeScriptTests` to script/artifact contract checks.
 
 ## Verification Notes
@@ -211,8 +218,9 @@ that future rewrites must preserve their isolation.
 - Repository layout cross-check: test suites currently live under
   `Tests/Accounts`, `Tests/App`, `Tests/Core`, `Tests/Hosts`, `Tests/MenuBar`,
   `Tests/Platform`, and `Tests/Support`.
-- Seal coverage cross-check: five migrated runtime/live scenarios are listed in
-  `docs/feature-to-seal-scenario-coverage.md`; the remaining runtime/live
-  migration backlog in that document is reflected above.
+- Seal coverage cross-check: migrated runtime/live scenarios are listed in
+  `docs/feature-to-seal-scenario-coverage.md`, and config-backed scenarios are
+  declared in `.seal/run.yml`; the remaining runtime/live migration backlog in
+  that document is reflected above.
 - Scope check: this slice adds documentation only. It does not delete tests,
   implement cleanup, add Seal scenarios, or change live UI permissions.
