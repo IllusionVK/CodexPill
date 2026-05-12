@@ -1,10 +1,9 @@
 <p align="center">
   <img src="Resources/AppIcon.png" width="128" alt="CodexPill app icon">
-</p>
-
-<h1 align="center">CodexPill</h1>
-
-<p align="center">
+  <br>
+  <br>
+  <strong>CodexPill</strong>
+  <br>
   <i>A native macOS menubar companion for Codex accounts, limits, and remote hosts.</i>
 </p>
 
