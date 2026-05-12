@@ -9,6 +9,7 @@ Feature docs are organized by product feature area. Each area can contain behavi
 - [Accounts](accounts/00-accounts.md): saved accounts, current account, switching, adding, removing, renaming, and account refresh.
 - [Remote Hosts](remote-hosts.md): host setup, remote account install/switch, verification, and remote account presentation.
 - [Notifications](notifications.md): notification modes, permission recovery, delivery copy, actions, and dedupe behavior.
+- [Release](release/01-signed-github-zip.md): public beta distribution contract for the signed/notarized GitHub Release zip.
 
 ## Ownership Rule
 
