@@ -24,7 +24,7 @@ cask exists and has been exercised.
 
 1. Maintainer bumps the app version/build number from the repo-owned source of
    truth.
-2. Maintainer runs a release packaging command from a clean `main` checkout.
+2. Maintainer runs `make package-release` from a clean `main` checkout.
 3. Packaging builds `CodexPill.app` in release configuration.
 4. Packaging signs the app with Developer ID and hardened runtime.
 5. Packaging submits the app for notarization.
@@ -71,7 +71,7 @@ The README should include a short first-run note:
 ## Acceptance Criteria
 
 - A clean `main` checkout can produce `CodexPill.app` in release configuration.
-- The release packaging command produces a `.zip` artifact containing
+- `make package-release` produces a `.zip` artifact containing
   `CodexPill.app`.
 - The app is signed with Developer ID Application identity.
 - Hardened runtime is enabled for the signed app.

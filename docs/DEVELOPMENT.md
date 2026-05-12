@@ -23,6 +23,37 @@ Build:
 make build
 ```
 
+Package a local release zip:
+
+```bash
+make package-release
+```
+
+`make package-release` builds `CodexPill.app` in Release configuration and, by
+default, requires local Developer ID signing and notarization configuration
+before it creates a public release artifact. Configure these environment
+variables locally:
+
+- `DEVELOPER_ID_APPLICATION`: Developer ID Application signing identity name or
+  SHA-1 hash.
+- `APPLE_TEAM_ID`: Apple Developer team ID.
+- `NOTARY_PROFILE`: local `notarytool` keychain profile name.
+
+Create the notary profile with `xcrun notarytool store-credentials
+<profile-name>`. Do not commit Apple IDs, passwords, API keys, keychain exports,
+or signing credentials.
+
+For build and zip validation only, run:
+
+```bash
+PACKAGE_RELEASE_ALLOW_UNSIGNED=1 make package-release
+```
+
+Unsigned validation artifacts are marked `UNSIGNED-LOCAL` and are not public
+beta release artifacts. Dirty working trees are refused by default. For local
+validation only, `PACKAGE_RELEASE_ALLOW_DIRTY=1` allows the command to continue
+and marks the artifact name with `DIRTY`.
+
 Test:
 
 ```bash
