@@ -1,11 +1,31 @@
-# CodexPill
+<p align="center">
+  <img src="Resources/AppIcon.png" width="128" alt="CodexPill app icon">
+</p>
 
-CodexPill is a native macOS menubar app for switching between local Codex
-accounts, checking account limit state, and using saved accounts on configured
-remote hosts.
+<h1 align="center">CodexPill</h1>
+
+<p align="center">
+  <i>A native macOS menubar companion for Codex accounts, limits, and remote hosts.</i>
+</p>
+
+CodexPill keeps your Codex account state visible without pulling you out of
+flow. It shows your current session and weekly limits, lets you switch saved
+local accounts, and can use selected accounts on remote hosts you configure.
 
 It is local-first: CodexPill works with Codex state on your Mac and with remote
 hosts that you explicitly configure. It is not a cloud sync service.
+
+<p align="center">
+  <img src="docs/assets/codexpill-menu.png" width="420" alt="CodexPill menu showing active accounts, usage bars, saved accounts, and app controls">
+</p>
+
+## What It Does
+
+- Shows Codex session and weekly usage from the macOS menu bar.
+- Saves local Codex accounts so you can switch between them.
+- Adds accounts through an isolated sign-in flow without switching immediately.
+- Uses saved accounts on configured SSH hosts.
+- Keeps account snapshots local unless you explicitly copy one to a host.
 
 ## Install
 

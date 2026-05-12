@@ -104,7 +104,6 @@ Inspected:
 - `scripts/inspect_codex_identity.sh`
 - `docs/VALIDATION.md`
 - `docs/PRIVACY.md`
-- `docs/features/release/02-screenshot-demo-data.md`
 
 No raw auth snapshots or token values were found in normal product logging or
 notification paths. Validation and diagnostic artifacts can contain private

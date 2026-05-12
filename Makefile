@@ -7,7 +7,7 @@ RESULT_BUNDLE := $(BUILD_ROOT)/results/$(AGENT_NAME)/$(APP_NAME).xcresult
 DEV_BUNDLE_ID ?= com.raphhgg.codexpill.dev
 STAGING_BUNDLE_ID ?= com.raphhgg.codexpill.staging
 
-SCENARIO ?= release-demo-screenshot
+SCENARIO ?= hosted-menu-default
 VERIFICATION_DIR := $(BUILD_ROOT)/verification
 VERIFICATION_REQUEST := $(VERIFICATION_DIR)/request.json
 VERIFICATION_ARTIFACTS := $(BUILD_ROOT)/verification/$(SCENARIO)
