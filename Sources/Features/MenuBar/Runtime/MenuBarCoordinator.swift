@@ -34,6 +34,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let notificationDelivery: AccountAvailabilityNotifier
     private let applicationActivator: ApplicationActivator
     private let notificationSettingsLauncher: NotificationSettingsLauncher
+    private let diagnosticReportPresenter: DiagnosticReportPresenting
+    private let diagnosticEventRecorder: DiagnosticEventRecorder
     private let validationObserver: MenuBarValidationObserver
     private let allowsEmptyStatePrompt: Bool
     private let remoteHostRuntime: RemoteHostRuntime
@@ -112,6 +114,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         notificationDelivery: AccountAvailabilityNotifier = AccountAvailabilityNotificationCenter(),
         applicationActivator: ApplicationActivator = NSApplicationActivator(),
         notificationSettingsLauncher: NotificationSettingsLauncher = SystemNotificationSettingsLauncher(),
+        diagnosticReportPresenter: DiagnosticReportPresenting? = nil,
+        diagnosticEventRecorder: DiagnosticEventRecorder? = nil,
         validationSink: MenuBarValidationSink? = nil,
         validationScenario: String? = MenuBarValidationConfiguration.scenario(),
         validationObserver: MenuBarValidationObserver? = nil,
@@ -139,6 +143,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.notificationDelivery = notificationDelivery
         self.applicationActivator = applicationActivator
         self.notificationSettingsLauncher = notificationSettingsLauncher
+        self.diagnosticReportPresenter = diagnosticReportPresenter ?? SystemDiagnosticReportPresenter()
+        self.diagnosticEventRecorder = diagnosticEventRecorder ?? DiagnosticEventRecorder()
         self.validationObserver = validationObserver ?? MenuBarValidationObserver(
             sink: validationSink,
             scenario: validationScenario
@@ -401,6 +407,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
 
         recordMenuAction("switchAccount", payload: ["targetName": account.name])
+        diagnosticEventRecorder.recordSwitchAccount(targetAccountID: account.id)
         validationObserver.recordSwitchAccountMenuAction(
             targetAccount: account,
             activeAccount: store.activeAccount,
@@ -412,6 +419,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     @objc
     func switchAccountOnHost(_ sender: NSMenuItem) {
         guard let payload = sender.representedObject as? HostAccountMenuItemPayload else { return }
+        diagnosticEventRecorder.recordRemoteHostSwitch(
+            targetAccountID: payload.accountID,
+            hostDestination: payload.hostDestination
+        )
         hostActionCoordinator.switchAccountOnHost(
             accountID: payload.accountID,
             hostDestination: payload.hostDestination
@@ -420,17 +431,20 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     @objc
     func addHost(_ sender: NSMenuItem) {
+        recordMenuAction("addHost")
         hostActionCoordinator.addHost()
     }
 
     @objc
     func removeHost(_ sender: NSMenuItem) {
+        recordMenuAction("removeHost")
         guard let payload = sender.representedObject as? HostSelectionMenuItemPayload else { return }
         hostActionCoordinator.removeHost(hostDestination: payload.hostDestination)
     }
 
     @objc
     func reverifyHost(_ sender: NSMenuItem) {
+        recordMenuAction("reverifyHost")
         guard let payload = sender.representedObject as? HostSelectionMenuItemPayload else { return }
         hostActionCoordinator.reverifyHost(hostDestination: payload.hostDestination)
     }
@@ -441,6 +455,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     @objc
     func adoptDetectedRemoteAccount(_ sender: NSMenuItem) {
+        recordMenuAction("adoptDetectedRemoteAccount")
         guard let payload = sender.representedObject as? HostAccountMenuItemPayload else { return }
         hostActionCoordinator.adoptDetectedRemoteAccount(
             hostDestination: payload.hostDestination,
@@ -459,6 +474,26 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     func showAbout() {
         recordMenuAction("showAbout")
         alertPresenter.presentInfo(alertFactory.makeAboutRequest())
+    }
+
+    @objc
+    func exportDiagnosticReport() {
+        recordMenuAction("exportDiagnosticReport")
+        let report = DiagnosticReportBuilder(
+            appMetadata: .current(),
+            systemMetadata: .current()
+        ).makeReport(
+            state: menuState(),
+            events: diagnosticEventRecorder.events
+        )
+
+        do {
+            _ = try diagnosticReportPresenter.export(report: report)
+        } catch {
+            alertPresenter.presentInfo(
+                alertFactory.makeErrorRequest(message: "Diagnostic report export failed.")
+            )
+        }
     }
 
     @objc
@@ -700,6 +735,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func recordMenuAction(_ name: String, payload: [String: String] = [:]) {
+        diagnosticEventRecorder.recordMenuAction(name)
         validationObserver.recordMenuAction(
             name,
             payload: payload,
@@ -733,8 +769,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 switch outcome {
                 case .refreshed:
                     error = nil
+                    self.diagnosticEventRecorder.recordRefresh(resultCategory: "refreshed")
                 case .failed(let message):
                     error = message
+                    self.diagnosticEventRecorder.recordRefresh(resultCategory: "failed")
                 }
                 self.validationObserver.recordScheduledRefreshResult(
                     accountName: activeAccount.name,

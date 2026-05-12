@@ -61,6 +61,16 @@ final class PanelPresenterProbe: PanelPresenter {
 }
 
 @MainActor
+final class DiagnosticReportPresenterProbe: DiagnosticReportPresenting {
+    private(set) var reports: [DiagnosticReport] = []
+
+    func export(report: DiagnosticReport) throws -> URL? {
+        reports.append(report)
+        return URL(fileURLWithPath: "/tmp/CodexPill-Diagnostic.json")
+    }
+}
+
+@MainActor
 struct MenuBarMenuBuilderTests {
     @Test
     func appIconSourcePrefersBundledPngResource() throws {
@@ -193,6 +203,38 @@ struct MenuBarMenuBuilderTests {
         #expect(textOnHover.state == .off)
         #expect(!textOnHover.isEnabled)
         #expect(textOnHover.action == nil)
+    }
+
+    @Test
+    func menuIncludesDiagnosticReportExportActionNearAbout() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            target: coordinator
+        )
+
+        let exportIndex = try #require(menu.items.firstIndex(where: { $0.title == "Export Diagnostic Report…" }))
+        let aboutIndex = try #require(menu.items.firstIndex(where: { $0.title == "About" }))
+        let export = menu.items[exportIndex]
+
+        #expect(exportIndex < aboutIndex)
+        #expect(export.action == #selector(MenuBarCoordinator.exportDiagnosticReport))
+        #expect(export.target === coordinator)
+        #expect(export.isEnabled)
+    }
+
+    @Test
+    func exportDiagnosticReportActionPresentsRedactedReport() throws {
+        let presenter = DiagnosticReportPresenterProbe()
+        let (coordinator, _) = try makeCoordinatorWithStatusItem(diagnosticReportPresenter: presenter)
+
+        coordinator.exportDiagnosticReport()
+
+        let report = try #require(presenter.reports.first)
+        #expect(report.schemaVersion == 1)
+        #expect(report.redactionManifest.aliasScope == "per-export")
+        #expect(report.events.contains(where: { $0.name == "menu_action" }))
     }
 
     @Test
@@ -1532,7 +1574,9 @@ struct MenuBarMenuBuilderTests {
         try makeCoordinatorWithStatusItem().0
     }
 
-    private func makeCoordinatorWithStatusItem() throws -> (MenuBarCoordinator, NSStatusItem) {
+    private func makeCoordinatorWithStatusItem(
+        diagnosticReportPresenter: DiagnosticReportPresenting? = nil
+    ) throws -> (MenuBarCoordinator, NSStatusItem) {
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
@@ -1551,7 +1595,8 @@ struct MenuBarMenuBuilderTests {
             store: store,
             settings: settings,
             alertPresenter: AlertPresenterProbe(),
-            panelPresenter: PanelPresenterProbe()
+            panelPresenter: PanelPresenterProbe(),
+            diagnosticReportPresenter: diagnosticReportPresenter ?? DiagnosticReportPresenterProbe()
         )
         return (coordinator, statusItem)
     }
