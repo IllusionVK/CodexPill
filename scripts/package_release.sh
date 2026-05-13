@@ -106,7 +106,7 @@ sign_notarize_and_verify() {
 
   info "Verifying code signature..."
   codesign --verify --deep --strict --verbose=2 "${SIGNED_APP}"
-  codesign --display --verbose=4 "${SIGNED_APP}" 2>&1 | grep -q "runtime" \
+  codesign --display --verbose=4 "${SIGNED_APP}" 2>&1 | grep -q "flags=.*runtime" \
     || fail "Signed app does not report hardened runtime."
 
   local notary_zip="${NOTARY_DIR}/${APP_NAME}-notary.zip"
