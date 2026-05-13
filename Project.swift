@@ -2,8 +2,10 @@ import ProjectDescription
 
 let project = Project(
     name: "CodexPill",
-    organizationName: "raphhgg",
-    packages: [],
+    organizationName: "raphaelgrau",
+    packages: [
+        .local(path: "../Seal"),
+    ],
     targets: [
         .target(
             name: "CodexPill",
@@ -31,10 +33,28 @@ let project = Project(
                 "Resources/AppIcon.icns",
                 "Resources/AppIcon.png",
             ],
-            dependencies: [],
+            dependencies: [
+                .package(product: "SealRecorder"),
+            ],
             settings: .settings(base: [
                 "CODE_SIGN_INJECT_BASE_ENTITLEMENTS": "NO",
                 "CURRENT_PROJECT_VERSION": "1",
+                "ENABLE_DEBUG_DYLIB": "NO",
+            ])
+        ),
+        .target(
+            name: "CodexPillProofEmitter",
+            destinations: .macOS,
+            product: .commandLineTool,
+            bundleId: "com.raphhgg.codexpill.proof-emitter",
+            deploymentTargets: .macOS("14.0"),
+            infoPlist: .default,
+            sources: ["Tools/InternalValidation/**"],
+            dependencies: [
+                .package(product: "SealRecorder"),
+            ],
+            settings: .settings(base: [
+                "CODE_SIGN_INJECT_BASE_ENTITLEMENTS": "NO",
                 "ENABLE_DEBUG_DYLIB": "NO",
             ])
         ),
