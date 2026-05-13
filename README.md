@@ -27,16 +27,6 @@
 - Use selected saved accounts on SSH hosts you configure.
 - Stay local-first: no cloud sync, no hidden browser automation, no account data upload.
 
-## Screenshots
-
-| Account Actions | Preferences |
-| --- | --- |
-| <img src="docs/assets/codexpill-account-actions.png" width="420" alt="CodexPill account actions submenu"> | <img src="docs/assets/codexpill-preferences.png" width="420" alt="CodexPill preferences submenu"> |
-
-| Add Account | Add Remote Host |
-| --- | --- |
-| <img src="docs/assets/codexpill-add-account.png" width="420" alt="CodexPill Add Account dialog"> | <img src="docs/assets/codexpill-add-host.png" width="420" alt="CodexPill Add Remote Host dialog"> |
-
 ## Install
 
 Signed beta downloads are not available yet. Build from source for now.
@@ -87,6 +77,16 @@ configure.
 
 CodexPill does not require browser cookies, hidden browser windows, Full Disk
 Access, Screen Recording or Accessibility permissions for normal use.
+
+## Screenshots
+
+| Account Actions | Preferences |
+| --- | --- |
+| <img src="docs/assets/codexpill-account-actions.png" width="420" alt="CodexPill account actions submenu"> | <img src="docs/assets/codexpill-preferences.png" width="420" alt="CodexPill preferences submenu"> |
+
+| Add Account | Add Remote Host |
+| --- | --- |
+| <img src="docs/assets/codexpill-add-account.png" width="420" alt="CodexPill Add Account dialog"> | <img src="docs/assets/codexpill-add-host.png" width="420" alt="CodexPill Add Remote Host dialog"> |
 
 ## Product Docs
 
