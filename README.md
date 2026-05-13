@@ -19,6 +19,11 @@
   <img src="docs/assets/codexpill-menu.png" width="360" alt="CodexPill menu showing active accounts, usage bars, saved accounts, and app controls">
 </p>
 
+<p align="center">
+  <img src="docs/assets/codexpill-account-actions.png" width="420" alt="CodexPill account actions submenu">
+  <img src="docs/assets/codexpill-preferences.png" width="340" alt="CodexPill preferences submenu">
+</p>
+
 ## What It Does
 
 - Keep Codex session and weekly limits visible from the menu bar.
@@ -26,6 +31,13 @@
 - Add accounts through an isolated sign-in flow that does not switch immediately.
 - Use selected saved accounts on SSH hosts you configure.
 - Stay local-first: no cloud sync, no hidden browser automation, no account data upload.
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/assets/codexpill-add-account.png" width="380" alt="CodexPill Add Account dialog">
+  <img src="docs/assets/codexpill-add-host.png" width="520" alt="CodexPill Add Remote Host dialog">
+</p>
 
 ## Install
 
