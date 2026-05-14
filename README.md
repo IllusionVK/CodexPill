@@ -21,10 +21,10 @@
 
 ## What It Does
 
-- Keep Codex session and weekly limits visible from the menu bar.
-- Switch between saved local accounts without digging through auth files.
-- Add accounts through an isolated sign-in flow that does not switch immediately.
-- Use selected saved accounts on SSH hosts you configure.
+- See your Codex limits at a glance.
+- Switch between saved Codex accounts.
+- Add accounts without disrupting your current session.
+- Use selected accounts on SSH hosts you configure.
 - Stay local-first: no cloud sync, no hidden browser automation, no account data upload.
 
 ## Install
@@ -64,19 +64,10 @@ That command requires local Developer ID signing and notarization setup before
 it creates a public release artifact. See [Development](docs/DEVELOPMENT.md)
 for maintainer packaging details.
 
-## First Run
+## Prerequisite
 
-Codex must already be installed. CodexPill reads the active local Codex auth
-state from `~/.codex/auth.json`, stores saved account snapshots locally under
-`~/Library/Application Support/CodexPill` and switches accounts by updating
-local Codex auth state.
-
-Saved snapshots contain authentication material and should be treated like
-credentials. CodexPill copies selected snapshots only to remote hosts that you
-configure.
-
-CodexPill does not require browser cookies, hidden browser windows, Full Disk
-Access, Screen Recording or Accessibility permissions for normal use.
+Codex must already be installed and signed in on your Mac, either through the
+Codex app, the Codex CLI or both.
 
 ## Screenshots
 
@@ -87,6 +78,18 @@ Access, Screen Recording or Accessibility permissions for normal use.
 | Account Actions | Preferences |
 | --- | --- |
 | <img src="docs/assets/codexpill-account-actions.png" width="420" alt="CodexPill account actions submenu"> | <img src="docs/assets/codexpill-preferences.png" width="420" alt="CodexPill preferences submenu"> |
+
+## Local-First
+
+CodexPill works with Codex state on your Mac and the SSH hosts you configure. It
+does not run a cloud service.
+
+Saved accounts stay on your Mac under
+`~/Library/Application Support/CodexPill`. They contain authentication material,
+so treat them like credentials.
+
+CodexPill does not use browser cookies, hidden browser windows, Full Disk
+Access, Screen Recording or Accessibility permissions for normal use.
 
 ## Product Docs
 
