@@ -98,6 +98,7 @@ Access, Screen Recording or Accessibility permissions for normal use.
 - [Product overview](docs/PRODUCT.md)
 - [Feature contracts](docs/features/README.md)
 - [Privacy and data handling](docs/PRIVACY.md)
+- [Beta testing guide](docs/BETA_TESTING.md)
 
 ## Project Policies
 
