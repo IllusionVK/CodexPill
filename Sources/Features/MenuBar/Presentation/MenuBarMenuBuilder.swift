@@ -336,9 +336,11 @@ struct MenuBarMenuBuilder {
 
         let submenu = configuredMenu(title: "Notifications")
 
-        if shouldShowEnableNotificationsItem(state) {
+        let isDenied = state.notificationAuthorizationState == .denied
+
+        if isDenied {
             let enableNotifications = NSMenuItem(
-                title: "Enable Notifications…",
+                title: "Enable in macOS Settings…",
                 action: #selector(MenuBarCoordinator.enableNotifications(_:)),
                 keyEquivalent: ""
             )
@@ -353,7 +355,8 @@ struct MenuBarMenuBuilder {
             keyEquivalent: ""
         )
         whenBlocked.target = target
-        whenBlocked.state = state.notificationsWhenBlockedEnabled ? .on : .off
+        whenBlocked.state = !isDenied && state.notificationsWhenBlockedEnabled ? .on : .off
+        whenBlocked.isEnabled = !isDenied
         submenu.addItem(whenBlocked)
 
         let whenOut = NSMenuItem(
@@ -362,26 +365,12 @@ struct MenuBarMenuBuilder {
             keyEquivalent: ""
         )
         whenOut.target = target
-        whenOut.state = state.notificationsWhenOutEnabled ? .on : .off
+        whenOut.state = !isDenied && state.notificationsWhenOutEnabled ? .on : .off
+        whenOut.isEnabled = !isDenied
         submenu.addItem(whenOut)
 
         item.submenu = submenu
         return item
-    }
-
-    private func shouldShowEnableNotificationsItem(_ state: MenuBarMenuState) -> Bool {
-        if !state.notificationsWhenBlockedEnabled && !state.notificationsWhenOutEnabled {
-            return true
-        }
-
-        switch state.notificationAuthorizationState {
-        case .notDetermined, .denied:
-            return true
-        case .authorized:
-            return false
-        case .unknown:
-            return false
-        }
     }
 
     private func configuredHostMenuItem(_ remoteHost: RemoteHostMenuState, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {

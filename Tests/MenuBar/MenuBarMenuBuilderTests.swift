@@ -430,7 +430,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func notificationsSubmenuShowsEnableNotificationsWhenAppNotificationsAreOff() throws {
+    func notificationsSubmenuDoesNotShowEnableNotificationsWhenAppNotificationsAreOff() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
@@ -442,13 +442,13 @@ struct MenuBarMenuBuilderTests {
         )
 
         let submenu = try notificationsSubmenu(in: menu)
-        let enable = try #require(submenu.items.first(where: { $0.title == "Enable Notifications…" }))
 
-        #expect(enable.action == #selector(MenuBarCoordinator.enableNotifications(_:)))
+        #expect(!submenu.items.contains(where: { $0.title == "Enable Notifications…" }))
+        #expect(!submenu.items.contains(where: { $0.title == "Enable in macOS Settings…" }))
     }
 
     @Test
-    func notificationsSubmenuShowsEnableNotificationsWhenAppNotificationsAreOffAndAuthorizationUnknown() throws {
+    func notificationsSubmenuDoesNotShowEnableNotificationsWhenAuthorizationIsUnknown() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
@@ -460,13 +460,13 @@ struct MenuBarMenuBuilderTests {
         )
 
         let submenu = try notificationsSubmenu(in: menu)
-        let enable = try #require(submenu.items.first(where: { $0.title == "Enable Notifications…" }))
 
-        #expect(enable.action == #selector(MenuBarCoordinator.enableNotifications(_:)))
+        #expect(!submenu.items.contains(where: { $0.title == "Enable Notifications…" }))
+        #expect(!submenu.items.contains(where: { $0.title == "Enable in macOS Settings…" }))
     }
 
     @Test
-    func notificationsSubmenuHidesEnableNotificationsWhenAppNotificationsAreOnAndAuthorized() throws {
+    func notificationsSubmenuHidesRecoveryWhenAppNotificationsAreOnAndAuthorized() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
@@ -481,10 +481,11 @@ struct MenuBarMenuBuilderTests {
         let submenu = try notificationsSubmenu(in: menu)
 
         #expect(!submenu.items.contains(where: { $0.title == "Enable Notifications…" }))
+        #expect(!submenu.items.contains(where: { $0.title == "Enable in macOS Settings…" }))
     }
 
     @Test
-    func notificationsSubmenuShowsEnableNotificationsWhenMacNotificationsAreDenied() throws {
+    func notificationsSubmenuShowsMacSettingsRecoveryWhenMacNotificationsAreDenied() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
@@ -497,9 +498,33 @@ struct MenuBarMenuBuilderTests {
         )
 
         let submenu = try notificationsSubmenu(in: menu)
-        let enable = try #require(submenu.items.first(where: { $0.title == "Enable Notifications…" }))
+        let enable = try #require(submenu.items.first(where: { $0.title == "Enable in macOS Settings…" }))
 
         #expect(enable.action == #selector(MenuBarCoordinator.enableNotifications(_:)))
+    }
+
+    @Test
+    func notificationsSubmenuDisablesEffectiveTogglesWhenMacNotificationsAreDenied() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                notificationsWhenBlockedEnabled: true,
+                notificationsWhenOutEnabled: true,
+                notificationAuthorizationState: .denied
+            ),
+            target: coordinator
+        )
+
+        let submenu = try notificationsSubmenu(in: menu)
+        let whenBlocked = try #require(submenu.items.first(where: { $0.title == "Account Available" }))
+        let whenOut = try #require(submenu.items.first(where: { $0.title == "Current Runs Out" }))
+
+        #expect(whenBlocked.state == .off)
+        #expect(!whenBlocked.isEnabled)
+        #expect(whenOut.state == .off)
+        #expect(!whenOut.isEnabled)
     }
 
     @Test

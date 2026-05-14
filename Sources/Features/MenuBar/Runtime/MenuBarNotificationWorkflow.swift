@@ -63,36 +63,21 @@ final class MenuBarNotificationWorkflow {
     }
 
     func handleNotificationToggle(enabled keyPath: ReferenceWritableKeyPath<AccountAvailabilityNotificationStore, Bool>) {
-        let hadAnyNotificationsEnabled = stateStore.whenBlockedEnabled || stateStore.whenOutEnabled
         stateStore[keyPath: keyPath].toggle()
-        if !hadAnyNotificationsEnabled, stateStore[keyPath: keyPath] {
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                await self.delivery.requestAuthorizationIfNeeded()
-                self.refreshAuthorizationState()
-            }
-        }
+        rebuildMenu()
     }
 
     func enableNotifications() {
-        if !stateStore.whenBlockedEnabled && !stateStore.whenOutEnabled {
-            stateStore.whenBlockedEnabled = true
-            stateStore.whenOutEnabled = true
-        }
         Task { @MainActor [weak self] in
             guard let self else { return }
-            var state = await self.delivery.authorizationState()
+            let state = await self.delivery.authorizationState()
             switch state {
             case .denied:
                 self.settingsLauncher.openNotificationSettings()
-            case .notDetermined, .unknown:
-                await self.delivery.requestAuthorizationIfNeeded()
-                state = await self.delivery.authorizationState()
-            case .authorized:
+            case .notDetermined, .unknown, .authorized:
                 break
             }
-            self.authorizationState = state
-            self.rebuildMenu()
+            self.updateAuthorizationState(state)
         }
     }
 
@@ -123,6 +108,8 @@ final class MenuBarNotificationWorkflow {
 
         Task { @MainActor [weak self] in
             guard let self else { return }
+            let isAuthorized = await self.ensureNotificationAuthorizationForDelivery()
+            guard isAuthorized else { return }
             let delivered = await self.delivery.deliver(payload)
             guard delivered else { return }
             self.stateStore.recordNotification(
@@ -132,6 +119,17 @@ final class MenuBarNotificationWorkflow {
                 notifiedAt: now
             )
         }
+    }
+
+    private func ensureNotificationAuthorizationForDelivery() async -> Bool {
+        var state = await delivery.authorizationState()
+        if state == .notDetermined {
+            await delivery.requestAuthorizationIfNeeded()
+            state = await delivery.authorizationState()
+        }
+
+        updateAuthorizationState(state)
+        return state == .authorized
     }
 
     func handleResponse(
@@ -182,10 +180,14 @@ final class MenuBarNotificationWorkflow {
         Task { @MainActor [weak self] in
             guard let self else { return }
             let state = await self.delivery.authorizationState()
-            guard self.authorizationState != state else { return }
-            self.authorizationState = state
-            self.rebuildMenu()
+            self.updateAuthorizationState(state)
         }
+    }
+
+    private func updateAuthorizationState(_ state: NotificationAuthorizationState) {
+        guard authorizationState != state else { return }
+        authorizationState = state
+        rebuildMenu()
     }
 
     private var settings: AccountAvailabilityNotificationSettings {

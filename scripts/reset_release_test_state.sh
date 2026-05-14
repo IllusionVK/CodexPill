@@ -2,6 +2,12 @@
 set -euo pipefail
 
 APP_NAME="CodexPill"
+BUNDLE_IDS=(
+  "com.raphhgg.codexpill"
+  "com.raphhgg.codexpill.dev"
+  "com.raphhgg.codexpill.demo"
+  "com.raphhgg.codexpill.staging"
+)
 REMOTE_HOST=""
 APPLY=0
 INSTALL=0
@@ -96,6 +102,51 @@ remove_glob() {
   fi
 }
 
+reset_notification_preferences() {
+  local notification_dir="${HOME}/Library/Application Support/NotificationCenter"
+  local usernoted_db="${HOME}/Library/Group Containers/group.com.apple.usernoted/db2/db"
+  local bundle_list="'${BUNDLE_IDS[0]}'"
+  local bundle_id
+  for bundle_id in "${BUNDLE_IDS[@]:1}"; do
+    bundle_list+=", '${bundle_id}'"
+  done
+
+  if ! command -v sqlite3 >/dev/null 2>&1; then
+    echo "sqlite3 not found; skipping macOS notification preference reset."
+    return
+  fi
+
+  local found=0
+  local db
+  local candidate_dbs=()
+  if [[ -d "${notification_dir}" ]]; then
+    candidate_dbs+=("${notification_dir}"/*.db)
+  fi
+  candidate_dbs+=("${usernoted_db}")
+
+  for db in "${candidate_dbs[@]}"; do
+    [[ -e "${db}" ]] || continue
+    found=1
+    run_allow_failure sqlite3 "${db}" "
+      DELETE FROM record
+      WHERE app_id IN (
+        SELECT app_id FROM app WHERE identifier IN (${bundle_list})
+      );
+      DELETE FROM app
+      WHERE identifier IN (${bundle_list});
+    "
+  done
+
+  if [[ "${found}" == "0" ]]; then
+    echo "No macOS notification databases found; skipping notification preference reset."
+    return
+  fi
+
+  echo "Restarting macOS notification agents so notification settings reload..."
+  run_allow_failure killall usernoted
+  run_allow_failure killall NotificationCenter
+}
+
 echo "Resetting ${APP_NAME} release-test state."
 if [[ "${APPLY}" != "1" ]]; then
   echo "Dry run only. Rerun with --apply to remove files."
@@ -129,6 +180,10 @@ remove_path "${HOME}/Library/Preferences/CodexPill.demo.plist"
 remove_path "${HOME}/Library/Preferences/CodexPillScreenshotDemo.plist"
 remove_glob "${HOME}/Library/Preferences/CodexPill.validation*.plist"
 remove_glob "${HOME}/Library/Preferences/CodexPillSettingsStoreTests-*.plist"
+
+echo
+echo "Removing CodexPill macOS notification preferences..."
+reset_notification_preferences
 
 echo
 echo "Removing isolated temporary Codex homes..."

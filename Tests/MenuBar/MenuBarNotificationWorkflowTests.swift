@@ -27,6 +27,57 @@ struct MenuBarNotificationWorkflowTests {
     }
 
     @Test
+    func toggleOnlyStoresNotificationIntentWithoutRequestingMacPermission() {
+        let harness = makeHarness()
+
+        harness.workflow.handleNotificationToggle(enabled: \.whenBlockedEnabled)
+
+        #expect(harness.workflow.whenBlockedEnabled)
+        #expect(harness.delivery.requestAuthorizationCount == 0)
+        #expect(harness.rebuildCount == 1)
+    }
+
+    @Test
+    func firstRealNotificationRequestsMacPermissionWhenUndetermined() async throws {
+        let now = Date()
+        let fallback = makeAccount(name: "Business 2", sessionUsed: 10, weeklyUsed: 20, now: now)
+        let harness = makeHarness()
+        harness.workflow.whenBlockedEnabled = true
+        harness.delivery.authorizationStateValue = .notDetermined
+        harness.delivery.authorizationStateAfterRequest = .authorized
+
+        harness.workflow.start(with: makeState(inactiveAccounts: [
+            makeAccount(name: "Blocked", sessionUsed: 100, weeklyUsed: 100, now: now)
+        ]))
+        harness.workflow.evaluate(using: makeState(inactiveAccounts: [fallback]), now: now)
+        await harness.delivery.waitForPayloadCount(1)
+
+        #expect(harness.delivery.requestAuthorizationCount == 1)
+        #expect(harness.delivery.payloads.count == 1)
+        #expect(harness.settings.notificationState.accountNotificationState(for: fallback.id)?.isArmed == false)
+    }
+
+    @Test
+    func deniedMacPermissionSuppressesDeliveryWithoutClearingSavedIntent() async throws {
+        let now = Date()
+        let fallback = makeAccount(name: "Business 2", sessionUsed: 10, weeklyUsed: 20, now: now)
+        let harness = makeHarness()
+        harness.workflow.whenBlockedEnabled = true
+        harness.delivery.authorizationStateValue = .denied
+
+        harness.workflow.start(with: makeState(inactiveAccounts: [
+            makeAccount(name: "Blocked", sessionUsed: 100, weeklyUsed: 100, now: now)
+        ]))
+        harness.workflow.evaluate(using: makeState(inactiveAccounts: [fallback]), now: now)
+        await harness.delivery.waitForAuthorizationChecks(2)
+
+        #expect(harness.workflow.whenBlockedEnabled)
+        #expect(harness.delivery.requestAuthorizationCount == 0)
+        #expect(harness.delivery.payloads.isEmpty)
+        #expect(harness.settings.notificationState.accountNotificationState(for: fallback.id) == nil)
+    }
+
+    @Test
     func staleLocalNotificationClickResolvesCurrentBestAccount() throws {
         let now = Date()
         let stale = makeAccount(name: "Business 1", sessionUsed: 95, weeklyUsed: 95, now: now)
@@ -179,14 +230,20 @@ private final class MenuBarNotificationWorkflowHarness {
 private final class AccountAvailabilityNotifierProbe: AccountAvailabilityNotifier {
     private(set) var payloads: [AccountAvailabilityNotificationPayload] = []
     var authorizationStateValue: NotificationAuthorizationState = .authorized
+    var authorizationStateAfterRequest: NotificationAuthorizationState?
     private(set) var requestAuthorizationCount = 0
+    private(set) var authorizationStateCount = 0
 
     func authorizationState() async -> NotificationAuthorizationState {
-        authorizationStateValue
+        authorizationStateCount += 1
+        return authorizationStateValue
     }
 
     func requestAuthorizationIfNeeded() async {
         requestAuthorizationCount += 1
+        if let authorizationStateAfterRequest {
+            authorizationStateValue = authorizationStateAfterRequest
+        }
     }
 
     func deliver(_ payload: AccountAvailabilityNotificationPayload) async -> Bool {
@@ -198,6 +255,15 @@ private final class AccountAvailabilityNotifierProbe: AccountAvailabilityNotifie
         for _ in 0..<50 {
             let hasPayloads = payloads.count >= count
             if hasPayloads {
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+    }
+
+    func waitForAuthorizationChecks(_ count: Int) async {
+        for _ in 0..<50 {
+            if authorizationStateCount >= count {
                 return
             }
             try? await Task.sleep(for: .milliseconds(20))

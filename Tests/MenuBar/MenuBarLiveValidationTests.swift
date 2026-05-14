@@ -581,7 +581,7 @@ struct MenuBarLiveValidationTests {
     }
 
     @Test
-    func enableNotificationsRequestsAuthorizationAndTurnsOnDefaultModesWhenUndetermined() async throws {
+    func enableNotificationsDoesNotRequestAuthorizationWhenUndetermined() async throws {
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
@@ -615,9 +615,9 @@ struct MenuBarLiveValidationTests {
         coordinator.enableNotifications(NSMenuItem())
         try await Task.sleep(for: .milliseconds(50))
 
-        #expect(settings.notificationsWhenBlockedEnabled)
-        #expect(settings.notificationsWhenOutEnabled)
-        #expect(center.requestAuthorizationCallCount == 1)
+        #expect(!settings.notificationsWhenBlockedEnabled)
+        #expect(!settings.notificationsWhenOutEnabled)
+        #expect(center.requestAuthorizationCallCount == 0)
         #expect(opener.openCallCount == 0)
     }
 
@@ -822,7 +822,7 @@ struct MenuBarLiveValidationTests {
     }
 
     @Test
-    func enablingFirstNotificationToggleRequestsPermission() async throws {
+    func enablingNotificationTogglesStoresIntentWithoutRequestingPermission() async throws {
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
@@ -856,7 +856,7 @@ struct MenuBarLiveValidationTests {
         coordinator.toggleNotificationsWhenOut(NSMenuItem())
         try await Task.sleep(for: .milliseconds(25))
 
-        #expect(center.requestAuthorizationCallCount == 1)
+        #expect(center.requestAuthorizationCallCount == 0)
         #expect(settings.notificationsWhenBlockedEnabled)
         #expect(settings.notificationsWhenOutEnabled)
     }

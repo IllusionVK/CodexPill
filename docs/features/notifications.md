@@ -15,7 +15,10 @@ Modes:
 
 Permission recovery:
 
-- `Enable Notifications…` appears when app notification workflows are off or macOS notification permission needs recovery.
+- CodexPill stores notification intent when the user toggles a mode on.
+- If macOS notification permission is not determined, CodexPill asks for permission only when it is about to send the first real notification.
+- If macOS notification permission is denied, the submenu shows `Enable in macOS Settings…`.
+- While macOS permission is denied, `Account Available` and `Current Runs Out` appear unchecked and disabled without deleting the user's saved CodexPill notification preferences.
 
 ## Delivery Copy
 
