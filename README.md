@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/Version-v0.1.0--beta.1-8B5CF6" alt="Version v0.1.0-beta.1">
   <img src="https://img.shields.io/badge/macOS-14%2B-blue" alt="macOS 14+">
   <img src="https://img.shields.io/badge/Built%20with-%20Codex-8B5CF6?logo=openai&logoColor=white" alt="Built with Codex">
-  <img src="https://img.shields.io/badge/Status-Beta-purple" alt="Beta">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT license">
 </p>
 
@@ -38,7 +38,7 @@ The release zip contains `CodexPill.app`; unzip it, move the app to
 Current beta:
 
 - [CodexPill v0.1.0-beta.1](https://github.com/raphhgg/CodexPill/releases/tag/v0.1.0-beta.1)
-- SHA-256: `6c88ccd91a4b9d9929246301eb940e647f1d8573e240b05559e47f7e8f401a41`
+- SHA-256: `5530ad07f9db000de6545c8103fdd6af35db8526ffc285de201980629b42c294`
 
 CodexPill does not currently provide a Homebrew cask, Sparkle updates, Mac App
 Store distribution or unsigned public beta builds.
