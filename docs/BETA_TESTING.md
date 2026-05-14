@@ -39,15 +39,16 @@ remove CodexPill-owned beta state if needed.
 Start with the local workflow before testing remote hosts.
 
 1. Download the signed beta from the GitHub Release.
-2. Unzip and launch `CodexPill.app`.
-3. Confirm the app opens without Gatekeeper bypass steps.
-4. Confirm the menu bar item appears.
-5. Check whether the active account and usage limits look believable.
-6. Add a second account.
-7. Confirm adding the account does not unexpectedly switch the active account.
-8. Switch between saved accounts.
-9. Confirm Codex uses the expected account after switching.
-10. Rename and remove a test account if you are comfortable doing so.
+2. Or install it with `brew install --cask raphhgg/tap/codexpill`.
+3. Unzip and launch `CodexPill.app` if you used the GitHub Release zip.
+4. Confirm the app opens without Gatekeeper bypass steps.
+5. Confirm the menu bar item appears.
+6. Check whether the active account and usage limits look believable.
+7. Add a second account.
+8. Confirm adding the account does not unexpectedly switch the active account.
+9. Switch between saved accounts.
+10. Confirm Codex uses the expected account after switching.
+11. Rename and remove a test account if you are comfortable doing so.
 
 Only test remote hosts after the local workflow is stable for you.
 

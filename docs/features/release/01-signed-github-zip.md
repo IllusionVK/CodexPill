@@ -8,17 +8,18 @@ without building from source or bypassing scary Gatekeeper warnings.
 
 ## Product Contract
 
-The first public beta distribution channel is a signed and notarized GitHub
-Release `.zip` containing `CodexPill.app`.
+The first public beta distribution channels are:
+
+- a signed and notarized GitHub Release `.zip` containing `CodexPill.app`;
+- a Homebrew cask that installs the same signed and notarized release artifact.
 
 The release artifact must be built from the public `main` branch, signed with a
 Developer ID Application certificate, use hardened runtime, pass Apple
 notarization, have the notarization ticket stapled, and be attached to a GitHub
 Release.
 
-Homebrew is intentionally deferred until a stable signed/notarized release
-artifact exists. The README must not document a Homebrew install path until the
-cask exists and has been exercised.
+Homebrew must consume the same signed/notarized artifact as the GitHub Release.
+It must not build from source or point at an unsigned app.
 
 ## Happy Path
 
@@ -34,7 +35,9 @@ cask exists and has been exercised.
    displays the public release version.
 8. Packaging creates a `.zip` containing `CodexPill.app`.
 9. Maintainer creates a GitHub Release and attaches the zip.
-10. A user downloads, unzips, and launches CodexPill without manual Gatekeeper
+10. Maintainer updates the Homebrew cask to point at the released artifact.
+11. A user installs via Homebrew or downloads, unzips, and launches CodexPill
+   without manual Gatekeeper
    bypass instructions.
 
 ## UI / Copy / States
@@ -42,7 +45,9 @@ cask exists and has been exercised.
 README install copy should be direct:
 
 ```md
-Download the latest signed beta from GitHub Releases.
+brew install --cask raphhgg/tap/codexpill
+
+Or download the latest signed beta from GitHub Releases.
 ```
 
 If signed/notarized artifacts are not available yet, README copy must say:
@@ -68,8 +73,8 @@ The README should include a short first-run note:
 - If the artifact is built from dirty local state, the release is invalid.
 - Signing credentials, API keys, Apple IDs, keychain exports, and notary
   credentials must never be committed.
-- If Homebrew is added later, it must consume the same signed/notarized artifact
-  rather than building from source or pointing at an unsigned app.
+- If the Homebrew cask points at a stale or unsigned artifact, do not announce
+  the release until the cask is corrected.
 
 ## Acceptance Criteria
 
@@ -82,8 +87,8 @@ The README should include a short first-run note:
 - The notarization ticket is stapled.
 - `spctl`/Gatekeeper assessment accepts the final app artifact.
 - The GitHub Release contains the zip artifact and release notes.
-- README install instructions match the real artifact and do not mention
-  Homebrew as available.
+- The Homebrew cask points at the same signed/notarized artifact.
+- README install instructions match the real install paths.
 - No signing credentials or notarization secrets are stored in the repo.
 
 ## Validation Targets
@@ -94,12 +99,12 @@ The README should include a short first-run note:
 - Stapling verification with `xcrun stapler validate`.
 - Gatekeeper verification with `spctl`.
 - Manual download-and-launch smoke test from the GitHub Release artifact.
+- Homebrew install smoke test for the published cask.
 - Repo safety grep for secrets, private paths, and personal fixture data before
   publishing.
 
 ## Out Of Scope / Deferrals
 
-- Homebrew cask.
 - Sparkle auto-updates.
 - Mac App Store distribution.
 - Unsigned beta artifacts.

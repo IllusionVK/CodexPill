@@ -72,11 +72,11 @@ zip artifact and include release notes that match the public install path.
 Release notes should include:
 
 - The artifact is a signed and notarized beta zip containing `CodexPill.app`.
+- Homebrew can install the same signed and notarized artifact.
 - Codex must already be installed and signed in on the Mac.
 - CodexPill stores saved account snapshots locally.
 - Remote-host support copies selected snapshots only to configured hosts.
-- Homebrew, Sparkle, and Mac App Store distribution are not available for this
-  beta.
+- Sparkle and Mac App Store distribution are not available for this beta.
 
 Release notes must not include signing credentials, Apple account details,
 private machine paths, local keychain profile names, auth snapshots, tokens, or
@@ -97,6 +97,7 @@ Record:
 | Downloaded app launched without Gatekeeper bypass | |
 | Menubar item appeared | |
 | README install instructions matched the published artifact | |
+| Homebrew cask installed the same release | |
 
 Do not mark the release complete until the freshly downloaded artifact launches.
 
@@ -123,7 +124,6 @@ match and record whether it is safe documentation or a blocker.
 Track any unfinished release work as explicit deferrals or follow-up issues.
 Known deferrals for the first beta path:
 
-- Homebrew cask.
 - Sparkle update feed.
 - CI release automation.
 - Mac App Store distribution.

@@ -29,19 +29,18 @@
 
 ## Install
 
-Download the latest signed beta zip from
-[GitHub Releases](https://github.com/raphhgg/CodexPill/releases).
+Install with Homebrew:
 
-The release zip contains `CodexPill.app`; unzip it, move the app to
-`Applications` and launch it.
+```bash
+brew install --cask raphhgg/tap/codexpill
+```
+
+Or download the latest signed beta zip from
+[GitHub Releases](https://github.com/raphhgg/CodexPill/releases).
 
 Current beta:
 
 - [CodexPill v0.1.0-beta.1](https://github.com/raphhgg/CodexPill/releases/tag/v0.1.0-beta.1)
-- SHA-256: `5530ad07f9db000de6545c8103fdd6af35db8526ffc285de201980629b42c294`
-
-CodexPill does not currently provide a Homebrew cask, Sparkle updates, Mac App
-Store distribution or unsigned public beta builds.
 
 ## Build From Source
 
