@@ -116,6 +116,7 @@ struct MenuBarMenuBuilder {
                 showsUpdatedTime: card.showsUpdatedTime,
                 progressAccentColor: Color(nsColor: state.progressAccentColor),
                 usageBarDisplayMode: state.usageBarDisplayMode,
+                usageBarLayout: state.usageBarLayout,
                 showsPacingMarkers: state.pacingMarkersEnabled,
                 tokenUsageCard: tokenUsageCard,
                 tokenUsagePrototypeCards: tokenUsagePrototypeCards,
@@ -569,6 +570,10 @@ struct MenuBarMenuBuilder {
             submenu.addItem(usageBarDisplayModeMenuItem(mode: mode, state: state, target: target))
         }
         submenu.addItem(.separator())
+        for layout in UsageBarLayout.allCases {
+            submenu.addItem(usageBarLayoutMenuItem(layout: layout, state: state, target: target))
+        }
+        submenu.addItem(.separator())
         submenu.addItem(pacingMarkersMenuItem(state: state, target: target))
         submenu.addItem(progressAccentColorItem(state: state, target: target))
         submenu.addItem(resetProgressAccentColorItem(state: state, target: target))
@@ -600,6 +605,22 @@ struct MenuBarMenuBuilder {
         item.target = target
         item.representedObject = mode.rawValue
         item.state = state.usageBarDisplayMode == mode ? .on : .off
+        return item
+    }
+
+    private func usageBarLayoutMenuItem(
+        layout: UsageBarLayout,
+        state: MenuBarMenuState,
+        target: MenuBarCoordinator
+    ) -> NSMenuItem {
+        let item = NSMenuItem(
+            title: layout.menuTitle,
+            action: #selector(MenuBarCoordinator.selectUsageBarLayout(_:)),
+            keyEquivalent: ""
+        )
+        item.target = target
+        item.representedObject = layout.rawValue
+        item.state = state.usageBarLayout == layout ? .on : .off
         return item
     }
 

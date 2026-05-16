@@ -88,6 +88,7 @@ struct MenuBarMenuState {
     let revealStatusItemTitleShortcut: KeyboardShortcut?
     let progressAccentColor: NSColor
     let usageBarDisplayMode: UsageBarDisplayMode
+    let usageBarLayout: UsageBarLayout
     let pacingMarkersEnabled: Bool
     let hasCustomProgressAccentColor: Bool
     let isBusy: Bool
@@ -118,6 +119,7 @@ struct MenuBarMenuState {
         revealStatusItemTitleShortcut: KeyboardShortcut? = .defaultRevealStatusItemTitle,
         progressAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
         usageBarDisplayMode: UsageBarDisplayMode = .used,
+        usageBarLayout: UsageBarLayout = .classic,
         pacingMarkersEnabled: Bool = true,
         hasCustomProgressAccentColor: Bool = false,
         isBusy: Bool,
@@ -147,6 +149,7 @@ struct MenuBarMenuState {
         self.revealStatusItemTitleShortcut = revealStatusItemTitleShortcut
         self.progressAccentColor = progressAccentColor
         self.usageBarDisplayMode = usageBarDisplayMode
+        self.usageBarLayout = usageBarLayout
         self.pacingMarkersEnabled = pacingMarkersEnabled
         self.hasCustomProgressAccentColor = hasCustomProgressAccentColor
         self.isBusy = isBusy

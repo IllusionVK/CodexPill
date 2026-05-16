@@ -6,6 +6,7 @@ struct ActiveAccountMenuContent: View {
     let showsUpdatedTime: Bool
     let progressAccentColor: Color
     let usageBarDisplayMode: UsageBarDisplayMode
+    let usageBarLayout: UsageBarLayout
     let showsPacingMarkers: Bool
     let tokenUsageCard: TokenUsageMenuCard?
     let tokenUsagePrototypeCards: [TokenUsagePrototypeCard]
@@ -36,7 +37,7 @@ struct ActiveAccountMenuContent: View {
     }
 
     private func content(now: Date) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
                 Text(account.name)
                     .font(.system(size: 15, weight: .semibold))
@@ -54,6 +55,7 @@ struct ActiveAccountMenuContent: View {
                 window: account.rateLimits?.sessionWindow,
                 tintColor: progressAccentColor,
                 usageBarDisplayMode: usageBarDisplayMode,
+                usageBarLayout: usageBarLayout,
                 showsPacingMarkers: showsPacingMarkers,
                 now: now
             )
@@ -62,6 +64,7 @@ struct ActiveAccountMenuContent: View {
                 window: account.rateLimits?.weeklyWindow,
                 tintColor: progressAccentColor,
                 usageBarDisplayMode: usageBarDisplayMode,
+                usageBarLayout: usageBarLayout,
                 showsPacingMarkers: showsPacingMarkers,
                 now: now
             )
@@ -173,6 +176,7 @@ struct ActiveLimitRow: View {
     let window: CodexRateLimitWindow?
     let tintColor: Color
     let usageBarDisplayMode: UsageBarDisplayMode
+    let usageBarLayout: UsageBarLayout
     let showsPacingMarkers: Bool
     let now: Date
 
@@ -187,7 +191,32 @@ struct ActiveLimitRow: View {
             showsPacingMarkers: showsPacingMarkers,
             now: now
         ).map { usageBarPercent(forUsedPercent: $0, mode: usageBarDisplayMode) }
+        let resetText = window.flatMap { resetStatusText(for: $0, now: now) }
 
+        switch usageBarLayout {
+        case .classic:
+            classicContent(
+                displayedPercent: displayedPercent,
+                usageText: usageText,
+                resetText: resetText,
+                expectedPercent: expectedPercent
+            )
+        case .compact:
+            compactContent(
+                displayedPercent: displayedPercent,
+                usageText: usageText,
+                resetText: resetText,
+                expectedPercent: expectedPercent
+            )
+        }
+    }
+
+    private func classicContent(
+        displayedPercent: Int,
+        usageText: String,
+        resetText: String?,
+        expectedPercent: Int?
+    ) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
@@ -203,8 +232,8 @@ struct ActiveLimitRow: View {
                     .monospacedDigit()
                     .foregroundStyle(.primary)
                 Spacer()
-                if let window, let resetStatus = resetStatusText(for: window, now: now) {
-                    Text(resetStatus)
+                if let resetText {
+                    Text(resetText)
                         .foregroundStyle(.secondary)
                 } else if window == nil {
                     Text("Unavailable")
@@ -212,6 +241,49 @@ struct ActiveLimitRow: View {
                 }
             }
             .font(.caption)
+        }
+    }
+
+    private func compactContent(
+        displayedPercent: Int,
+        usageText: String,
+        resetText: String?,
+        expectedPercent: Int?
+    ) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+                .frame(width: 48, alignment: .leading)
+
+            ActiveLimitProgressBar(
+                percent: displayedPercent,
+                expectedPercent: expectedPercent,
+                tintColor: tintColor
+            )
+            .frame(height: 5)
+            .frame(minWidth: 72, maxWidth: .infinity)
+
+            Text(usageText)
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+
+            if let resetText {
+                Text(resetText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            } else if window == nil {
+                Text("Unavailable")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
         }
     }
 }
