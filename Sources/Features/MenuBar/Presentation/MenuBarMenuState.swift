@@ -89,6 +89,7 @@ struct MenuBarMenuState {
     let progressAccentColor: NSColor
     let usageBarDisplayMode: UsageBarDisplayMode
     let usageBarLayout: UsageBarLayout
+    let otherAccountsDisplayMode: OtherAccountsDisplayMode
     let pacingMarkersEnabled: Bool
     let hasCustomProgressAccentColor: Bool
     let isBusy: Bool
@@ -120,6 +121,7 @@ struct MenuBarMenuState {
         progressAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
         usageBarDisplayMode: UsageBarDisplayMode = .used,
         usageBarLayout: UsageBarLayout = .classic,
+        otherAccountsDisplayMode: OtherAccountsDisplayMode = .text,
         pacingMarkersEnabled: Bool = true,
         hasCustomProgressAccentColor: Bool = false,
         isBusy: Bool,
@@ -150,6 +152,7 @@ struct MenuBarMenuState {
         self.progressAccentColor = progressAccentColor
         self.usageBarDisplayMode = usageBarDisplayMode
         self.usageBarLayout = usageBarLayout
+        self.otherAccountsDisplayMode = otherAccountsDisplayMode
         self.pacingMarkersEnabled = pacingMarkersEnabled
         self.hasCustomProgressAccentColor = hasCustomProgressAccentColor
         self.isBusy = isBusy
