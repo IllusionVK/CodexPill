@@ -47,6 +47,12 @@ final class StatusItemSettingsStore {
         }
     }
 
+    var otherAccountsDisplayMode: OtherAccountsDisplayMode {
+        didSet {
+            userDefaults.set(otherAccountsDisplayMode.rawValue, forKey: Self.otherAccountsDisplayModeKey)
+        }
+    }
+
     var pacingMarkersEnabled: Bool {
         didSet {
             userDefaults.set(pacingMarkersEnabled, forKey: Self.pacingMarkersEnabledKey)
@@ -67,6 +73,7 @@ final class StatusItemSettingsStore {
     private static let progressAccentColorKey = "progressAccentColor"
     private static let usageBarDisplayModeKey = "usageBarDisplayMode"
     private static let usageBarLayoutKey = "usageBarLayout"
+    private static let otherAccountsDisplayModeKey = "otherAccountsDisplayMode"
     private static let pacingMarkersEnabledKey = "pacingMarkersEnabled"
     private static let revealStatusItemTitleShortcutKey = "revealStatusItemTitleShortcut"
     private static let revealStatusItemTitleShortcutEnabledKey = "revealStatusItemTitleShortcutEnabled"
@@ -91,6 +98,8 @@ final class StatusItemSettingsStore {
             .flatMap(UsageBarDisplayMode.init(rawValue:)) ?? .used
         usageBarLayout = userDefaults.string(forKey: Self.usageBarLayoutKey)
             .flatMap(UsageBarLayout.init(rawValue:)) ?? .classic
+        otherAccountsDisplayMode = userDefaults.string(forKey: Self.otherAccountsDisplayModeKey)
+            .flatMap(OtherAccountsDisplayMode.init(rawValue:)) ?? .text
         pacingMarkersEnabled = userDefaults.object(forKey: Self.pacingMarkersEnabledKey) as? Bool ?? true
         revealStatusItemTitleShortcut = Self.loadRevealShortcut(from: userDefaults)
     }

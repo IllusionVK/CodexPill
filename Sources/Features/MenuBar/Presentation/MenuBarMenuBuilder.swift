@@ -138,6 +138,10 @@ struct MenuBarMenuBuilder {
     }
 
     private func contentWidth(for state: MenuBarMenuState) -> CGFloat {
+        guard state.otherAccountsDisplayMode == .text else {
+            return minimumMenuContentWidth
+        }
+
         let widestNativeAccountRow = (state.visibleDisplayAccountEntries + state.overflowDisplayAccountEntries)
             .map {
                 inactiveAccountTitleWidth(
@@ -162,13 +166,26 @@ struct MenuBarMenuBuilder {
     private func inactiveAccountItem(for entry: MenuBarAccountCatalogEntry, state: MenuBarMenuState, target: MenuBarCoordinator, width: CGFloat) -> NSMenuItem {
         let item = NSMenuItem(title: entry.account.name, action: nil, keyEquivalent: "")
         item.representedObject = entry.account.id.uuidString
-        item.attributedTitle = inactiveAccountTitle(
-            for: entry.displayAccount,
-            displayName: compactMenuRowDisplayName(for: entry.account.name),
-            placement: nil,
-            menuContentWidth: width,
-            usageBarDisplayMode: state.usageBarDisplayMode
-        )
+        switch state.otherAccountsDisplayMode {
+        case .text:
+            item.attributedTitle = inactiveAccountTitle(
+                for: entry.displayAccount,
+                displayName: compactMenuRowDisplayName(for: entry.account.name),
+                placement: nil,
+                menuContentWidth: width,
+                usageBarDisplayMode: state.usageBarDisplayMode
+            )
+        case .bars:
+            let view = NSHostingView(
+                rootView: InactiveAccountBarsMenuContent(
+                    account: entry.displayAccount,
+                    displayName: compactMenuRowDisplayName(for: entry.account.name),
+                    tintColor: Color(nsColor: state.progressAccentColor),
+                    usageBarDisplayMode: state.usageBarDisplayMode
+                )
+            )
+            item.view = configuredHostedMenuView(view, width: width)
+        }
         item.submenu = inactiveAccountTargetMenu(for: entry, state: state, target: target)
         return item
     }
@@ -512,6 +529,7 @@ struct MenuBarMenuBuilder {
         submenu.addItem(statusBarDisplayMenuItem(state: state, target: target))
         submenu.addItem(statusBarStyleMenuItem(state: state, target: target))
         submenu.addItem(usageBarsPreferencesMenuItem(state: state, target: target))
+        submenu.addItem(otherAccountsDisplayMenuItem(state: state, target: target))
         submenu.addItem(.separator())
         submenu.addItem(launchAtLoginMenuItem(state: state, target: target))
 
@@ -628,6 +646,24 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: "Use Default", action: #selector(MenuBarCoordinator.resetProgressAccentColor(_:)), keyEquivalent: "")
         item.target = target
         item.isEnabled = state.hasCustomProgressAccentColor
+        return item
+    }
+
+    private func otherAccountsDisplayMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Other Accounts Display", action: nil, keyEquivalent: "")
+        let submenu = configuredMenu(title: "Other Accounts Display")
+        for mode in OtherAccountsDisplayMode.allCases {
+            let option = NSMenuItem(
+                title: mode.menuTitle,
+                action: #selector(MenuBarCoordinator.selectOtherAccountsDisplayMode(_:)),
+                keyEquivalent: ""
+            )
+            option.target = target
+            option.representedObject = mode.rawValue
+            option.state = state.otherAccountsDisplayMode == mode ? .on : .off
+            submenu.addItem(option)
+        }
+        item.submenu = submenu
         return item
     }
 

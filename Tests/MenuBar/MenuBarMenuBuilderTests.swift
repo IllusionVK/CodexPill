@@ -684,6 +684,35 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func visibleAccountsCanDisplayUsageBarsWhileKeepingSubmenus() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let business3 = makeAccount(name: "Business 3", withRateLimits: true)
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                inactiveAccounts: [business3],
+                otherAccountsDisplayMode: .bars
+            ),
+            target: coordinator
+        )
+
+        let visibleRow = try #require(
+            menu.items.first(where: { $0.submenu?.title == business3.name })
+        )
+        let hostedView = try #require(visibleRow.view as? NSHostingView<InactiveAccountBarsMenuContent>)
+        let localAction = try #require(
+            visibleRow.submenu?.items.first(where: { $0.title == "Switch on This Mac" })
+        )
+
+        #expect(hostedView.rootView.displayName == business3.name)
+        #expect(hostedView.rootView.account.id == business3.id)
+        #expect(visibleRow.representedObject as? String == business3.id.uuidString)
+        #expect(localAction.action == #selector(MenuBarCoordinator.switchAccount(_:)))
+        #expect(localAction.target === coordinator)
+    }
+
+    @Test
     func moreAccountsRowUsesTextOnlyDisclosureLabel() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
@@ -1543,8 +1572,15 @@ struct MenuBarMenuBuilderTests {
         let classic = try #require(usageBarsMenu.items.first(where: { $0.title == "Classic" }))
         let compact = try #require(usageBarsMenu.items.first(where: { $0.title == "Compact" }))
 
-        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "", "Launch at Login"])
-        #expect(preferencesMenu.items[3].isSeparatorItem)
+        #expect(preferencesMenu.items.map(\.title) == [
+            "Menu Bar Label",
+            "Icon Style",
+            "Usage Bars",
+            "Other Accounts Display",
+            "",
+            "Launch at Login"
+        ])
+        #expect(preferencesMenu.items[4].isSeparatorItem)
         #expect(usageBarTitles == [
             "Show % Used",
             "Show % Left",
@@ -1571,6 +1607,17 @@ struct MenuBarMenuBuilderTests {
         #expect(compact.state == .off)
         #expect(showMarkers.action == #selector(MenuBarCoordinator.togglePacingMarkers(_:)))
         #expect(showMarkers.state == .on)
+
+        let otherAccountsDisplay = try #require(
+            preferencesMenu.items.first(where: { $0.title == "Other Accounts Display" })?.submenu
+        )
+        let showAsText = try #require(otherAccountsDisplay.items.first(where: { $0.title == "Show as Text" }))
+        let showAsBars = try #require(otherAccountsDisplay.items.first(where: { $0.title == "Show as Bars" }))
+        #expect(otherAccountsDisplay.items.map(\.title) == ["Show as Text", "Show as Bars"])
+        #expect(showAsText.action == #selector(MenuBarCoordinator.selectOtherAccountsDisplayMode(_:)))
+        #expect(showAsText.state == .on)
+        #expect(showAsBars.action == #selector(MenuBarCoordinator.selectOtherAccountsDisplayMode(_:)))
+        #expect(showAsBars.state == .off)
     }
 
     @Test
@@ -1911,7 +1958,8 @@ struct MenuBarMenuBuilderTests {
         notificationAuthorizationState: NotificationAuthorizationState = .unknown,
         loginItemState: LoginItemState = .disabled,
         showsPacingPrototypeMenu: Bool = false,
-        revealStatusItemTitleShortcut: CodexPill.KeyboardShortcut? = .defaultRevealStatusItemTitle
+        revealStatusItemTitleShortcut: CodexPill.KeyboardShortcut? = .defaultRevealStatusItemTitle,
+        otherAccountsDisplayMode: OtherAccountsDisplayMode = .text
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
@@ -1926,6 +1974,7 @@ struct MenuBarMenuBuilderTests {
             statusBarDisplayMode: .textOnHover,
             revealStatusItemTitleShortcut: revealStatusItemTitleShortcut,
             progressAccentColor: progressAccentColor,
+            otherAccountsDisplayMode: otherAccountsDisplayMode,
             hasCustomProgressAccentColor: hasCustomProgressAccentColor,
             isBusy: false,
             statusMessage: "Ready",

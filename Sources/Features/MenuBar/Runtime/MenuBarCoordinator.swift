@@ -375,6 +375,18 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
+    func selectOtherAccountsDisplayMode(_ sender: NSMenuItem) {
+        recordMenuAction("selectOtherAccountsDisplayMode")
+        guard
+            let rawValue = sender.representedObject as? String,
+            let mode = OtherAccountsDisplayMode(rawValue: rawValue)
+        else {
+            return
+        }
+        statusItemSettings.otherAccountsDisplayMode = mode
+    }
+
+    @objc
     func togglePacingMarkers(_ sender: NSMenuItem) {
         recordMenuAction("togglePacingMarkers")
         statusItemSettings.pacingMarkersEnabled.toggle()
@@ -624,6 +636,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             progressAccentColor: statusItemSettings.progressAccentColor.resolvedStatusItemAccentColor,
             usageBarDisplayMode: statusItemSettings.usageBarDisplayMode,
             usageBarLayout: statusItemSettings.usageBarLayout,
+            otherAccountsDisplayMode: statusItemSettings.otherAccountsDisplayMode,
             pacingMarkersEnabled: statusItemSettings.pacingMarkersEnabled,
             hasCustomProgressAccentColor: settings.hasCustomProgressAccentColor,
             isBusy: store.isBusy,
@@ -946,6 +959,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = statusItemSettings.progressAccentColor
             _ = statusItemSettings.usageBarDisplayMode
             _ = statusItemSettings.usageBarLayout
+            _ = statusItemSettings.otherAccountsDisplayMode
             _ = statusItemSettings.pacingMarkersEnabled
             _ = settings.remoteHostStates
             _ = settings.notificationsWhenBlockedEnabled

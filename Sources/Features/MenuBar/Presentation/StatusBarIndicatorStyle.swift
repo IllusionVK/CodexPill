@@ -69,3 +69,19 @@ enum UsageBarLayout: String, CaseIterable, Identifiable {
         }
     }
 }
+
+enum OtherAccountsDisplayMode: String, CaseIterable, Identifiable {
+    case text
+    case bars
+
+    var id: String { rawValue }
+
+    var menuTitle: String {
+        switch self {
+        case .text:
+            "Show as Text"
+        case .bars:
+            "Show as Bars"
+        }
+    }
+}

@@ -121,6 +121,100 @@ struct InactiveAccountMenuContent: View {
     }
 }
 
+struct InactiveAccountBarsMenuContent: View {
+    let account: CodexAccount
+    let displayName: String
+    let tintColor: Color
+    let usageBarDisplayMode: UsageBarDisplayMode
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { timeline in
+            VStack(alignment: .leading, spacing: 5) {
+                Text(displayName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    InactiveLimitBarRow(
+                        title: "Session",
+                        window: account.rateLimits?.sessionWindow,
+                        tintColor: tintColor,
+                        usageBarDisplayMode: usageBarDisplayMode,
+                        now: timeline.date
+                    )
+                    InactiveLimitBarRow(
+                        title: "Weekly",
+                        window: account.rateLimits?.weeklyWindow,
+                        tintColor: tintColor,
+                        usageBarDisplayMode: usageBarDisplayMode,
+                        now: timeline.date
+                    )
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+private struct InactiveLimitBarRow: View {
+    let title: String
+    let window: CodexRateLimitWindow?
+    let tintColor: Color
+    let usageBarDisplayMode: UsageBarDisplayMode
+    let now: Date
+
+    var body: some View {
+        let displayedPercent = usageBarPercent(
+            forUsedPercent: window?.displayedUsedPercent(at: now) ?? 0,
+            mode: usageBarDisplayMode
+        )
+        let percentText = usageBarPercentText(
+            for: window,
+            mode: usageBarDisplayMode,
+            now: now
+        )
+        let resetText = window.flatMap { resetStatusText(for: $0, now: now) }
+
+        HStack(alignment: .center, spacing: 7) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 44, alignment: .leading)
+
+            ActiveLimitProgressBar(
+                percent: displayedPercent,
+                expectedPercent: nil,
+                tintColor: tintColor
+            )
+            .frame(height: 5)
+
+            Text(percentText)
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+
+            if let resetText {
+                Text(resetText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            } else if window == nil {
+                Text("Unavailable")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+        }
+    }
+}
+
 struct ActiveAccountCardDivider: View {
     var body: some View {
         VStack(spacing: 0) {

@@ -52,6 +52,7 @@ struct StatusItemSettingsStoreTests {
         #expect(store.statusBarDisplayMode == .textOnHover)
         #expect(store.usageBarDisplayMode == .used)
         #expect(store.usageBarLayout == .classic)
+        #expect(store.otherAccountsDisplayMode == .text)
         #expect(store.pacingMarkersEnabled)
         #expect(store.revealStatusItemTitleShortcut == .defaultRevealStatusItemTitle)
         #expect(store.progressAccentColor == nil)
@@ -79,6 +80,7 @@ struct StatusItemSettingsStoreTests {
         first.progressAccentColor = accent
         first.usageBarDisplayMode = .left
         first.usageBarLayout = .compact
+        first.otherAccountsDisplayMode = .bars
         first.pacingMarkersEnabled = false
 
         let second = StatusItemSettingsStore(userDefaults: defaults)
@@ -86,6 +88,7 @@ struct StatusItemSettingsStoreTests {
         #expect(second.hasCustomProgressAccentColor)
         #expect(second.usageBarDisplayMode == .left)
         #expect(second.usageBarLayout == .compact)
+        #expect(second.otherAccountsDisplayMode == .bars)
         #expect(!second.pacingMarkersEnabled)
 
         second.resetProgressAccentColor()

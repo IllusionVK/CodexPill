@@ -14,6 +14,7 @@ struct CodexPillSettingsStoreTests {
         #expect(settings.statusBarMonochrome)
         #expect(settings.usageBarDisplayMode == .used)
         #expect(settings.usageBarLayout == .classic)
+        #expect(settings.otherAccountsDisplayMode == .text)
         #expect(settings.pacingMarkersEnabled)
     }
 
@@ -48,6 +49,17 @@ struct CodexPillSettingsStoreTests {
         let second = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(second.usageBarLayout == .compact)
+    }
+
+    @Test
+    func otherAccountsDisplayModePersistsAcrossInstances() {
+        let defaults = makeDefaults()
+        let first = CodexPillSettingsStore(userDefaults: defaults)
+        first.otherAccountsDisplayMode = .bars
+
+        let second = CodexPillSettingsStore(userDefaults: defaults)
+
+        #expect(second.otherAccountsDisplayMode == .bars)
     }
 
     @Test
