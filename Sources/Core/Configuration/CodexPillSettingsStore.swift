@@ -50,6 +50,11 @@ final class CodexPillSettingsStore {
         set { statusItemSettings.progressAccentColor = newValue }
     }
 
+    var usageBarDisplayMode: UsageBarDisplayMode {
+        get { statusItemSettings.usageBarDisplayMode }
+        set { statusItemSettings.usageBarDisplayMode = newValue }
+    }
+
     var pacingMarkersEnabled: Bool {
         get { statusItemSettings.pacingMarkersEnabled }
         set { statusItemSettings.pacingMarkersEnabled = newValue }
