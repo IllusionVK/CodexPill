@@ -34,7 +34,7 @@ let project = Project(
             dependencies: [],
             settings: .settings(base: [
                 "CODE_SIGN_INJECT_BASE_ENTITLEMENTS": "NO",
-                "CURRENT_PROJECT_VERSION": "1",
+                "CURRENT_PROJECT_VERSION": "2",
                 "ENABLE_DEBUG_DYLIB": "NO",
                 "SWIFT_VERSION": "6.0",
             ])

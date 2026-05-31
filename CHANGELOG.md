@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.1.0-beta.2 - 2026-05-31
+
+Second public beta of CodexPill.
+
+### Added
+
+- Optional Token Usage card in the menubar, including chart style and loading
+  animation preferences.
+- Local Codex session token history aggregation for recent usage windows.
+- Token Usage incremental cache to avoid repeatedly rescanning unchanged
+  session files.
+- GitHub Actions CI for pull requests and `main`.
+
+### Changed
+
+- Migrated the app and tests to Swift 6 language mode.
+- Reduced status item background polling.
+- Improved README install copy and release documentation.
+
+### Fixed
+
+- Token Usage refreshes now reuse cached all-time peak and unchanged file
+  contributions instead of repeatedly scanning the full transcript history.
+- Token Usage keeps the previous chart visible while a refresh is in progress.
+- Token Usage menu progress updates no longer rebuild the menu while it is open
+  or closed until the next safe refresh point.
+- Remote host and menu validation tests were stabilized.
+- Legacy remote host settings are cleared safely.
+- Weekly limit windows tolerate near-weekly reset timings.
+- Native menu quit alignment was corrected.
+
 ## v0.1.0-beta.1 - 2026-05-13
 
 First public beta of CodexPill.
