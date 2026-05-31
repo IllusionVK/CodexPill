@@ -5,7 +5,7 @@
 <h1 align="center">CodexPill</h1>
 
 <p align="center">
-  <i>A native macOS menubar companion for Codex accounts, limits and remote hosts.</i>
+  <i>A native macOS menubar companion for Codex accounts, limits, token usage and remote hosts.</i>
 </p>
 
 <p align="center">
@@ -22,10 +22,20 @@
 ## What It Does
 
 - See your Codex limits at a glance.
+- Track local Codex token usage history from the menu bar.
 - Switch between saved Codex accounts.
 - Add accounts without disrupting your current session.
 - Use selected accounts on SSH hosts you configure.
 - Stay local-first: no cloud sync, no hidden browser automation, no account data upload.
+
+## New In Beta 2
+
+- Optional Token Usage card for this Mac, with daily bars, heat strip and
+  sparkline chart styles.
+- Local session history scanning with an incremental cache, so refreshes reuse
+  unchanged session files instead of rescanning everything.
+- Swift 6 language mode for the app and tests.
+- CI coverage for pull requests and `main`.
 
 ## Install
 
@@ -68,6 +78,10 @@ for maintainer packaging details.
 
 Codex must already be installed and signed in on your Mac, either through the
 Codex app, the Codex CLI or both.
+
+Token Usage is optional and local to this Mac. It reads local Codex session
+history, stores derived aggregate buckets, and does not upload prompt content,
+session rows or auth data.
 
 ## Screenshots
 
