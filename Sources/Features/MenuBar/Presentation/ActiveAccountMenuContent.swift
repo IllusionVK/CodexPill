@@ -17,7 +17,10 @@ struct ActiveAccountMenuContent: View {
         account: CodexAccount,
         locations: [String],
         showsUpdatedTime: Bool,
-        progressAccentColor: Color,
+        sessionProgressAccentColor: Color,
+        weeklyProgressAccentColor: Color,
+        usageBarDisplayMode: UsageBarDisplayMode,
+        usageBarLayout: UsageBarLayout,
         showsPacingMarkers: Bool,
         tokenUsageCard: TokenUsageMenuCard? = nil,
         tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = [],
@@ -26,7 +29,10 @@ struct ActiveAccountMenuContent: View {
         self.account = account
         self.locations = locations
         self.showsUpdatedTime = showsUpdatedTime
-        self.progressAccentColor = progressAccentColor
+        self.sessionProgressAccentColor = sessionProgressAccentColor
+        self.weeklyProgressAccentColor = weeklyProgressAccentColor
+        self.usageBarDisplayMode = usageBarDisplayMode
+        self.usageBarLayout = usageBarLayout
         self.showsPacingMarkers = showsPacingMarkers
         self.tokenUsageCard = tokenUsageCard
         self.tokenUsagePrototypeCards = tokenUsagePrototypeCards
